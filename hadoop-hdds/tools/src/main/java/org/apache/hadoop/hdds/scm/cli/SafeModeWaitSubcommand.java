@@ -17,9 +17,15 @@
  */
 package org.apache.hadoop.hdds.scm.cli;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeoutException;
+import java.util.Comparator;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.hdds.cli.HddsVersionProvider;
 import org.apache.hadoop.hdds.scm.client.ScmClient;
 
@@ -64,13 +70,14 @@ public class SafeModeWaitSubcommand implements Callable<Void> {
           remainingTime = getRemainingTimeInSec();
 
           if (remainingTime > 0) {
-            System.out.printf(
-                "SCM is in safe mode. Will retry in 1 sec. Remaining time "
-                    + "(sec): %s%n",
-                remainingTime);
+            System.out.printf("SCM is in safe mode. Will retry in 1 sec. Remaining time (sec): %s%n", remainingTime);
+            if (remainingTime < 60) {
+              logSafeModeStatus(scmClient, true);
+            }
             Thread.sleep(1000);
           } else {
             System.out.println("SCM is in safe mode. No more retries.");
+            logSafeModeStatus(scmClient, true);
           }
         } while (remainingTime > 0);
       } catch (InterruptedException ex) {
@@ -88,5 +95,22 @@ public class SafeModeWaitSubcommand implements Callable<Void> {
 
   private long getRemainingTimeInSec() {
     return timeoutSeconds - (System.currentTimeMillis() - startTestTime) / 1000;
+  }
+
+  private void logSafeModeStatus(ScmClient scmClient, boolean doLogSuccessfulChecks) {
+    try {
+      List<Map.Entry<String, Pair<Boolean, String>>> safeModeStatusEntries =
+          new ArrayList<>(scmClient.getSafeModeRuleStatuses().entrySet());
+      safeModeStatusEntries.sort(Comparator.comparing(e -> e.getValue().getLeft()));
+
+      for (Map.Entry<String, Pair<Boolean, String>> entry : safeModeStatusEntries) {
+        if (!entry.getValue().getLeft() || doLogSuccessfulChecks) {
+          System.out.printf("%10s : %-30s : %s%n",
+              entry.getValue().getLeft(), entry.getKey(), entry.getValue().getRight());
+        }
+      }
+    } catch (IOException e) {
+      System.out.println("Error while getting safe mode status");
+    }
   }
 }
