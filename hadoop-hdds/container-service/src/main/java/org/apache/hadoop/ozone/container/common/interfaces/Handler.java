@@ -223,4 +223,7 @@ public abstract class Handler {
     this.clusterId = clusterID;
   }
 
+  public ContainerSet getContainerSet() {
+    return containerSet;
+  }
 }

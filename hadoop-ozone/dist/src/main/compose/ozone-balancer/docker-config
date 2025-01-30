@@ -58,3 +58,20 @@ OZONE_CONF_DIR=/etc/hadoop
 OZONE_LOG_DIR=/var/log/hadoop
 
 no_proxy=om1,om2,om3,scm,s3g,recon,kdc,localhost,127.0.0.1
+
+LOG4J.PROPERTIES_log4j.rootLogger=DEBUG, stdout
+LOG4J.PROPERTIES_log4j.appender.stdout=org.apache.log4j.ConsoleAppender
+LOG4J.PROPERTIES_log4j.appender.stdout.layout=org.apache.log4j.PatternLayout
+LOG4J.PROPERTIES_log4j.appender.stdout.layout.ConversionPattern=%d{yyyy-MM-dd HH:mm:ss} %-5p %c{1}.%M:%L - %m%n
+LOG4J.PROPERTIES_log4j.logger.org.apache.hadoop.util.NativeCodeLoader=ERROR
+LOG4J.PROPERTIES_log4j.logger.org.apache.ratis.conf.ConfUtils=WARN
+LOG4J.PROPERTIES_log4j.logger.org.apache.hadoop.security.ShellBasedUnixGroupsMapping=ERROR
+LOG4J.PROPERTIES_log4j.logger.org.apache.ratis.grpc.client.GrpcClientProtocolClient=WARN
+LOG4J.PROPERTIES_log4j.logger.io.grpc.netty=WARN
+LOG4J.PROPERTIES_log4j.logger.org.apache.ratis.grpc=WARN
+LOG4J.PROPERTIES_log4j.logger.org.apache.ratis.thirdparty=WARN
+LOG4J.PROPERTIES_log4j.logger.org.apache.hadoop.hdds.conf.TimeDurationUtil=WARN
+LOG4J.PROPERTIES_log4j.logger.org.apache.hadoop.hdds.conf.TimeDuration=WARN
+LOG4J.PROPERTIES_log4j.logger.org.apache.hadoop.metrics2=WARN
+LOG4J.PROPERTIES_log4j.logger.org.apache.hadoop.ipc=WARN
+LOG4J.PROPERTIES_log4j.logger.org.apache.hadoop.hdds.fs.DU=WARN

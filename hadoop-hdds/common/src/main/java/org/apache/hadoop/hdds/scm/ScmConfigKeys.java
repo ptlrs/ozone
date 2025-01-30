@@ -265,7 +265,7 @@ public final class ScmConfigKeys {
   public static final String OZONE_SCM_DEADNODE_INTERVAL =
       "ozone.scm.dead.node.interval";
   public static final String OZONE_SCM_DEADNODE_INTERVAL_DEFAULT =
-      "10m";
+      "10s";
 
   public static final String OZONE_SCM_HEARTBEAT_PROCESS_INTERVAL =
       "ozone.scm.heartbeat.thread.interval";

@@ -811,6 +811,7 @@ public class ContainerStateMachine extends BaseStateMachine {
    */
   @Override
   public CompletableFuture<ByteString> read(LogEntryProto entry, TransactionContext trx) {
+//    pauseTransaction();
     metrics.incNumReadStateMachineOps();
     final ByteString dataInContext = Optional.ofNullable(trx)
         .map(TransactionContext::getStateMachineLogEntry)
@@ -984,6 +985,29 @@ public class ContainerStateMachine extends BaseStateMachine {
     }
   }
 
+  private boolean shouldPauseTransaction() {
+    File debugFile = new File("/tmp/pausetransaction");
+    return debugFile.exists();
+  }
+
+  private void pauseTransaction() {
+    if (shouldPauseTransaction()) {
+      LOG.info("ATTENTION! Pausing transaction processing for debug on datanode");
+      while (shouldPauseTransaction()) {
+        try {
+          Thread.sleep(1000);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          LOG.warn("ATTENTION! Interrupted while pausing transaction processing");
+          break;
+        }
+      }
+      LOG.info("ATTENTION! Resuming transaction processing on datanode");
+    } else {
+      LOG.info("ATTENTION! NOT pausing transaction processing on datanode");
+    }
+  }
+
   /*
    * ApplyTransaction calls in Ratis are sequential.
    */
@@ -1010,9 +1034,30 @@ public class ContainerStateMachine extends BaseStateMachine {
       applyTransactionSemaphore.acquire();
       metrics.incNumApplyTransactionsOps();
 
-
       Objects.requireNonNull(context, "context == null");
       final ContainerCommandRequestProto requestProto = context.getLogProto();
+      LOG.info("{} container has BCSID {}", requestProto.getContainerID(),
+          dispatcher.getHandler(ContainerProtos.ContainerType.KeyValueContainer)
+          .getContainerSet()
+          .getContainer(requestProto.getContainerID())
+          .getBlockCommitSequenceId());
+
+      if (shouldPauseTransaction()) {
+        while (shouldPauseTransaction()) {
+          try {
+            LOG.info("ATTENTION! Pausing transaction processing for debug on datanode");
+            Thread.sleep(1000);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            LOG.warn("ATTENTION! Interrupted while pausing transaction processing");
+            break;
+          }
+        }
+        LOG.info("ATTENTION! Resuming transaction processing on datanode");
+      } else {
+        LOG.info("ATTENTION! NOT pausing transaction processing on datanode");
+      }
+
       final Type cmdType = requestProto.getCmdType();
       // Make sure that in write chunk, the user data is not set
       if (cmdType == Type.WriteChunk) {
