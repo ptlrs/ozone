@@ -169,28 +169,37 @@ public final class MoveManager implements
    * start a move for a given container.
    *
    * @param containerInfo The container for which to move a replica
-   * @param src source datanode to copy the replica from
-   * @param tgt target datanode to copy the replica to
+   * @param src           source datanode to copy the replica from
+   * @param tgt           target datanode to copy the replica to
    */
   private void startMove(
       final ContainerInfo containerInfo, final DatanodeDetails src,
       final DatanodeDetails tgt, final CompletableFuture<MoveResult> ret) {
+    LOG.info("ATTENTION! Attempting to start move for container {} from {} to {}",
+        containerInfo.containerID(), src.getUuidString(), tgt.getUuidString());
     Pair<CompletableFuture<MoveResult>, MoveDataNodePair> move =
         pendingMoves.putIfAbsent(containerInfo.containerID(),
             Pair.of(ret, new MoveDataNodePair(src, tgt)));
     if (move == null) {
       // A move for this container did not exist, so send a replicate command
       try {
+        LOG.info("ATTENTION! Sending replicate command for container {} from {} to {}",
+            containerInfo.containerID(), src.getUuidString(), tgt.getUuidString());
         sendReplicateCommand(containerInfo, tgt, src);
+        LOG.info("ATTENTION! Replicate command successfully sent for container {}",
+            containerInfo.containerID());
       } catch (Exception e) {
-        LOG.error("Unable to schedule the replication command for container {}",
+        LOG.error("ATTENTION! Unable to schedule the replication command for container {}",
             containerInfo, e);
         ret.complete(MoveResult.FAIL_UNEXPECTED_ERROR);
         pendingMoves.remove(containerInfo.containerID());
+        LOG.info("ATTENTION! Removed container {} from pending moves due to error", containerInfo.containerID());
       }
     } else {
       // A move for this container is already scheduled, so we cannot schedule
       // another one. Failing this move.
+      LOG.warn("ATTENTION! A move is already scheduled for container {}, failing this move",
+          containerInfo.containerID());
       ret.complete(MoveResult.FAIL_CONTAINER_ALREADY_BEING_MOVED);
     }
   }
@@ -215,11 +224,13 @@ public final class MoveManager implements
     for (DatanodeDetails dn : Arrays.asList(src, tgt)) {
       NodeStatus currentNodeStatus = replicationManager.getNodeStatus(dn);
       if (currentNodeStatus.getHealth() != HddsProtos.NodeState.HEALTHY) {
+        LOG.warn("ATTENTION! Node {} is unhealthy", dn.getUuidString());
         ret.complete(MoveResult.REPLICATION_FAIL_NODE_UNHEALTHY);
         return ret;
       }
       if (currentNodeStatus.getOperationalState()
           != HddsProtos.NodeOperationalState.IN_SERVICE) {
+        LOG.warn("ATTENTION! Node {} is not IN_SERVICE", dn.getUuidString());
         ret.complete(MoveResult.REPLICATION_FAIL_NODE_NOT_IN_SERVICE);
         return ret;
       }
@@ -237,11 +248,13 @@ public final class MoveManager implements
           srcExists = true;
         }
         if (r.getDatanodeDetails().equals(tgt)) {
+          LOG.warn("ATTENTION! Container already exists on target node {}", tgt.getUuidString());
           ret.complete(MoveResult.REPLICATION_FAIL_EXIST_IN_TARGET);
           return ret;
         }
       }
       if (!srcExists) {
+        LOG.warn("ATTENTION! Container does not exist on source node {}", src.getUuidString());
         ret.complete(MoveResult.REPLICATION_FAIL_NOT_EXIST_IN_SOURCE);
         return ret;
       }
@@ -256,6 +269,8 @@ public final class MoveManager implements
               currentReplicas);
       if (healthBeforeMove.getHealthState() !=
           ContainerHealthResult.HealthState.HEALTHY) {
+        LOG.warn("ATTENTION! Container health state before move is not healthy: {}",
+            healthBeforeMove.getHealthState());
         ret.complete(MoveResult.REPLICATION_NOT_HEALTHY_BEFORE_MOVE);
         return ret;
       }
@@ -272,9 +287,11 @@ public final class MoveManager implements
           replicationManager.getPendingReplicationOps(cid);
       for (ContainerReplicaOp op : pendingOps) {
         if (op.getOpType() == ContainerReplicaOp.PendingOpType.ADD) {
+          LOG.warn("ATTENTION! Inflight replication detected for container {}", cid);
           ret.complete(MoveResult.REPLICATION_FAIL_INFLIGHT_REPLICATION);
           return ret;
         } else if (op.getOpType() == ContainerReplicaOp.PendingOpType.DELETE) {
+          LOG.warn("ATTENTION! Inflight deletion detected for container {}", cid);
           ret.complete(MoveResult.REPLICATION_FAIL_INFLIGHT_DELETION);
           return ret;
         }
@@ -283,6 +300,7 @@ public final class MoveManager implements
       // Ensure the container is CLOSED
       HddsProtos.LifeCycleState currentContainerStat = containerInfo.getState();
       if (currentContainerStat != HddsProtos.LifeCycleState.CLOSED) {
+        LOG.warn("ATTENTION! Container {} is not CLOSED", cid);
         ret.complete(MoveResult.REPLICATION_FAIL_CONTAINER_NOT_CLOSED);
         return ret;
       }
@@ -296,11 +314,15 @@ public final class MoveManager implements
           .getContainerReplicationHealth(containerInfo, replicasAfterMove);
       if (healthResult.getHealthState()
           != ContainerHealthResult.HealthState.HEALTHY) {
+        LOG.warn("ATTENTION! Container health state after move would not be healthy: {}",
+            healthResult.getHealthState());
         ret.complete(MoveResult.REPLICATION_NOT_HEALTHY_AFTER_MOVE);
         return ret;
       }
+      LOG.info("ATTENTION! Starting move for container {} from {} to {}",
+          cid, src.getUuidString(), tgt.getUuidString());
       startMove(containerInfo, src, tgt, ret);
-      LOG.debug("Processed a move request for container {}, from {} to {}",
+      LOG.debug("ATTENTION! Processed a move request for container {}, from {} to {}",
           cid, src.getUuidString(), tgt.getUuidString());
       return ret;
     }

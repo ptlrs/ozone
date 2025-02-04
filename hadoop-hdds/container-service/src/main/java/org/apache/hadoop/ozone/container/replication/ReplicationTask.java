@@ -22,6 +22,8 @@ import java.util.Objects;
 
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.ozone.protocol.commands.ReplicateContainerCommand;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The task to download a container from the sources.
@@ -31,7 +33,7 @@ public class ReplicationTask extends AbstractReplicationTask {
   private final ReplicateContainerCommand cmd;
   private final ContainerReplicator replicator;
   private final String debugString;
-
+  private static final Logger LOG = LoggerFactory.getLogger(ReplicationTask.class);
   /**
    * Counter for the transferred bytes.
    */
@@ -40,7 +42,9 @@ public class ReplicationTask extends AbstractReplicationTask {
   public ReplicationTask(ReplicateContainerCommand cmd,
                          ContainerReplicator replicator) {
     super(cmd.getContainerID(), cmd.getDeadline(), cmd.getTerm());
+    LOG.debug("ATTENTION! Initializing ReplicationTask with containerID: {}", cmd.getContainerID());
     setPriority(cmd.getPriority());
+    LOG.debug("ATTENTION! Set priority to: {}", cmd.getPriority());
     this.cmd = cmd;
     this.replicator = replicator;
     if (cmd.getTargetDatanode() != null) {
@@ -49,8 +53,10 @@ public class ReplicationTask extends AbstractReplicationTask {
       // is out of service, so we need to set the flag to allow the command to
       // run.
       setShouldOnlyRunOnInServiceDatanodes(false);
+      LOG.debug("ATTENTION! Target datanode is set, allowing command to run on out-of-service datanodes.");
     }
     debugString = cmd.toString();
+    LOG.debug("ATTENTION! ReplicationTask debug string set to: {}", debugString);
   }
 
   /**

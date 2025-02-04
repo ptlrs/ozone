@@ -148,6 +148,7 @@ public class DatanodeStoreSchemaThreeImpl extends DatanodeStoreWithIncrementalCh
 
   public static File getTableDumpFile(Table<String, ?> table,
       File dumpDir) throws IOException {
+    LOG.info("ATTENTION! dumping table '{}' under '{}'", table.getName(), dumpDir.getAbsolutePath());
     return new File(dumpDir, table.getName() + DUMP_FILE_SUFFIX);
   }
 

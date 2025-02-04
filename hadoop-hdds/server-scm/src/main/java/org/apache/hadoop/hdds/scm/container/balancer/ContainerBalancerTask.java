@@ -634,6 +634,7 @@ public class ContainerBalancerTask implements Runnable {
   }
 
   private IterationResult doIteration() {
+    LOG.info("ATTENTION! doing the iteration");
     // note that potential and selected targets are updated in the following
     // loop
     //TODO(jacksonyao): take withinThresholdUtilizedNodes as candidate for both
@@ -695,6 +696,7 @@ public class ContainerBalancerTask implements Runnable {
     }
 
     checkIterationResults(isMoveGeneratedInThisIteration);
+    LOG.info("ATTENTION! iteration restult is {}", iterationResult);
     return iterationResult;
   }
 
@@ -752,6 +754,7 @@ public class ContainerBalancerTask implements Runnable {
    *                                       the iteration
    */
   private void checkIterationResults(boolean isMoveGeneratedInThisIteration) {
+    LOG.info("ATTENTION! ismovegeneratedinthisiteration is set to {}", isMoveGeneratedInThisIteration);
     if (!isMoveGeneratedInThisIteration) {
       /*
        If no move was generated during this iteration then we don't need to
@@ -976,7 +979,7 @@ public class ContainerBalancerTask implements Runnable {
    * Asks {@link ReplicationManager} or {@link MoveManager} to move the
    * specified container from source to target.
    *
-   * @param source the source datanode
+   * @param source        the source datanode
    * @param moveSelection the selected container to move and target datanode
    * @return false if an exception occurred or the move completed with a
    * result other than MoveManager.MoveResult.COMPLETED. Returns true
@@ -987,6 +990,9 @@ public class ContainerBalancerTask implements Runnable {
     ContainerID containerID = moveSelection.getContainerID();
     CompletableFuture<MoveManager.MoveResult> future;
     try {
+      LOG.info("ATTENTION! Starting container move from source {} to target {} for container {}.",
+          source.getUuidString(), moveSelection.getTargetNode().getUuidString(), containerID.toString());
+
       ContainerInfo containerInfo = containerManager.getContainer(containerID);
       future = moveManager.move(containerID, source, moveSelection.getTargetNode());
 
@@ -996,7 +1002,7 @@ public class ContainerBalancerTask implements Runnable {
         metrics.incrementCurrentIterationContainerMoveMetric(result, 1);
         moveSelectionToFutureMap.remove(moveSelection);
         if (ex != null) {
-          LOG.info("Container move for container {} from source {} to " +
+          LOG.info("ATTENTION! Container move for container {} from source {} to " +
                   "target {} failed with exceptions.",
               containerID.toString(),
               source.getUuidString(),
@@ -1006,13 +1012,13 @@ public class ContainerBalancerTask implements Runnable {
           if (result == MoveManager.MoveResult.COMPLETED) {
             sizeActuallyMovedInLatestIteration +=
                 containerInfo.getUsedBytes();
-            LOG.debug("Container move completed for container {} from " +
+            LOG.debug("ATTENTION! Container move completed for container {} from " +
                     "source {} to target {}", containerID,
                 source.getUuidString(),
                 moveSelection.getTargetNode().getUuidString());
           } else {
             LOG.warn(
-                "Container move for container {} from source {} to target" +
+                "ATTENTION! Container move for container {} from source {} to target" +
                     " {} failed: {}",
                 moveSelection.getContainerID(), source.getUuidString(),
                 moveSelection.getTargetNode().getUuidString(), result);
@@ -1020,7 +1026,7 @@ public class ContainerBalancerTask implements Runnable {
         }
       });
     } catch (ContainerNotFoundException e) {
-      LOG.warn("Could not find Container {} for container move",
+      LOG.warn("ATTENTION! Could not find Container {} for container move",
           containerID, e);
       // add source back to queue as a different container can be selected in next run.
       findSourceStrategy.addBackSourceDataNode(source);
@@ -1029,11 +1035,11 @@ public class ContainerBalancerTask implements Runnable {
       metrics.incrementNumContainerMovesFailedInLatestIteration(1);
       return false;
     } catch (NodeNotFoundException e) {
-      LOG.warn("Container move failed for container {}", containerID, e);
+      LOG.warn("ATTENTION! Container move failed for container {}", containerID, e);
       metrics.incrementNumContainerMovesFailedInLatestIteration(1);
       return false;
     } catch (ContainerReplicaNotFoundException e) {
-      LOG.warn("Container move failed for container {}", containerID, e);
+      LOG.warn("ATTENTION! Container move failed for container {}", containerID, e);
       metrics.incrementNumContainerMovesFailedInLatestIteration(1);
       // add source back to queue for replica not found only
       // the container is not excluded as it is a replica related failure
@@ -1047,9 +1053,13 @@ public class ContainerBalancerTask implements Runnable {
      */
     if (future.isDone()) {
       if (future.isCompletedExceptionally()) {
+        LOG.warn("ATTENTION! Container move future completed exceptionally for container {}.",
+            containerID);
         return false;
       } else {
         MoveManager.MoveResult result = future.join();
+        LOG.info("ATTENTION! Container move for container {} returned result: {}.",
+            containerID, result);
         if (result == MoveManager.MoveResult.REPLICATION_FAIL_NOT_EXIST_IN_SOURCE ||
             result == MoveManager.MoveResult.REPLICATION_FAIL_EXIST_IN_TARGET ||
             result == MoveManager.MoveResult.REPLICATION_FAIL_CONTAINER_NOT_CLOSED ||
@@ -1058,11 +1068,15 @@ public class ContainerBalancerTask implements Runnable {
           // add source back to queue as a different container can be selected in next run.
           // the container which caused failure of move is not excluded
           // as it is an intermittent failure or a replica related failure
+          LOG.warn("ATTENTION! Adding source back to queue due to container move failure for container {}.",
+              containerID);
           findSourceStrategy.addBackSourceDataNode(source);
         }
         return result == MoveManager.MoveResult.COMPLETED;
       }
     } else {
+      LOG.info("ATTENTION! Adding container move future to moveSelectionToFutureMap for container {}.",
+          containerID);
       moveSelectionToFutureMap.put(moveSelection, future);
       return true;
     }

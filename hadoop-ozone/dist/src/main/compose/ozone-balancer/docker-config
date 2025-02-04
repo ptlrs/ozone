@@ -52,7 +52,11 @@ OZONE-SITE.XML_ozone.om.s3.grpc.server_enabled=true
 OZONE-SITE.XML_ozone.recon.db.dir=/data/metadata/recon
 OZONE-SITE.XML_dfs.container.ratis.datastream.enabled=true
 OZONE-SITE.XML_ozone.http.basedir=/tmp/ozone_http
+OZONE-SITE.XML_hdds.container.balancer.iterations=500
 OZONE-SITE.XML_hdds.container.balancer.balancing.iteration.interval=25s
+OZONE-SITE.XML_hdds.container.balancer.move.timeout=10m
+OZONE-SITE.XML_hdds.container.balancer.move.replication.timeout=8m
+OZONE-SITE.XML_hdds.container.balancer.datanodes.involved.max.percentage.per.iteration=100
 OZONE-SITE.XML_hdds.container.balancer.trigger.du.before.move.enable=false
 OZONE_CONF_DIR=/etc/hadoop
 OZONE_LOG_DIR=/var/log/hadoop
@@ -69,9 +73,13 @@ LOG4J.PROPERTIES_log4j.logger.org.apache.hadoop.security.ShellBasedUnixGroupsMap
 LOG4J.PROPERTIES_log4j.logger.org.apache.ratis.grpc.client.GrpcClientProtocolClient=WARN
 LOG4J.PROPERTIES_log4j.logger.io.grpc.netty=WARN
 LOG4J.PROPERTIES_log4j.logger.org.apache.ratis.grpc=WARN
+LOG4J.PROPERTIES_log4j.logger.org.apache.ratis.util=WARN
 LOG4J.PROPERTIES_log4j.logger.org.apache.ratis.thirdparty=WARN
 LOG4J.PROPERTIES_log4j.logger.org.apache.hadoop.hdds.conf.TimeDurationUtil=WARN
 LOG4J.PROPERTIES_log4j.logger.org.apache.hadoop.hdds.conf.TimeDuration=WARN
 LOG4J.PROPERTIES_log4j.logger.org.apache.hadoop.metrics2=WARN
 LOG4J.PROPERTIES_log4j.logger.org.apache.hadoop.ipc=WARN
 LOG4J.PROPERTIES_log4j.logger.org.apache.hadoop.hdds.fs.DU=WARN
+LOG4J.PROPERTIES_log4j.logger.org.apache.hadoop.util.concurrent=WARN
+LOG4J.PROPERTIES_log4j.logger.org.apache.hadoop.hdds.scm.ha.SCMHAInvocationHandler=WARN
+

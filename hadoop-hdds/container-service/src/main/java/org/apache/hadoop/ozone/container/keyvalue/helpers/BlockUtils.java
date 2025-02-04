@@ -34,6 +34,7 @@ import org.apache.hadoop.ozone.container.common.utils.ContainerCache;
 import org.apache.hadoop.ozone.container.common.utils.DatanodeStoreCache;
 import org.apache.hadoop.ozone.container.common.utils.RawDB;
 import org.apache.hadoop.ozone.container.common.utils.ReferenceCountedDB;
+import org.apache.hadoop.ozone.container.keyvalue.KeyValueContainer;
 import org.apache.hadoop.ozone.container.keyvalue.KeyValueContainerData;
 
 import com.google.common.base.Preconditions;
@@ -41,7 +42,11 @@ import org.apache.hadoop.ozone.container.metadata.DatanodeStore;
 import org.apache.hadoop.ozone.container.metadata.DatanodeStoreSchemaOneImpl;
 import org.apache.hadoop.ozone.container.metadata.DatanodeStoreSchemaThreeImpl;
 import org.apache.hadoop.ozone.container.metadata.DatanodeStoreSchemaTwoImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import static org.apache.hadoop.hdds.HddsConfigKeys.HDDS_CONTAINER_EXPORT_TMPDIR;
+import static org.apache.hadoop.hdds.HddsConfigKeys.HDDS_CONTAINER_EXPORT_TMPDIR_DEFAULT;
 import static org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.Result.CONTAINER_NOT_FOUND;
 import static org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.Result.EXPORT_CONTAINER_METADATA_FAILED;
 import static org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.Result.IMPORT_CONTAINER_METADATA_FAILED;
@@ -55,6 +60,8 @@ import static org.apache.hadoop.ozone.container.keyvalue.helpers.KeyValueContain
  * Utils functions to help block functions.
  */
 public final class BlockUtils {
+  private static final Logger LOG =
+      LoggerFactory.getLogger(KeyValueContainer.class);
 
   /** Never constructed. **/
   private BlockUtils() {
@@ -290,8 +297,11 @@ public final class BlockUtils {
       DatanodeStoreSchemaThreeImpl store = (DatanodeStoreSchemaThreeImpl)
           db.getStore();
       long containerID = containerData.getContainerID();
-      File metaDir = new File(containerData.getMetadataPath());
-      File dumpDir = DatanodeStoreSchemaThreeImpl.getDumpDir(metaDir);
+      //File metaDir = new File(containerData.getMetadataPath());
+      //File dumpDir = DatanodeStoreSchemaThreeImpl.getDumpDir(metaDir);
+      File tarExportPath = new File(conf.get(HDDS_CONTAINER_EXPORT_TMPDIR,
+          HDDS_CONTAINER_EXPORT_TMPDIR_DEFAULT), String.valueOf(containerID));
+      File dumpDir = DatanodeStoreSchemaThreeImpl.getDumpDir(tarExportPath);
       // cleanup old files first
       deleteAllDumpFiles(dumpDir);
 
@@ -301,6 +311,9 @@ public final class BlockUtils {
               + dumpDir.getAbsolutePath() + " for container " + containerID +
               " to dump metadata to files");
         }
+        LOG.info("ATTENTION! Creating dir {} for container {} to dump metadata to files",
+            dumpDir.getAbsolutePath(), containerID);
+        store.dumpKVContainerData(containerID, dumpDir);
         store.dumpKVContainerData(containerID, dumpDir);
       } catch (IOException e) {
         // cleanup partially dumped files
@@ -328,8 +341,11 @@ public final class BlockUtils {
       DatanodeStoreSchemaThreeImpl store = (DatanodeStoreSchemaThreeImpl)
           db.getStore();
       long containerID = containerData.getContainerID();
-      File metaDir = new File(containerData.getMetadataPath());
-      File dumpDir = DatanodeStoreSchemaThreeImpl.getDumpDir(metaDir);
+//      File metaDir = new File(containerData.getMetadataPath());
+//      File dumpDir = DatanodeStoreSchemaThreeImpl.getDumpDir(metaDir);
+      File tarExportPath = new File(conf.get(HDDS_CONTAINER_EXPORT_TMPDIR,
+          HDDS_CONTAINER_EXPORT_TMPDIR_DEFAULT), String.valueOf(containerID));
+      File dumpDir = DatanodeStoreSchemaThreeImpl.getDumpDir(tarExportPath);
       try {
         store.loadKVContainerData(dumpDir);
       } catch (IOException e) {
@@ -341,6 +357,7 @@ public final class BlockUtils {
             IMPORT_CONTAINER_METADATA_FAILED);
       } finally {
         // cleanup already loaded files all together
+        LOG.info("Deleting dir {} for container {} to dump metadata to files", dumpDir.getAbsolutePath(), containerID);
         deleteAllDumpFiles(dumpDir);
       }
     }

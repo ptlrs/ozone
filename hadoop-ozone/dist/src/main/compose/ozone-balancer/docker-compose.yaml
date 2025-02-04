@@ -37,7 +37,7 @@ services:
          <<: *replication
       command: ["ozone","datanode"]
       volumes:
-         - ../../persisteddata/dn1:/data
+         - tmpfs1:/data
          - ../..:/opt/hadoop
       deploy:
          replicas: ${DATANODE1_REPLICA:-1}
@@ -50,7 +50,7 @@ services:
          <<: *replication
       command: [ "ozone","datanode" ]
       volumes:
-         - ../../persisteddata/dn2:/data
+         - tmpfs2:/data
          - ../..:/opt/hadoop
       deploy:
          replicas: ${DATANODE2_REPLICA:-1}
@@ -63,23 +63,23 @@ services:
          <<: *replication
       command: [ "ozone","datanode" ]
       volumes:
-         - ../../persisteddata/dn3:/data
+         - tmpfs3:/data
          - ../..:/opt/hadoop
       deploy:
          replicas: ${DATANODE3_REPLICA:-1}
-#    datanode4:
-#       <<: *common-config
-#       ports:
-#          - 19864
-#          - 9882
-#       environment:
-#          <<: *replication
-#       command: [ "ozone","datanode" ]
-#       volumes:
-#          - ../../persisteddata/dn4:/data
-#          - ../..:/opt/hadoop
-#       deploy:
-#          replicas: ${DATANODE4_REPLICA:-1}
+   datanode4:
+      <<: *common-config
+      ports:
+         - 19864
+         - 9882
+      environment:
+         <<: *replication
+      command: [ "ozone","datanode" ]
+      volumes:
+         - tmpfs4:/data
+         - ../..:/opt/hadoop
+      deploy:
+         replicas: ${DATANODE4_REPLICA:-0}
 #    datanode5:
 #       <<: *common-config
 #       ports:
@@ -188,36 +188,36 @@ volumes:
    tmpfs1:
       driver: local
       driver_opts:
-          type: none
-          device: "../../persisteddata/dn1"
-          o: bind
+         o: "size=1g,uid=1000"
+         device: tmpfs
+         type: tmpfs
    tmpfs2:
       driver: local
       driver_opts:
-          type: none
-          device: "../../persisteddata/dn1"
-          o: bind
+         o: "size=1g,uid=2000"
+         device: tmpfs
+         type: tmpfs
    tmpfs3:
       driver: local
       driver_opts:
-          type: none
-          device: "../../persisteddata/dn3"
-          o: bind
+         o: "size=1g,uid=3000"
+         device: tmpfs
+         type: tmpfs
    tmpfs4:
       driver: local
       driver_opts:
-          type: none
-          device: "../../persisteddata/dn4"
-          o: bind
+         o: "size=1g,uid=4000"
+         device: tmpfs
+         type: tmpfs
    tmpfs5:
       driver: local
       driver_opts:
-          type: none
-          device: "../../persisteddata/dn5"
-          o: bind
+         o: "size=1g,uid=5000"
+         device: tmpfs
+         type: tmpfs
    tmpfs6:
       driver: local
       driver_opts:
-           type: none
-           device: "../../persisteddata/dn6"
-           o: bind
+         o: "size=1g,uid=6000"
+         device: tmpfs
+         type: tmpfs

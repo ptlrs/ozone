@@ -608,12 +608,13 @@ public class ReplicationManager implements SCMService {
    * it to copy the given container to the target. The command is sent as a low
    * priority command, meaning it will only run on the DNs when there are not
    * normal priority commands queued.
-   * @param container Container to replicate.
-   * @param replicaIndex Replica Index of the container to replicate. Zero for
-   *                     Ratis and greater than zero for EC.
-   * @param source The source hosting the container, which is where the command
-   *               will be sent.
-   * @param target The target to push container replica to
+   *
+   * @param container          Container to replicate.
+   * @param replicaIndex       Replica Index of the container to replicate. Zero for
+   *                           Ratis and greater than zero for EC.
+   * @param source             The source hosting the container, which is where the command
+   *                           will be sent.
+   * @param target             The target to push container replica to
    * @param scmDeadlineEpochMs The epoch time in ms, after which the command
    *                           will be discarded from the SCMPendingOps table.
    */
@@ -621,11 +622,18 @@ public class ReplicationManager implements SCMService {
       final ContainerInfo container, int replicaIndex, DatanodeDetails source,
       DatanodeDetails target, long scmDeadlineEpochMs)
       throws NotLeaderException {
+    LOG.info(
+        "ATTENTION! Preparing to send low-priority replicate container command. Container ID: {}, Replica Index: {}, Source: {}, Target: {}, SCM Deadline: {}",
+        container.getContainerID(), replicaIndex, source, target, scmDeadlineEpochMs);
     final ReplicateContainerCommand command = ReplicateContainerCommand
         .toTarget(container.getContainerID(), target);
+    LOG.info("ATTENTION! Created replicate container command with target: {}", target);
     command.setReplicaIndex(replicaIndex);
-    command.setPriority(ReplicationCommandPriority.LOW);
+    LOG.info("ATTENTION! Set replica index: {}", replicaIndex);
+    command.setPriority(ReplicationCommandPriority.NORMAL);
+    LOG.info("ATTENTION! Set command priority to NORMAL.");
     sendDatanodeCommand(command, container, source, scmDeadlineEpochMs);
+    LOG.info("ATTENTION! Command sent to source: {}", source);
   }
   /**
    * Sends a command to a datanode with the command deadline set to the default
@@ -740,44 +748,55 @@ public class ReplicationManager implements SCMService {
   int processUnderReplicatedContainer(
       final ContainerHealthResult result) throws IOException {
     ContainerID containerID = result.getContainerInfo().containerID();
+    LOG.info("ATTENTION! Processing under-replicated container with ID: {}", containerID);
     Set<ContainerReplica> replicas = containerManager.getContainerReplicas(
         containerID);
+    LOG.info("ATTENTION! Retrieved {} replicas for container ID: {}", replicas.size(), containerID);
     List<ContainerReplicaOp> pendingOps =
         containerReplicaPendingOps.getPendingOps(containerID);
+    LOG.info("ATTENTION! Retrieved {} pending operations for container ID: {}", pendingOps.size(), containerID);
 
     final boolean isEC = isEC(result.getContainerInfo().getReplicationConfig());
+    LOG.info("ATTENTION! Container ID: {} is {}EC replicated", containerID, isEC ? "" : "not ");
     final UnhealthyReplicationHandler handler;
 
     if (result.getHealthState()
         == ContainerHealthResult.HealthState.UNDER_REPLICATED) {
       handler = isEC ? ecUnderReplicationHandler
           : ratisUnderReplicationHandler;
+      LOG.info("ATTENTION! Health state is UNDER_REPLICATED. Using handler: {}", handler.getClass().getName());
     } else if (result.getHealthState()
         == ContainerHealthResult.HealthState.MIS_REPLICATED) {
       handler = isEC ? ecMisReplicationHandler : ratisMisReplicationHandler;
+      LOG.info("ATTENTION! Health state is MIS_REPLICATED. Using handler: {}", handler.getClass().getName());
     } else {
+      LOG.error("ATTENTION! Unexpected health state: {}", result.getHealthState());
       throw new IllegalArgumentException("Unexpected health state: "
           + result.getHealthState());
     }
 
-    return handler.processAndSendCommands(replicas, pendingOps, result,
+    int commandsProcessed = handler.processAndSendCommands(replicas, pendingOps, result,
         getRemainingMaintenanceRedundancy(isEC));
+    LOG.info("ATTENTION! Processed {} commands for container ID: {}", commandsProcessed, containerID);
+
+    return commandsProcessed;
   }
 
   int processOverReplicatedContainer(
       final ContainerHealthResult result) throws IOException {
     ContainerID containerID = result.getContainerInfo().containerID();
-    Set<ContainerReplica> replicas = containerManager.getContainerReplicas(
-        containerID);
-    List<ContainerReplicaOp> pendingOps =
-        containerReplicaPendingOps.getPendingOps(containerID);
+    LOG.info("ATTENTION! Processing over-replicated container with ID: {}", containerID);
+    Set<ContainerReplica> replicas = containerManager.getContainerReplicas(containerID);
+    LOG.info("ATTENTION! Retrieved {} replicas for container ID: {}", replicas.size(), containerID);
+    List<ContainerReplicaOp> pendingOps = containerReplicaPendingOps.getPendingOps(containerID);
+    LOG.info("ATTENTION! Retrieved {} pending operations for container ID: {}", pendingOps.size(), containerID);
 
     final boolean isEC = isEC(result.getContainerInfo().getReplicationConfig());
-    final UnhealthyReplicationHandler handler = isEC ? ecOverReplicationHandler
-        : ratisOverReplicationHandler;
+    LOG.info("ATTENTION! Container ID: {} is {}EC replicated", containerID, isEC ? "" : "not ");
+    final UnhealthyReplicationHandler handler = isEC ? ecOverReplicationHandler : ratisOverReplicationHandler;
+    LOG.info("ATTENTION! Using handler: {}", handler.getClass().getName());
 
-    return handler.processAndSendCommands(replicas,
-          pendingOps, result, getRemainingMaintenanceRedundancy(isEC));
+    return handler.processAndSendCommands(replicas, pendingOps, result, getRemainingMaintenanceRedundancy(isEC));
   }
 
   public long getScmTerm() throws NotLeaderException {

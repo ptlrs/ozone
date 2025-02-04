@@ -76,19 +76,31 @@ public class ReplicateContainerCommandHandler implements CommandHandler {
     final long containerID = replicateCommand.getContainerID();
     final DatanodeDetails target = replicateCommand.getTargetDatanode();
 
+    LOG.debug("ATTENTION! Received ReplicateContainerCommand for containerID: {}", containerID);
+
     Preconditions.checkArgument(!sourceDatanodes.isEmpty() || target != null,
         "Replication command is received for container %s "
             + "without source or target datanodes.", containerID);
+
+    LOG.debug("ATTENTION! Source Datanodes: {}, Target Datanode: {}",
+        sourceDatanodes, target);
 
     ContainerReplicator replicator =
         replicateCommand.getTargetDatanode() == null ?
             downloadReplicator : pushReplicator;
 
+    LOG.debug("ATTENTION! Selected replicator: {}",
+        replicator.getClass().getSimpleName());
+
     ReplicationTask task = new ReplicationTask(replicateCommand, replicator);
+    LOG.debug("ATTENTION! Created ReplicationTask with metric name: {}", task.getMetricName());
+
     if (metricsName == null) {
       metricsName = task.getMetricName();
+      LOG.debug("ATTENTION! Updated metricsName to: {}", metricsName);
     }
     supervisor.addTask(task);
+    LOG.debug("ATTENTION! Task added to the supervisor.");
   }
 
   @Override

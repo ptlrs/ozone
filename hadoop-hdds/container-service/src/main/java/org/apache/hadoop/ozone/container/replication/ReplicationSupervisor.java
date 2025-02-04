@@ -367,6 +367,7 @@ public final class ReplicationSupervisor {
     public void run() {
       final long startTime = Time.monotonicNow();
       try {
+        LOG.info("ATTENTION! Starting task {}", this);
         requestCounter.get(task.getMetricName()).incrementAndGet();
 
         final long now = clock.millis();
@@ -398,6 +399,7 @@ public final class ReplicationSupervisor {
         }
 
         task.setStatus(Status.IN_PROGRESS);
+        LOG.info("ATTENTION! Task {} is now in progress", this);
         task.runTask();
         if (task.getStatus() == Status.FAILED) {
           LOG.warn("Failed {}", this);
@@ -414,6 +416,7 @@ public final class ReplicationSupervisor {
         LOG.warn("Failed {}", this, e);
         failureCounter.get(task.getMetricName()).incrementAndGet();
       } finally {
+        LOG.info("ATTENTION! Finalizing task {}", this);
         queuedCounter.get(task.getMetricName()).decrementAndGet();
         opsLatencyMs.get(task.getMetricName()).add(Time.monotonicNow() - startTime);
         inFlight.remove(task);

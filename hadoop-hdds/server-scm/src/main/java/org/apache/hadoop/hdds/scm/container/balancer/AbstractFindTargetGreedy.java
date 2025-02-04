@@ -120,12 +120,16 @@ public abstract class AbstractFindTargetGreedy implements FindTargetStrategy {
         return null;
       }
 
-      if (replicas.stream().noneMatch(
-          replica -> replica.getDatanodeDetails().equals(target)) &&
-          containerMoveSatisfiesPlacementPolicy(container, replicas, source,
-          target) &&
-          canSizeEnterTarget(target, containerInfo.getUsedBytes())) {
+      if (replicas.stream().noneMatch(replica -> replica.getDatanodeDetails().equals(target))
+          && containerMoveSatisfiesPlacementPolicy(container, replicas, source, target)
+          && canSizeEnterTarget(target, containerInfo.getUsedBytes())) {
         return new ContainerMoveSelection(target, container);
+      } else {
+        logger.warn("Replicas already exist on target. Replicas with matching target details for target {}: {}",
+            target.getUuidString(),
+            replicas.stream()
+                .filter(replica -> replica.getDatanodeDetails().equals(target))
+                .collect(Collectors.toList()));
       }
     }
     logger.info("Container Balancer could not find a target for " +

@@ -1417,6 +1417,14 @@
     </description>
   </property>
   <property>
+    <name>hdds.container.export.tmpdir</name>
+    <value>/tmp</value>
+    <tag>OZONE, DEBUG</tag>
+    <description>
+      Config exposed for testing. Not to be used for normal operation.
+    </description>
+  </property>
+  <property>
     <name>ozone.rest.client.http.connection.max</name>
     <value>100</value>
     <tag>OZONE, CLIENT</tag>

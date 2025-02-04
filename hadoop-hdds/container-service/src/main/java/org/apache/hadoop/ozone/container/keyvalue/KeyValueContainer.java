@@ -1008,11 +1008,15 @@ public class KeyValueContainer implements Container<KeyValueContainerData> {
       // so concurrent exports don't get dump files overwritten.
       // We seldom got concurrent exports for a container,
       // so it should not influence performance much.
+      LOG.info("ATTENTION! using v3 path");
       synchronized (dumpLock) {
+        LOG.info("ATTENTION! dumping metadata");
         BlockUtils.dumpKVContainerDataToFiles(containerData, config);
+        LOG.info("ATTENTION! dumping data");
         packer.pack(this, destination);
       }
     } else {
+      LOG.info("ATTENTION! NOT using v3 path");
       packer.pack(this, destination);
     }
   }

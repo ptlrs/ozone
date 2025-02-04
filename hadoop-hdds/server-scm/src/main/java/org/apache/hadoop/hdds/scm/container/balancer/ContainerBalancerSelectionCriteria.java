@@ -163,13 +163,45 @@ public class ContainerBalancerSelectionCriteria {
           "candidate container. Excluding it.", containerID);
       return true;
     }
-    return excludeContainers.contains(containerID) || excludeContainersDueToFailure.contains(containerID) ||
-        containerToSourceMap.containsKey(containerID) ||
-        !isContainerClosed(container, node) ||
-        isContainerReplicatingOrDeleting(containerID) ||
-        !findSourceStrategy.canSizeLeaveSource(node, container.getUsedBytes())
-        || breaksMaxSizeToMoveLimit(container.containerID(),
-        container.getUsedBytes(), sizeMovedAlready);
+
+    boolean excludeDueToExcludeContainers = excludeContainers.contains(containerID);
+    boolean excludeDueToFailure = excludeContainersDueToFailure.contains(containerID);
+    boolean alreadySelectedForBalancing = containerToSourceMap.containsKey(containerID);
+    boolean notClosed = !isContainerClosed(container, node);
+    boolean replicatingOrDeleting = isContainerReplicatingOrDeleting(containerID);
+    boolean sizeCannotLeaveSource = !findSourceStrategy.canSizeLeaveSource(node, container.getUsedBytes());
+    boolean exceedsMaxSizeLimit =
+        breaksMaxSizeToMoveLimit(container.containerID(), container.getUsedBytes(), sizeMovedAlready);
+
+    if (excludeDueToExcludeContainers) {
+      LOG.debug("Excluding container {} because it is in excludeContainers list.", containerID);
+    }
+    if (excludeDueToFailure) {
+      LOG.debug("Excluding container {} because it is in excludeContainersDueToFailure list.", containerID);
+    }
+    if (alreadySelectedForBalancing) {
+      LOG.debug("Excluding container {} because it is already selected for balancing.", containerID);
+    }
+    if (notClosed) {
+      LOG.debug("Excluding container {} because it is not closed on node {}.", containerID, node);
+    }
+    if (replicatingOrDeleting) {
+      LOG.debug("Excluding container {} because it is replicating or deleting.", containerID);
+    }
+    if (sizeCannotLeaveSource) {
+      LOG.debug("Excluding container {} because its size cannot leave the source node {}.", containerID, node);
+    }
+    if (exceedsMaxSizeLimit) {
+      LOG.debug("Excluding container {} because it exceeds the max size to move limit.", containerID);
+    }
+
+    return excludeDueToExcludeContainers
+        || excludeDueToFailure
+        || alreadySelectedForBalancing
+        || notClosed
+        || replicatingOrDeleting
+        || sizeCannotLeaveSource
+        || exceedsMaxSizeLimit;
   }
 
   /**
@@ -185,6 +217,8 @@ public class ContainerBalancerSelectionCriteria {
    */
   private boolean isContainerClosed(ContainerInfo container,
                                     DatanodeDetails datanodeDetails) {
+    LOG.info("ATTENTION! container {} state is {} on node {}",
+        container.getContainerID(), container.getState(), datanodeDetails.getUuidString());
     if (!container.getState().equals(HddsProtos.LifeCycleState.CLOSED)) {
       return false;
     }
@@ -199,13 +233,18 @@ public class ContainerBalancerSelectionCriteria {
       return false;
     }
     for (ContainerReplica replica : replicas) {
+      LOG.debug("ATTENTION! Replica state for container {} on node {} is {}",
+          container.getContainerID(), datanodeDetails.getUuidString(), replica.getState());
       if (replica.getDatanodeDetails().equals(datanodeDetails)) {
         // don't consider replica if it's not closed
         // assumption: there's only one replica of this container on this DN
+        LOG.debug("ATTENTION! checking if replica state is CLOSED. Returning {}",
+            replica.getState().equals(ContainerReplicaProto.State.CLOSED));
         return replica.getState().equals(ContainerReplicaProto.State.CLOSED);
       }
     }
 
+    LOG.info("ATTENTION! returning false");
     return false;
   }
 

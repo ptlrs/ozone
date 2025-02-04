@@ -48,6 +48,8 @@ import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.ozone.container.keyvalue.helpers.KeyValueContainerLocationUtil;
 import org.apache.hadoop.ozone.container.metadata.DatanodeStoreSchemaThreeImpl;
 import org.apache.hadoop.ozone.container.replication.CopyContainerCompression;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static java.util.stream.Collectors.toList;
 import static org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.Result.CONTAINER_ALREADY_EXISTS;
@@ -58,6 +60,7 @@ import static org.apache.hadoop.ozone.OzoneConsts.SCHEMA_V3;
  */
 public class TarContainerPacker
     implements ContainerPacker<KeyValueContainerData> {
+  private static final Logger LOG = LoggerFactory.getLogger(TarContainerPacker.class);
 
   static final String CHUNKS_DIR_NAME = OzoneConsts.STORAGE_DIR_CHUNKS;
 
@@ -241,14 +244,18 @@ public class TarContainerPacker
 
     // Add a directory entry before adding files, in case the directory is
     // empty.
+    LOG.debug("ATTENTION! Adding directory entry for: {}, with subdir: {}", dir.toAbsolutePath(), subdir);
     TarArchiveEntry entry = archiveOutput.createArchiveEntry(dir.toFile(), subdir);
     archiveOutput.putArchiveEntry(entry);
+    LOG.debug("ATTENTION! Put directory entry for: {}, with subdir: {}", dir.toAbsolutePath(), subdir);
     archiveOutput.closeArchiveEntry();
+    LOG.debug("ATTENTION! Closed directory entry for: {}, with subdir: {}", dir.toAbsolutePath(), subdir);
 
     // Add files in the directory.
     try (Stream<Path> dirEntries = Files.list(dir)) {
       for (Path path : dirEntries.collect(toList())) {
         String entryName = subdir + "/" + path.getFileName();
+        LOG.debug("ATTENTION! Including file: {} with entry name: {}", path.toAbsolutePath(), entryName);
         includeFile(path.toFile(), entryName, archiveOutput);
       }
     }
@@ -257,10 +264,15 @@ public class TarContainerPacker
   static void includeFile(File file, String entryName,
       ArchiveOutputStream<TarArchiveEntry> archiveOutput) throws IOException {
     TarArchiveEntry entry = archiveOutput.createArchiveEntry(file, entryName);
+    LOG.debug("ATTENTION! Created archive entry for file: {}, with entry name: {}", file.getAbsolutePath(), entryName);
     archiveOutput.putArchiveEntry(entry);
+    LOG.debug("ATTENTION! Put archive entry for file: {}, with entry name: {}", file.getAbsolutePath(), entryName);
     try (InputStream input = Files.newInputStream(file.toPath())) {
+      LOG.debug("ATTENTION! Copying file content to archive for file: {}, with entry name: {}", file.getAbsolutePath(),
+          entryName);
       IOUtils.copy(input, archiveOutput);
     }
+    LOG.debug("ATTENTION! Closing archive entry for file: {}, with entry name: {}", file.getAbsolutePath(), entryName);
     archiveOutput.closeArchiveEntry();
   }
 
