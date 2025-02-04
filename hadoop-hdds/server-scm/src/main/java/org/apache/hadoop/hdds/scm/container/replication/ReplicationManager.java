@@ -623,7 +623,8 @@ public class ReplicationManager implements SCMService {
       DatanodeDetails target, long scmDeadlineEpochMs)
       throws NotLeaderException {
     LOG.info(
-        "ATTENTION! Preparing to send low-priority replicate container command. Container ID: {}, Replica Index: {}, Source: {}, Target: {}, SCM Deadline: {}",
+        "ATTENTION! Preparing to send low-priority replicate container command. Container ID: {}" +
+            ", Replica Index: {}, Source: {}, Target: {}, SCM Deadline: {}",
         container.getContainerID(), replicaIndex, source, target, scmDeadlineEpochMs);
     final ReplicateContainerCommand command = ReplicateContainerCommand
         .toTarget(container.getContainerID(), target);
