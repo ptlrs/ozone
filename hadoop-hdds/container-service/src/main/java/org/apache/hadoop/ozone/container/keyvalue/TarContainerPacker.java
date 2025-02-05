@@ -52,6 +52,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static java.util.stream.Collectors.toList;
+import static org.apache.hadoop.hdds.HddsConfigKeys.HDDS_CONTAINER_EXPORT_TMPDIR;
+import static org.apache.hadoop.hdds.HddsConfigKeys.HDDS_CONTAINER_EXPORT_TMPDIR_DEFAULT;
 import static org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.Result.CONTAINER_ALREADY_EXISTS;
 import static org.apache.hadoop.ozone.OzoneConsts.SCHEMA_V3;
 
@@ -158,17 +160,26 @@ public class TarContainerPacker
       throws IOException {
 
     KeyValueContainerData containerData = container.getContainerData();
+    LOG.debug("ATTENTION! Starting to pack container data for container ID: {}", containerData.getContainerID());
 
     try (ArchiveOutputStream<TarArchiveEntry> archiveOutput = tar(compress(output))) {
+      LOG.debug("ATTENTION! Archive output stream created for container ID: {}", containerData.getContainerID());
+
       includeFile(container.getContainerFile(), CONTAINER_FILE_NAME,
           archiveOutput);
+      LOG.debug("ATTENTION! Included container file: {}", CONTAINER_FILE_NAME);
 
-      includePath(getDbPath(containerData), DB_DIR_NAME,
+//      TODO: ATTENTION! FIXME
+      includePath(getDbPathfromDumpPath(containerData), DB_DIR_NAME,
           archiveOutput);
+      LOG.debug("ATTENTION! Included database path for container ID: {}", containerData.getContainerID());
 
       includePath(Paths.get(containerData.getChunksPath()), CHUNKS_DIR_NAME,
           archiveOutput);
+      LOG.debug("ATTENTION! Included chunks path for container ID: {}", containerData.getContainerID());
     }
+
+    LOG.debug("ATTENTION! Finished packing container data for container ID: {}", containerData.getContainerID());
   }
 
   @Override
@@ -188,6 +199,20 @@ public class TarContainerPacker
 
     throw new IOException(
         "Container descriptor is missing from the container archive.");
+  }
+
+
+  public static Path getDbPathfromDumpPath(KeyValueContainerData containerData) {
+    if (containerData.hasSchema(SCHEMA_V3)) {
+//      File tarExportPath = new File(conf.get(HDDS_CONTAINER_EXPORT_TMPDIR,
+//          HDDS_CONTAINER_EXPORT_TMPDIR_DEFAULT), String.valueOf(containerData.getContainerID()));
+      File tarExportPath = new File("/tmp", String.valueOf(containerData.getContainerID()));
+      return DatanodeStoreSchemaThreeImpl.getDumpDir(tarExportPath).toPath();
+//      return DatanodeStoreSchemaThreeImpl.getDumpDir(
+//          new File(containerData.getMetadataPath())).toPath();
+    } else {
+      return containerData.getDbFile().toPath();
+    }
   }
 
   public static Path getDbPath(KeyValueContainerData containerData) {
@@ -241,7 +266,6 @@ public class TarContainerPacker
 
   private void includePath(Path dir, String subdir,
       ArchiveOutputStream<TarArchiveEntry> archiveOutput) throws IOException {
-
     // Add a directory entry before adding files, in case the directory is
     // empty.
     LOG.debug("ATTENTION! Adding directory entry for: {}, with subdir: {}", dir.toAbsolutePath(), subdir);
@@ -252,12 +276,19 @@ public class TarContainerPacker
     LOG.debug("ATTENTION! Closed directory entry for: {}, with subdir: {}", dir.toAbsolutePath(), subdir);
 
     // Add files in the directory.
+    LOG.debug("ATTENTION! Listing entries in directory: {}", dir.toAbsolutePath());
     try (Stream<Path> dirEntries = Files.list(dir)) {
+      LOG.debug("ATTENTION! Successfully listed entries in directory: {}", dir.toAbsolutePath());
       for (Path path : dirEntries.collect(toList())) {
+        LOG.debug("ATTENTION! Iterating over directory entry: {}", path.toAbsolutePath());
         String entryName = subdir + "/" + path.getFileName();
         LOG.debug("ATTENTION! Including file: {} with entry name: {}", path.toAbsolutePath(), entryName);
         includeFile(path.toFile(), entryName, archiveOutput);
+        LOG.debug("ATTENTION! Successfully included file: {} with entry name: {}", path.toAbsolutePath(), entryName);
       }
+    } catch (Exception e) {
+      LOG.error("ATTENTION! Exception occurred while processing directory: {}", dir.toAbsolutePath(), e);
+      throw e;
     }
   }
 

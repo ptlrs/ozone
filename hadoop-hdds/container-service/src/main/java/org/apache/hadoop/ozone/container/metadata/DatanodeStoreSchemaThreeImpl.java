@@ -106,12 +106,21 @@ public class DatanodeStoreSchemaThreeImpl extends DatanodeStoreWithIncrementalCh
   public void removeKVContainerData(long containerID) throws IOException {
     String prefix = getContainerKeyPrefix(containerID);
     try (BatchOperation batch = getBatchHandler().initBatchOperation()) {
+      LOG.debug("ATTENTION! Deleting keys with prefix '{}' from Metadata Table.", prefix);
       getMetadataTable().deleteBatchWithPrefix(batch, prefix);
+
+      LOG.debug("ATTENTION! Deleting keys with prefix '{}' from Block Data Table.", prefix);
       getBlockDataTable().deleteBatchWithPrefix(batch, prefix);
+
       if (VersionedDatanodeFeatures.isFinalized(HDDSLayoutFeature.HBASE_SUPPORT)) {
+        LOG.debug("ATTENTION! Deleting keys with prefix '{}' from Last Chunk Info Table.", prefix);
         getLastChunkInfoTable().deleteBatchWithPrefix(batch, prefix);
       }
+
+      LOG.debug("ATTENTION! Deleting keys with prefix '{}' from Delete Transaction Table.", prefix);
       getDeleteTransactionTable().deleteBatchWithPrefix(batch, prefix);
+
+      LOG.debug("ATTENTION! Committing batch operation for prefix '{}'.", prefix);
       getBatchHandler().commitBatchOperation(batch);
     }
   }
@@ -119,29 +128,43 @@ public class DatanodeStoreSchemaThreeImpl extends DatanodeStoreWithIncrementalCh
   public void dumpKVContainerData(long containerID, File dumpDir)
       throws IOException {
     String prefix = getContainerKeyPrefix(containerID);
-    getMetadataTable().dumpToFileWithPrefix(
-        getTableDumpFile(getMetadataTable(), dumpDir), prefix);
-    getBlockDataTable().dumpToFileWithPrefix(
-        getTableDumpFile(getBlockDataTable(), dumpDir), prefix);
+    LOG.debug("ATTENTION! Dumping metadata table with prefix '{}' to file: {}",
+        prefix, getTableDumpFile(getMetadataTable(), dumpDir).getAbsolutePath());
+    getMetadataTable().dumpToFileWithPrefix(getTableDumpFile(getMetadataTable(), dumpDir), prefix);
+
+    LOG.debug("ATTENTION! Dumping block data table with prefix '{}' to file: {}",
+        prefix, getTableDumpFile(getBlockDataTable(), dumpDir).getAbsolutePath());
+    getBlockDataTable().dumpToFileWithPrefix(getTableDumpFile(getBlockDataTable(), dumpDir), prefix);
+
     if (VersionedDatanodeFeatures.isFinalized(HDDSLayoutFeature.HBASE_SUPPORT)) {
-      getLastChunkInfoTable().dumpToFileWithPrefix(
-          getTableDumpFile(getLastChunkInfoTable(), dumpDir), prefix);
+      LOG.debug("ATTENTION! Dumping last chunk info table with prefix '{}' to file: {}",
+          prefix, getTableDumpFile(getLastChunkInfoTable(), dumpDir).getAbsolutePath());
+      getLastChunkInfoTable().dumpToFileWithPrefix(getTableDumpFile(getLastChunkInfoTable(), dumpDir), prefix);
     }
-    getDeleteTransactionTable().dumpToFileWithPrefix(
-        getTableDumpFile(getDeleteTransactionTable(), dumpDir),
-        prefix);
+
+    LOG.debug("ATTENTION! Dumping delete transaction table with prefix '{}' to file: {}",
+        prefix, getTableDumpFile(getDeleteTransactionTable(), dumpDir).getAbsolutePath());
+    getDeleteTransactionTable().dumpToFileWithPrefix(getTableDumpFile(getDeleteTransactionTable(), dumpDir), prefix);
   }
 
   public void loadKVContainerData(File dumpDir)
       throws IOException {
+    LOG.debug("ATTENTION! Loading metadata table from file: {}",
+        getTableDumpFile(getMetadataTable(), dumpDir).getAbsolutePath());
     getMetadataTable().loadFromFile(
         getTableDumpFile(getMetadataTable(), dumpDir));
+    LOG.debug("ATTENTION! Loading block data table from file: {}",
+        getTableDumpFile(getBlockDataTable(), dumpDir).getAbsolutePath());
     getBlockDataTable().loadFromFile(
         getTableDumpFile(getBlockDataTable(), dumpDir));
     if (VersionedDatanodeFeatures.isFinalized(HDDSLayoutFeature.HBASE_SUPPORT)) {
+      LOG.debug("ATTENTION! Loading last chunk info table from file: {}",
+          getTableDumpFile(getLastChunkInfoTable(), dumpDir).getAbsolutePath());
       getLastChunkInfoTable().loadFromFile(
           getTableDumpFile(getLastChunkInfoTable(), dumpDir));
     }
+    LOG.debug("ATTENTION! Loading delete transaction table from file: {}",
+        getTableDumpFile(getDeleteTransactionTable(), dumpDir).getAbsolutePath());
     getDeleteTransactionTable().loadFromFile(
         getTableDumpFile(getDeleteTransactionTable(), dumpDir));
   }

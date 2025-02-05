@@ -55,29 +55,41 @@ public class PushReplicator implements ContainerReplicator {
     CopyContainerCompression compression =
         CopyContainerCompression.getConf(conf);
 
-    LOG.info("Starting replication of container {} to {} using {}",
+    LOG.debug("ATTENTION! Preparing to replicate container {} to {} using compression {}",
+        containerID, target, compression);
+
+    LOG.info("ATTENTION! Starting replication of container {} to {} using {}",
         containerID, target, compression);
 
     source.prepare(containerID);
+    LOG.debug("ATTENTION! Source prepared for container {}", containerID);
 
     CountingOutputStream output = null;
     try {
       output = new CountingOutputStream(
           uploader.startUpload(containerID, target, fut, compression));
+      LOG.debug("ATTENTION! Upload started for container {}", containerID);
+
       source.copyData(containerID, output, compression);
+      LOG.debug("ATTENTION! Data copied for container {}", containerID);
+
       fut.get();
+      LOG.debug("ATTENTION! Future completed for container {}", containerID);
 
       task.setTransferredBytes(output.getByteCount());
       task.setStatus(Status.DONE);
+      LOG.info("ATTENTION! Replication of container {} to {} completed successfully", containerID, target);
     } catch (Exception e) {
-      LOG.warn("Container {} replication was unsuccessful.", containerID, e);
+      LOG.warn("ATTENTION! Container {} replication was unsuccessful.", containerID, e);
       if (output != null) {
         task.setTransferredBytes(output.getByteCount());
+        LOG.debug("ATTENTION! Set transferred bytes to {} for container {}", output.getByteCount(), containerID);
       }
       task.setStatus(Status.FAILED);
     } finally {
       // output may have already been closed, ignore such errors
       IOUtils.cleanupWithLogger(LOG, output);
+      LOG.debug("ATTENTION! Cleanup done for container {}", containerID);
     }
   }
 }

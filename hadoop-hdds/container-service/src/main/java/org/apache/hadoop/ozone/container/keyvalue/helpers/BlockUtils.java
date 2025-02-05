@@ -302,20 +302,28 @@ public final class BlockUtils {
       File tarExportPath = new File(conf.get(HDDS_CONTAINER_EXPORT_TMPDIR,
           HDDS_CONTAINER_EXPORT_TMPDIR_DEFAULT), String.valueOf(containerID));
       File dumpDir = DatanodeStoreSchemaThreeImpl.getDumpDir(tarExportPath);
+      LOG.debug("ATTENTION! Attempting to clean up old dump files from directory: {}", dumpDir.getAbsolutePath());
       // cleanup old files first
       deleteAllDumpFiles(dumpDir);
 
       try {
+        LOG.debug("ATTENTION! Attempting to create the dump directory: {}", dumpDir.getAbsolutePath());
         if (!dumpDir.mkdirs() && !dumpDir.exists()) {
           throw new IOException("Failed to create dir "
               + dumpDir.getAbsolutePath() + " for container " + containerID +
               " to dump metadata to files");
         }
-        LOG.info("ATTENTION! Creating dir {} for container {} to dump metadata to files",
+        LOG.debug("ATTENTION! Successfully created the dump directory: {}", dumpDir.getAbsolutePath());
+        LOG.debug("ATTENTION! Creating dir {} for container {} to dump metadata to files",
             dumpDir.getAbsolutePath(), containerID);
+        LOG.debug("ATTENTION! Starting to dump metadata for container ID {} into directory: {}", containerID,
+            dumpDir.getAbsolutePath());
         store.dumpKVContainerData(containerID, dumpDir);
         store.dumpKVContainerData(containerID, dumpDir);
       } catch (IOException e) {
+        LOG.error(
+            "ATTENTION! Failed to dump metadata for container ID {}. Cleaning up partially dumped files from directory: {}",
+            containerID, dumpDir.getAbsolutePath(), e);
         // cleanup partially dumped files
         deleteAllDumpFiles(dumpDir);
         throw new StorageContainerException("Failed to dump metadata" +
@@ -327,6 +335,7 @@ public final class BlockUtils {
 
   /**
    * Load container KV metadata from external files.
+   *
    * @param containerData
    * @param conf
    * @throws StorageContainerException
@@ -334,6 +343,8 @@ public final class BlockUtils {
   public static void loadKVContainerDataFromFiles(
       KeyValueContainerData containerData,
       ConfigurationSource conf) throws IOException {
+    LOG.debug("ATTENTION! Starting to load container KV metadata from external files for container ID {}.",
+        containerData.getContainerID());
     try (DBHandle db = getDB(containerData, conf)) {
       Preconditions.checkState(db.getStore()
           instanceof DatanodeStoreSchemaThreeImpl);
@@ -341,26 +352,31 @@ public final class BlockUtils {
       DatanodeStoreSchemaThreeImpl store = (DatanodeStoreSchemaThreeImpl)
           db.getStore();
       long containerID = containerData.getContainerID();
-//      File metaDir = new File(containerData.getMetadataPath());
-//      File dumpDir = DatanodeStoreSchemaThreeImpl.getDumpDir(metaDir);
+      LOG.debug("ATTENTION! Container ID {} retrieved. Preparing dump directory.", containerID);
+
       File tarExportPath = new File(conf.get(HDDS_CONTAINER_EXPORT_TMPDIR,
           HDDS_CONTAINER_EXPORT_TMPDIR_DEFAULT), String.valueOf(containerID));
       File dumpDir = DatanodeStoreSchemaThreeImpl.getDumpDir(tarExportPath);
+      LOG.debug("ATTENTION! Dump directory determined as {} for container ID {}.", dumpDir.getAbsolutePath(),
+          containerID);
       try {
         store.loadKVContainerData(dumpDir);
+        LOG.debug("ATTENTION! Successfully loaded KV metadata from dump directory {} for container ID {}.",
+            dumpDir.getAbsolutePath(), containerID);
       } catch (IOException e) {
-        // Don't delete unloaded or partially loaded files on failure,
-        // but delete all partially loaded metadata.
+        LOG.error("ATTENTION! Failed to load KV metadata from dump directory {} for container ID {}.",
+            dumpDir.getAbsolutePath(), containerID, e);
         store.removeKVContainerData(containerID);
         throw new StorageContainerException("Failed to load metadata " +
             "from files for container " + containerID, e,
             IMPORT_CONTAINER_METADATA_FAILED);
       } finally {
-        // cleanup already loaded files all together
-        LOG.info("Deleting dir {} for container {} to dump metadata to files", dumpDir.getAbsolutePath(), containerID);
+        LOG.info("ATTENTION! Deleting dump directory {} for container ID {} after loading metadata.",
+            dumpDir.getAbsolutePath(), containerID);
         deleteAllDumpFiles(dumpDir);
       }
     }
+    LOG.debug("ATTENTION! Finished loading KV metadata for container ID {}.", containerData.getContainerID());
   }
 
   public static void deleteAllDumpFiles(File dumpDir) throws IOException {

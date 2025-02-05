@@ -688,16 +688,19 @@ public class KeyValueContainer implements Container<KeyValueContainerData> {
 
   @Override
   public void exportContainerData(OutputStream destination,
-      ContainerPacker<KeyValueContainerData> packer) throws IOException {
+                                  ContainerPacker<KeyValueContainerData> packer) throws IOException {
     writeLock();
     try {
       // Closed/ Quasi closed and unhealthy containers are considered for
       // replication by replication manager if they are under-replicated.
       ContainerProtos.ContainerDataProto.State state =
           getContainerData().getState();
+      LOG.debug("ATTENTION! Starting exportContainerData for containerId: {} with state: {}",
+          getContainerData().getContainerID(), state);
       if (!(state == ContainerProtos.ContainerDataProto.State.CLOSED ||
           state == ContainerDataProto.State.QUASI_CLOSED
           || state == ContainerDataProto.State.UNHEALTHY)) {
+        LOG.debug("ATTENTION! Invalid state for export: {}", state);
         throw new IllegalStateException(
             "Only (quasi)closed and unhealthy containers can be exported. " +
                 "ContainerId=" + getContainerData().getContainerID() +
@@ -706,21 +709,28 @@ public class KeyValueContainer implements Container<KeyValueContainerData> {
 
       try {
         if (!containerData.hasSchema(OzoneConsts.SCHEMA_V3)) {
+          LOG.debug("ATTENTION! Compacting DB for containerId: {}", getContainerData().getContainerID());
           compactDB();
           // Close DB (and remove from cache) to avoid concurrent modification
           // while packing it.
+          LOG.debug("ATTENTION! Removing DB from cache for containerId: {}", getContainerData().getContainerID());
           BlockUtils.removeDB(containerData, config);
         }
       } finally {
+        LOG.debug("ATTENTION! Releasing write lock, acquiring read lock for containerId: {}",
+            getContainerData().getContainerID());
         readLock();
         writeUnlock();
       }
 
+      LOG.debug("ATTENTION! Packing container to destination for containerId: {}", getContainerData().getContainerID());
       packContainerToDestination(destination, packer);
     } finally {
       if (lock.isWriteLockedByCurrentThread()) {
+        LOG.debug("ATTENTION! Releasing write lock for containerId: {}", getContainerData().getContainerID());
         writeUnlock();
       } else {
+        LOG.debug("ATTENTION! Releasing read lock for containerId: {}", getContainerData().getContainerID());
         readUnlock();
       }
     }
