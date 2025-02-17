@@ -72,7 +72,8 @@ public class PushReplicator implements ContainerReplicator {
 
       source.copyData(containerID, output, compression);
       LOG.debug("ATTENTION! Data copied for container {}", containerID);
-
+//      LOG.warn("ATTENTION! EXITING THE JVM");
+//      System.exit(0);
       fut.get();
       LOG.debug("ATTENTION! Future completed for container {}", containerID);
 

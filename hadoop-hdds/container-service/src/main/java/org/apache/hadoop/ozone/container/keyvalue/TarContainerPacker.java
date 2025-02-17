@@ -81,38 +81,50 @@ public class TarContainerPacker
    * directories.
    *
    * @param container container which defines the destination structure.
-   * @param input the input stream.
+   * @param input     the input stream.
    */
   @Override
   public byte[] unpackContainerData(Container<KeyValueContainerData> container,
-      InputStream input, Path tmpDir, Path destContainerDir)
+                                    InputStream input, Path tmpDir, Path destContainerDir)
       throws IOException {
     KeyValueContainerData containerData = container.getContainerData();
     long containerId = containerData.getContainerID();
 
+    LOG.debug("ATTENTION! Starting to unpack container data for container ID: {}", containerId);
+
     Path containerUntarDir = tmpDir.resolve(String.valueOf(containerId));
     if (containerUntarDir.toFile().exists()) {
+      LOG.debug("ATTENTION! Temporary directory {} exists. Deleting.", containerUntarDir);
       FileUtils.deleteDirectory(containerUntarDir.toFile());
     }
 
+    LOG.debug("ATTENTION! Resolving database and chunks paths for container ID: {}", containerId);
     Path dbRoot = getDbPath(containerUntarDir, containerData);
     Path chunksRoot = getChunkPath(containerUntarDir, containerData);
+    LOG.debug("ATTENTION! Database path: {}, Chunks path: {}", dbRoot, chunksRoot);
+
     byte[] descriptorFileContent = innerUnpack(input, dbRoot, chunksRoot);
+    LOG.debug("ATTENTION! Completed inner unpack for container ID: {}", containerId);
 
     if (!Files.exists(destContainerDir)) {
+      LOG.debug("ATTENTION! Destination directory {} does not exist. Creating.", destContainerDir);
       Files.createDirectories(destContainerDir);
     }
     if (FileUtils.isEmptyDirectory(destContainerDir.toFile())) {
+      LOG.debug("ATTENTION! Destination directory {} is empty. Moving unpacked data.", destContainerDir);
       Files.move(containerUntarDir, destContainerDir,
-              StandardCopyOption.ATOMIC_MOVE,
-              StandardCopyOption.REPLACE_EXISTING);
+          StandardCopyOption.ATOMIC_MOVE,
+          StandardCopyOption.REPLACE_EXISTING);
+      LOG.debug("ATTENTION! Successfully moved unpacked data to {}", destContainerDir);
     } else {
       String errorMessage = "Container " + containerId +
           " unpack failed because ContainerFile " +
           destContainerDir.toAbsolutePath() + " already exists";
+      LOG.error("ATTENTION! {}", errorMessage);
       throw new StorageContainerException(errorMessage,
           CONTAINER_ALREADY_EXISTS);
     }
+    LOG.debug("ATTENTION! Successfully unpacked container data for container ID: {}", containerId);
     return descriptorFileContent;
   }
 
@@ -331,30 +343,33 @@ public class TarContainerPacker
       throws IOException {
     byte[] descriptorFileContent = null;
     try (ArchiveInputStream<TarArchiveEntry> archiveInput = untar(decompress(input))) {
+      LOG.debug("ATTENTION! Started inner unpack process.");
       ArchiveEntry entry = archiveInput.getNextEntry();
       while (entry != null) {
         String name = entry.getName();
         long size = entry.getSize();
+        LOG.debug("ATTENTION! Processing entry: {}, size: {}", name, size);
         if (name.startsWith(DB_DIR_NAME + "/")) {
           Path destinationPath = dbRoot
               .resolve(name.substring(DB_DIR_NAME.length() + 1));
-          extractEntry(entry, archiveInput, size, dbRoot,
-              destinationPath);
+          LOG.debug("ATTENTION! Extracting DB entry to destination: {}", destinationPath);
+          extractEntry(entry, archiveInput, size, dbRoot, destinationPath);
         } else if (name.startsWith(CHUNKS_DIR_NAME + "/")) {
           Path destinationPath = chunksRoot
               .resolve(name.substring(CHUNKS_DIR_NAME.length() + 1));
-          extractEntry(entry, archiveInput, size, chunksRoot,
-              destinationPath);
+          LOG.debug("ATTENTION! Extracting CHUNKS entry to destination: {}", destinationPath);
+          extractEntry(entry, archiveInput, size, chunksRoot, destinationPath);
         } else if (CONTAINER_FILE_NAME.equals(name)) {
-          //Don't do anything. Container file should be unpacked in a
-          //separated step by unpackContainerDescriptor call.
+          LOG.debug("ATTENTION! Reading descriptor file: {}", CONTAINER_FILE_NAME);
           descriptorFileContent = readEntry(archiveInput, size);
         } else {
-          throw new IllegalArgumentException(
-              "Unknown entry in the tar file: " + "" + name);
+          String errorMessage = "Unknown entry in the tar file: " + name;
+          LOG.error("ATTENTION! {}", errorMessage);
+          throw new IllegalArgumentException(errorMessage);
         }
         entry = archiveInput.getNextEntry();
       }
+      LOG.debug("ATTENTION! Completed inner unpack process.");
       return descriptorFileContent;
     }
   }

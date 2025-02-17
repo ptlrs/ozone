@@ -153,20 +153,23 @@ public class DatanodeStoreSchemaThreeImpl extends DatanodeStoreWithIncrementalCh
         getTableDumpFile(getMetadataTable(), dumpDir).getAbsolutePath());
     getMetadataTable().loadFromFile(
         getTableDumpFile(getMetadataTable(), dumpDir));
-    LOG.debug("ATTENTION! Loading block data table from file: {}",
-        getTableDumpFile(getBlockDataTable(), dumpDir).getAbsolutePath());
-    getBlockDataTable().loadFromFile(
-        getTableDumpFile(getBlockDataTable(), dumpDir));
-    if (VersionedDatanodeFeatures.isFinalized(HDDSLayoutFeature.HBASE_SUPPORT)) {
-      LOG.debug("ATTENTION! Loading last chunk info table from file: {}",
-          getTableDumpFile(getLastChunkInfoTable(), dumpDir).getAbsolutePath());
-      getLastChunkInfoTable().loadFromFile(
-          getTableDumpFile(getLastChunkInfoTable(), dumpDir));
-    }
-    LOG.debug("ATTENTION! Loading delete transaction table from file: {}",
-        getTableDumpFile(getDeleteTransactionTable(), dumpDir).getAbsolutePath());
-    getDeleteTransactionTable().loadFromFile(
-        getTableDumpFile(getDeleteTransactionTable(), dumpDir));
+    LOG.debug("ATTENTION! NOT IMPORTING ANY MORE SST FILES. EXITING THE JVM");
+//    System.exit(0);
+//    throw new IOException("ATTENTION! NOT IMPORTING SST FILES");
+//    LOG.debug("ATTENTION! Loading block data table from file: {}",
+//        getTableDumpFile(getBlockDataTable(), dumpDir).getAbsolutePath());
+//    getBlockDataTable().loadFromFile(
+//        getTableDumpFile(getBlockDataTable(), dumpDir));
+//    if (VersionedDatanodeFeatures.isFinalized(HDDSLayoutFeature.HBASE_SUPPORT)) {
+//      LOG.debug("ATTENTION! Loading last chunk info table from file: {}",
+//          getTableDumpFile(getLastChunkInfoTable(), dumpDir).getAbsolutePath());
+//      getLastChunkInfoTable().loadFromFile(
+//          getTableDumpFile(getLastChunkInfoTable(), dumpDir));
+//    }
+//    LOG.debug("ATTENTION! Loading delete transaction table from file: {}",
+//        getTableDumpFile(getDeleteTransactionTable(), dumpDir).getAbsolutePath());
+//    getDeleteTransactionTable().loadFromFile(
+//        getTableDumpFile(getDeleteTransactionTable(), dumpDir));
   }
 
   public static File getTableDumpFile(Table<String, ?> table,

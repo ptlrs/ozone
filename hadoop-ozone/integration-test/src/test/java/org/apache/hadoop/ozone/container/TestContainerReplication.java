@@ -27,6 +27,7 @@ import static org.apache.hadoop.hdds.scm.ScmConfigKeys.OZONE_SCM_CONTAINER_PLACE
 import static org.apache.hadoop.hdds.scm.ScmConfigKeys.OZONE_SCM_CONTAINER_PLACEMENT_IMPL_KEY;
 import static org.apache.hadoop.hdds.scm.ScmConfigKeys.OZONE_SCM_DEADNODE_INTERVAL;
 import static org.apache.hadoop.hdds.scm.ScmConfigKeys.OZONE_SCM_STALENODE_INTERVAL;
+import static org.apache.hadoop.ozone.container.TestHelper.countReplicas;
 import static org.apache.hadoop.ozone.container.TestHelper.waitForContainerClose;
 import static org.apache.hadoop.ozone.container.TestHelper.waitForReplicaCount;
 import static org.apache.ozone.test.GenericTestUtils.setLogLevel;
@@ -59,7 +60,10 @@ import org.apache.hadoop.hdds.client.RatisReplicationConfig;
 import org.apache.hadoop.hdds.conf.OzoneConfiguration;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos;
+import org.apache.hadoop.hdds.protocol.proto.HddsProtos;
 import org.apache.hadoop.hdds.scm.PlacementPolicy;
+import org.apache.hadoop.hdds.scm.container.ContainerID;
+import org.apache.hadoop.hdds.scm.container.ContainerNotFoundException;
 import org.apache.hadoop.hdds.scm.container.placement.algorithms.SCMContainerPlacementMetrics;
 import org.apache.hadoop.hdds.scm.container.placement.algorithms.SCMContainerPlacementRackScatter;
 import org.apache.hadoop.hdds.scm.container.replication.ReplicationManager.ReplicationManagerConfiguration;
@@ -82,6 +86,7 @@ import org.apache.hadoop.ozone.om.helpers.OmKeyInfo;
 import org.apache.hadoop.ozone.om.helpers.OmKeyLocationInfo;
 import org.apache.hadoop.ozone.om.helpers.OmKeyLocationInfoGroup;
 
+import org.apache.ozone.test.GenericTestUtils;
 import org.apache.ozone.test.tag.Flaky;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -92,6 +97,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
 
 /**
@@ -284,6 +290,67 @@ class TestContainerReplication {
       container.getDispatcher().getHandler(KeyValueContainer).deleteContainer(containerData, true);
     }
     cluster.getHddsDatanode(dn).getDatanodeStateMachine().triggerHeartbeat();
+  }
+
+
+  @Test
+  public void testDeletingContainer() throws Exception {
+    OzoneConfiguration conf = createConfiguration(false);
+    try (MiniOzoneCluster cluster = MiniOzoneCluster.newBuilder(conf).setNumDatanodes(4).build()) {
+      cluster.waitForClusterToBeReady();
+      try (OzoneClient client = OzoneClientFactory.getRpcClient(conf)) {
+        List<DatanodeDetails> allNodes =
+            cluster.getHddsDatanodes().stream().map(HddsDatanodeService::getDatanodeDetails).collect(
+                Collectors.toList());
+        cluster.shutdownHddsDatanode(allNodes.get(allNodes.size() - 1));
+        createTestData(client);
+        final OmKeyLocationInfo keyLocation = lookupKeyFirstLocation(cluster);
+        long containerID = keyLocation.getContainerID();
+        waitForContainerClose(cluster, containerID);
+        for (int i = 0; i < 2; i++) {
+          cluster.shutdownHddsDatanode(allNodes.get(i));
+        }
+        waitForReplicaCount(containerID, 1, cluster);
+        cluster.restartHddsDatanode(allNodes.get(allNodes.size() - 1), false);
+        waitForReplicaCount(containerID, 2, cluster);
+        cluster.shutdownHddsDatanode(allNodes.get(2));
+        GenericTestUtils.waitFor(() -> countReplicas(containerID, cluster) <= 1, 1000, 100000);
+        GenericTestUtils.waitFor(() -> {
+          try {
+            return cluster.getStorageContainerManager().getContainerManager().getContainer(new ContainerID(containerID)).getState() == HddsProtos.LifeCycleState.DELETING;
+          } catch (ContainerNotFoundException e) {
+            return false;
+          }
+        }, 10, 100000);
+        cluster.getStorageContainerManager().getReplicationManager().stop();
+        cluster.restartHddsDatanode(allNodes.get(0), false);
+        cluster.restartHddsDatanode(allNodes.get(1), false);
+        cluster.restartHddsDatanode(allNodes.get(2), false);
+//        cluster.getStorageContainerManager().getReplicationManager().start();
+        waitForReplicaCount(containerID, 3, cluster);
+        GenericTestUtils.waitFor(() -> {
+          try {
+            System.out.println("Swaminathan Container state is " + cluster.getStorageContainerManager().getContainerManager().getContainer(new ContainerID(containerID)).getState());
+            return cluster.getStorageContainerManager().getContainerManager().getContainer(new ContainerID(containerID)).getState() == HddsProtos.LifeCycleState.CLOSED;
+          } catch (ContainerNotFoundException e) {
+            return false;
+          }
+        }, 1000, 100000);
+//        GenericTestUtils.waitFor(() -> {
+//          boolean found = false;
+//          for (int i = 0; i < 3; i++) {
+//            try {
+//              found = found || cluster.getHddsDatanode(allNodes.get(i)).getDatanodeStateMachine().getContainer().getContainerSet().getContainer(containerID) != null;
+//            } catch (IOException e) {
+//              found = true;
+//            }
+//          }
+//          return !found;
+//        }, 1000, 100000);
+
+
+      }
+    }
   }
 
 

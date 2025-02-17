@@ -35,7 +35,7 @@ import java.util.Set;
  * This handler deletes a container if it's closed and empty (0 key count)
  * and all its replicas are empty.
  */
-public class EmptyContainerHandler extends AbstractCheck {
+public class  EmptyContainerHandler extends AbstractCheck {
   public static final Logger LOG =
       LoggerFactory.getLogger(EmptyContainerHandler.class);
 

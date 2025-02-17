@@ -95,7 +95,7 @@ public class ContainerImporter {
       throws IOException {
     if (!importContainerProgress.add(containerID)) {
       deleteFileQuietely(tarFilePath);
-      String log = "Container import in progress with container Id " + containerID;
+      String log = "ATTENTION! Container import in progress with container Id " + containerID;
       LOG.warn(log);
       throw new StorageContainerException(log,
           ContainerProtos.Result.CONTAINER_EXISTS);
@@ -103,7 +103,7 @@ public class ContainerImporter {
 
     try {
       if (containerSet.getContainer(containerID) != null) {
-        String log = "Container already exists with container Id " + containerID;
+        String log = "ATTENTION! Container already exists with container Id " + containerID;
         LOG.warn(log);
         throw new StorageContainerException(log,
             ContainerProtos.Result.CONTAINER_EXISTS);
@@ -111,6 +111,7 @@ public class ContainerImporter {
 
       HddsVolume targetVolume = hddsVolume;
       if (targetVolume == null) {
+        LOG.debug("ATTENTION! No target volume provided. Choosing next available volume.");
         targetVolume = chooseNextVolume();
       }
 
@@ -118,19 +119,25 @@ public class ContainerImporter {
       TarContainerPacker packer = getPacker(compression);
 
       try (FileInputStream input = new FileInputStream(tarFilePath.toFile())) {
+        LOG.debug("ATTENTION! Unpacking container descriptor for container ID " + containerID);
         byte[] containerDescriptorYaml =
             packer.unpackContainerDescriptor(input);
         containerData = getKeyValueContainerData(containerDescriptorYaml);
       }
+      LOG.debug("ATTENTION! Verifying checksum for container ID " + containerID);
       ContainerUtils.verifyChecksum(containerData, conf);
       containerData.setVolume(targetVolume);
 
       try (FileInputStream input = new FileInputStream(tarFilePath.toFile())) {
+        LOG.debug("ATTENTION! Importing container with ID " + containerID);
         Container container = controller.importContainer(
             containerData, input, packer);
         containerSet.addContainerByOverwriteMissingContainer(container);
+        LOG.debug("ATTENTION! Successfully imported container with ID " + containerID);
       }
     } finally {
+      LOG.debug(
+          "ATTENTION! Removing container ID " + containerID + " from import progress set and deleting temporary file.");
       importContainerProgress.remove(containerID);
       deleteFileQuietely(tarFilePath);
     }

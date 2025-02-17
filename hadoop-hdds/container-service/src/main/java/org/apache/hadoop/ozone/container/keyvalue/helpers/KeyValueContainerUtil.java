@@ -163,36 +163,49 @@ public final class KeyValueContainerUtil {
 
   /**
    * Returns if there are no blocks in the container.
-   * @param store DBStore
-   * @param containerData Container to check
+   * @param store                DBStore
+   * @param containerData        Container to check
    * @param bCheckChunksFilePath Whether to check chunksfilepath has any blocks
    * @return true if the directory containing blocks is empty
    * @throws IOException
    */
   public static boolean noBlocksInContainer(DatanodeStore store,
                                             KeyValueContainerData
-                                            containerData,
+                                                containerData,
                                             boolean bCheckChunksFilePath)
       throws IOException {
     Preconditions.checkNotNull(store);
     Preconditions.checkNotNull(containerData);
+    LOG.debug("ATTENTION! Checking if container with ID {} has no blocks.", containerData.getContainerID());
     if (containerData.isOpen()) {
+      LOG.debug("ATTENTION! Container with ID {} is open. Returning false.", containerData.getContainerID());
       return false;
     }
     try (BlockIterator<BlockData> blockIterator =
              store.getBlockIterator(containerData.getContainerID())) {
       if (blockIterator.hasNext()) {
+        LOG.debug("ATTENTION! Container with ID {} has blocks in its database. Returning false.",
+            containerData.getContainerID());
         return false;
       }
     }
     if (bCheckChunksFilePath) {
       File chunksPath = new File(containerData.getChunksPath());
       Preconditions.checkArgument(chunksPath.isDirectory());
+      LOG.debug("ATTENTION! Checking chunks directory for container ID {} at path {}.", containerData.getContainerID(),
+          chunksPath);
       try (DirectoryStream<Path> dir
                = Files.newDirectoryStream(chunksPath.toPath())) {
-        return !dir.iterator().hasNext();
+        boolean hasChunks = dir.iterator().hasNext();
+        if (hasChunks) {
+          LOG.debug("ATTENTION! Chunks directory for container ID {} is not empty. Returning false.",
+              containerData.getContainerID());
+        }
+        return !hasChunks;
       }
     }
+    LOG.warn("ATTENTION! Container with ID {} has no blocks and no chunks. Returning true.",
+        containerData.getContainerID());
     return true;
   }
 
@@ -285,80 +298,107 @@ public final class KeyValueContainerUtil {
       boolean bCheckChunksFilePath)
       throws IOException {
     boolean isBlockMetadataSet = false;
+    LOG.debug("ATTENTION! Start populating metadata for container ID {}", kvContainerData.getContainerID());
     Table<String, Long> metadataTable = store.getMetadataTable();
 
     // Set pending deleted block count.
+    LOG.debug("ATTENTION! Checking pending deleted block count for container ID {}", kvContainerData.getContainerID());
     Long pendingDeleteBlockCount =
         metadataTable.get(kvContainerData
             .getPendingDeleteBlockCountKey());
     if (pendingDeleteBlockCount != null) {
+      LOG.debug("ATTENTION! Found pending deleted block count: {} for container ID {}",
+          pendingDeleteBlockCount, kvContainerData.getContainerID());
       kvContainerData.incrPendingDeletionBlocks(
           pendingDeleteBlockCount);
     } else {
-      // Set pending deleted block count.
+      LOG.debug("ATTENTION! Pending deleted block count not found. Calculating for container ID {}",
+          kvContainerData.getContainerID());
       MetadataKeyFilters.KeyPrefixFilter filter =
           kvContainerData.getDeletingBlockKeyFilter();
       int numPendingDeletionBlocks = store.getBlockDataTable()
-              .getSequentialRangeKVs(kvContainerData.startKeyEmpty(),
-                  Integer.MAX_VALUE, kvContainerData.containerPrefix(),
-                  filter).size();
+          .getSequentialRangeKVs(kvContainerData.startKeyEmpty(),
+              Integer.MAX_VALUE, kvContainerData.containerPrefix(),
+              filter).size();
       kvContainerData.incrPendingDeletionBlocks(numPendingDeletionBlocks);
+      LOG.debug("ATTENTION! Calculated pending deleted block count: {} for container ID {}",
+          numPendingDeletionBlocks, kvContainerData.getContainerID());
     }
 
     // Set delete transaction id.
+    LOG.debug("ATTENTION! Setting delete transaction ID for container ID {}", kvContainerData.getContainerID());
     Long delTxnId =
         metadataTable.get(kvContainerData.getLatestDeleteTxnKey());
     if (delTxnId != null) {
+      LOG.debug("ATTENTION! Found delete transaction ID: {} for container ID {}", delTxnId,
+          kvContainerData.getContainerID());
       kvContainerData
           .updateDeleteTransactionId(delTxnId);
     }
 
     // Set BlockCommitSequenceId.
+    LOG.debug("ATTENTION! Setting BlockCommitSequenceId for container ID {}", kvContainerData.getContainerID());
     Long bcsId = metadataTable.get(
         kvContainerData.getBcsIdKey());
     if (bcsId != null) {
+      LOG.debug("ATTENTION! Found BlockCommitSequenceId: {} for container ID {}", bcsId,
+          kvContainerData.getContainerID());
       kvContainerData
           .updateBlockCommitSequenceId(bcsId);
     }
 
     // Set bytes used.
     // commitSpace for Open Containers relies on usedBytes
+    LOG.debug("ATTENTION! Setting bytes used for container ID {}", kvContainerData.getContainerID());
     Long bytesUsed =
         metadataTable.get(kvContainerData.getBytesUsedKey());
     if (bytesUsed != null) {
+      LOG.debug("ATTENTION! Found bytes used: {} for container ID {}", bytesUsed, kvContainerData.getContainerID());
       isBlockMetadataSet = true;
       kvContainerData.setBytesUsed(bytesUsed);
     }
 
     // Set block count.
+    LOG.debug("ATTENTION! Setting block count for container ID {}", kvContainerData.getContainerID());
     Long blockCount = metadataTable.get(
         kvContainerData.getBlockCountKey());
     if (blockCount != null) {
+      LOG.debug("ATTENTION! Found block count: {} for container ID {}", blockCount, kvContainerData.getContainerID());
       isBlockMetadataSet = true;
       kvContainerData.setBlockCount(blockCount);
     }
     if (!isBlockMetadataSet) {
+      LOG.debug("ATTENTION! Block metadata not set. Initializing used bytes and block count for container ID {}",
+          kvContainerData.getContainerID());
       initializeUsedBytesAndBlockCount(store, kvContainerData);
     }
 
     // If the container is missing a chunks directory, possibly due to the
     // bug fixed by HDDS-6235, create it here.
+    LOG.debug("ATTENTION! Checking chunks directory for container ID {}", kvContainerData.getContainerID());
     File chunksDir = new File(kvContainerData.getChunksPath());
     if (!chunksDir.exists()) {
+      LOG.debug("ATTENTION! Chunks directory missing for container ID {}. Creating directory at {}",
+          kvContainerData.getContainerID(), chunksDir.getPath());
       Files.createDirectories(chunksDir.toPath());
     }
 
+    LOG.info("ATTENTION! Checking if container {} isEmpty", kvContainerData.getContainerID());
     if (noBlocksInContainer(store, kvContainerData, bCheckChunksFilePath)) {
+      LOG.info("ATTENTION! MARKING container {} isEmpty AS EMPTY!!!", kvContainerData.getContainerID());
       kvContainerData.markAsEmpty();
     }
 
     // Run advanced container inspection/repair operations if specified on
     // startup. If this method is called but not as a part of startup,
     // The inspectors will be unloaded and this will be a no-op.
+    LOG.debug("ATTENTION! Running advanced container inspection for container ID {}", kvContainerData.getContainerID());
     ContainerInspectorUtil.process(kvContainerData, store);
 
     // Load finalizeBlockLocalIds for container in memory.
+    LOG.debug("ATTENTION! Loading finalized block local IDs for container ID {}", kvContainerData.getContainerID());
     populateContainerFinalizeBlock(kvContainerData, store);
+    LOG.debug("ATTENTION! Completed populating metadata for container ID {}", kvContainerData.getContainerID());
   }
 
   /**

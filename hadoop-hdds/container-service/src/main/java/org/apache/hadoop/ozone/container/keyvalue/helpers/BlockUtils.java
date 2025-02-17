@@ -364,12 +364,13 @@ public final class BlockUtils {
         LOG.debug("ATTENTION! Successfully loaded KV metadata from dump directory {} for container ID {}.",
             dumpDir.getAbsolutePath(), containerID);
       } catch (IOException e) {
-        LOG.error("ATTENTION! Failed to load KV metadata from dump directory {} for container ID {}.",
-            dumpDir.getAbsolutePath(), containerID, e);
-        store.removeKVContainerData(containerID);
-        throw new StorageContainerException("Failed to load metadata " +
-            "from files for container " + containerID, e,
-            IMPORT_CONTAINER_METADATA_FAILED);
+        throw new IOException(e);
+//        LOG.error("ATTENTION! Failed to load KV metadata from dump directory {} for container ID {}.",
+//            dumpDir.getAbsolutePath(), containerID, e);
+//        store.removeKVContainerData(containerID);
+//        throw new StorageContainerException("Failed to load metadata " +
+//            "from files for container " + containerID, e,
+//            IMPORT_CONTAINER_METADATA_FAILED);
       } finally {
         LOG.info("ATTENTION! Deleting dump directory {} for container ID {} after loading metadata.",
             dumpDir.getAbsolutePath(), containerID);

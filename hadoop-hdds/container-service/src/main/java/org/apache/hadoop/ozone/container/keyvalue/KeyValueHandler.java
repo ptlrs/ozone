@@ -1169,20 +1169,32 @@ public class KeyValueHandler extends Handler {
       final TarContainerPacker packer) throws IOException {
     Preconditions.checkState(originalContainerData instanceof
         KeyValueContainerData, "Should be KeyValueContainerData instance");
+    LOG.debug("ATTENTION! Starting importContainer process for container: {}", originalContainerData.getContainerID());
 
     KeyValueContainerData containerData = new KeyValueContainerData(
         (KeyValueContainerData) originalContainerData);
+    LOG.debug("ATTENTION! Created KeyValueContainerData for container: {}", containerData.getContainerID());
 
     KeyValueContainer container = new KeyValueContainer(containerData,
         conf);
+    LOG.debug("ATTENTION! Initialized KeyValueContainer object for container: {}", containerData.getContainerID());
 
     HddsVolume targetVolume = originalContainerData.getVolume();
-    populateContainerPathFields(container, targetVolume);
-    container.importContainerData(rawContainerStream, packer);
-    ContainerLogger.logImported(containerData);
-    sendICR(container);
-    return container;
+    LOG.debug("ATTENTION! Retrieved target volume for container: {}", containerData.getContainerID());
 
+    populateContainerPathFields(container, targetVolume);
+    LOG.debug("ATTENTION! Populated container path fields for container: {}", containerData.getContainerID());
+
+    container.importContainerData(rawContainerStream, packer);
+    LOG.debug("ATTENTION! Imported container data for container: {}", containerData.getContainerID());
+
+    ContainerLogger.logImported(containerData);
+    LOG.debug("ATTENTION! Logged imported container data for container: {}", containerData.getContainerID());
+
+    sendICR(container);
+    LOG.debug("ATTENTION! Sent ICR for container: {}", containerData.getContainerID());
+
+    return container;
   }
 
   @Override

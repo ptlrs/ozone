@@ -367,8 +367,11 @@ public class KeyValueContainer implements Container<KeyValueContainerData> {
   @Override
   public boolean hasBlocks() throws IOException {
     try (DBHandle db = BlockUtils.getDB(containerData, config)) {
-      return !KeyValueContainerUtil.noBlocksInContainer(db.getStore(),
+      LOG.debug("ATTENTION! Checking if container {} has blocks.", containerData.getContainerID());
+      boolean result = !KeyValueContainerUtil.noBlocksInContainer(db.getStore(),
           containerData, bCheckChunksFilePath);
+      LOG.debug("ATTENTION! Result of block check for container {}: {}", containerData.getContainerID(), result);
+      return result;
     }
   }
 
@@ -602,23 +605,31 @@ public class KeyValueContainer implements Container<KeyValueContainerData> {
       ContainerPacker<KeyValueContainerData> packer)
       throws IOException {
     HddsVolume hddsVolume = containerData.getVolume();
+    LOG.debug("ATTENTION! Retrieved volume from container data: {}", hddsVolume);
     String idDir = VersionedDatanodeFeatures.ScmHA.chooseContainerPathID(
         hddsVolume, hddsVolume.getClusterID());
+    LOG.debug("ATTENTION! Chosen container path ID: {}", idDir);
     long containerId = containerData.getContainerID();
+    LOG.debug("ATTENTION! Container ID: {}", containerId);
     Path destContainerDir =
         Paths.get(KeyValueContainerLocationUtil.getBaseContainerLocation(
             hddsVolume.getHddsRootDir().toString(), idDir, containerId));
+    LOG.debug("ATTENTION! Destination container directory: {}", destContainerDir);
     Path tmpDir = ContainerImporter.getUntarDirectory(hddsVolume);
+    LOG.debug("ATTENTION! Temporary directory for unzipping container: {}", tmpDir);
     writeLock();
     try {
+      LOG.debug("ATTENTION! Acquired write lock for importing container.");
       //copy the values from the input stream to the final destination
       // directory.
       byte[] descriptorContent = packer.unpackContainerData(this, input, tmpDir,
           destContainerDir);
+      LOG.debug("ATTENTION! Unpacked container data to temporary directory.");
 
       Preconditions.checkNotNull(descriptorContent,
           "Container descriptor is missing from the container archive: "
               + getContainerData().getContainerID());
+      LOG.debug("ATTENTION! Container descriptor retrieved successfully.");
 
       //now, we have extracted the container descriptor from the previous
       //datanode. We can load it and upload it with the current data
@@ -626,12 +637,16 @@ public class KeyValueContainer implements Container<KeyValueContainerData> {
       KeyValueContainerData originalContainerData =
           (KeyValueContainerData) ContainerDataYaml
               .readContainer(descriptorContent);
+      LOG.debug("ATTENTION! Read container descriptor and parsed into KeyValueContainerData.");
       importContainerData(originalContainerData);
+      LOG.debug("ATTENTION! Imported container data successfully.");
     } catch (Exception ex) {
+      LOG.error("ATTENTION! Exception occurred during container data import.", ex);
       // clean data under tmp directory
       try {
         Path containerUntarDir = tmpDir.resolve(String.valueOf(containerId));
         if (containerUntarDir.toFile().exists()) {
+          LOG.debug("ATTENTION! Cleaning up temporary container directory: {}", containerUntarDir);
           FileUtils.deleteDirectory(containerUntarDir.toFile());
         }
       } catch (Exception deleteex) {
@@ -644,16 +659,21 @@ public class KeyValueContainer implements Container<KeyValueContainerData> {
       if (ex instanceof StorageContainerException &&
           ((StorageContainerException) ex).getResult() ==
               CONTAINER_ALREADY_EXISTS) {
+        LOG.debug("ATTENTION! Container already exists: {}", containerId);
         throw ex;
       }
 
       // delete all other temporary data in case of any exception.
       try {
         if (containerData.hasSchema(OzoneConsts.SCHEMA_V3)) {
+          LOG.debug("ATTENTION! Removing container from DB for schema V3...");
           BlockUtils.removeContainerFromDB(containerData, config);
         }
+        LOG.debug("ATTENTION! Cleaning up metadata path: {}", containerData.getMetadataPath());
         FileUtils.deleteDirectory(new File(containerData.getMetadataPath()));
+        LOG.debug("ATTENTION! Cleaning up chunks path: {}", containerData.getChunksPath());
         FileUtils.deleteDirectory(new File(containerData.getChunksPath()));
+        LOG.debug("ATTENTION! Cleaning up container path: {}", getContainerData().getContainerPath());
         FileUtils.deleteDirectory(
             new File(getContainerData().getContainerPath()));
       } catch (Exception deleteex) {
@@ -663,6 +683,7 @@ public class KeyValueContainer implements Container<KeyValueContainerData> {
       }
       throw ex;
     } finally {
+      LOG.debug("ATTENTION! Releasing write lock for container import.");
       writeUnlock();
     }
   }
@@ -903,6 +924,8 @@ public class KeyValueContainer implements Container<KeyValueContainerData> {
         .setBlockCommitSequenceId(containerData.getBlockCommitSequenceId())
         .setOriginNodeId(containerData.getOriginNodeId())
         .setIsEmpty(containerData.isEmpty());
+    LOG.debug("ATTENTION! Reporting containerId: {} isEmpty: '{}'",
+        containerData.getContainerID(), containerData.isEmpty());
     return ciBuilder.build();
   }
 

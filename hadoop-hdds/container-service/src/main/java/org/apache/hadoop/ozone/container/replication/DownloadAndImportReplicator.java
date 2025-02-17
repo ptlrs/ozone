@@ -61,7 +61,7 @@ public class DownloadAndImportReplicator implements ContainerReplicator {
   public void replicate(ReplicationTask task) {
     long containerID = task.getContainerId();
     if (containerSet.getContainer(containerID) != null) {
-      LOG.debug("Container {} has already been downloaded.", containerID);
+      LOG.debug("ATTENTION! Container {} has already been downloaded.", containerID);
       task.setStatus(Status.SKIPPED);
       return;
     }
@@ -70,32 +70,35 @@ public class DownloadAndImportReplicator implements ContainerReplicator {
     CopyContainerCompression compression =
         CopyContainerCompression.getConf(conf);
 
-    LOG.info("Starting replication of container {} from {} using {}",
+    LOG.info("ATTENTION! Starting replication of container {} from {} using {}",
         containerID, sourceDatanodes, compression);
 
     try {
       HddsVolume targetVolume = containerImporter.chooseNextVolume();
-      // Wait for the download. This thread pool is limiting the parallel
-      // downloads, so it's ok to block here and wait for the full download.
+      LOG.debug("ATTENTION! Chosen target volume for container {}: {}", containerID, targetVolume);
+
       Path tarFilePath =
           downloader.getContainerDataFromReplicas(containerID, sourceDatanodes,
               ContainerImporter.getUntarDirectory(targetVolume), compression);
+
       if (tarFilePath == null) {
+        LOG.error("ATTENTION! Container {} download failed.", containerID);
         task.setStatus(Status.FAILED);
         return;
       }
+
       long bytes = Files.size(tarFilePath);
-      LOG.info("Container {} is downloaded with size {}, starting to import.",
-              containerID, bytes);
+      LOG.info("ATTENTION! Container {} is downloaded with size {}, starting to import.", containerID, bytes);
       task.setTransferredBytes(bytes);
 
+      LOG.debug("ATTENTION! Importing container {} from path: {}", containerID, tarFilePath);
       containerImporter.importContainer(containerID, tarFilePath, targetVolume,
           compression);
 
-      LOG.info("Container {} is replicated successfully", containerID);
+      LOG.info("ATTENTION! Container {} is replicated successfully", containerID);
       task.setStatus(Status.DONE);
     } catch (IOException e) {
-      LOG.error("Container {} replication was unsuccessful.", containerID, e);
+      LOG.error("ATTENTION! Container {} replication was unsuccessful.", containerID, e);
       task.setStatus(Status.FAILED);
     }
   }

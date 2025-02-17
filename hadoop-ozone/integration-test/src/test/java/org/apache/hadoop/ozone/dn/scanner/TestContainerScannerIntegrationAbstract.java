@@ -115,6 +115,7 @@ public abstract class TestContainerScannerIntegrationAbstract {
     OzoneVolume volume = store.getVolume(volumeName);
     volume.createBucket(bucketName);
     bucket = volume.getBucket(bucketName);
+//    cluster.getHddsDatanodes().get(0).getDatanodeStateMachine().getContainer().getContainerSet().
   }
 
   void pauseScanner() {
