@@ -94,7 +94,7 @@ import org.slf4j.event.Level;
 /**
  * Tests ozone containers replication.
  */
-@Timeout(300)
+@Timeout(200)
 class TestContainerReplication {
 
   private static final String VOLUME = "vol1";
@@ -279,7 +279,6 @@ class TestContainerReplication {
     cluster.getHddsDatanode(dn).getDatanodeStateMachine().triggerHeartbeat();
   }
 
-  @Flaky("HDDS-12760")
   @Test
   public void testImportedContainerIsClosed() throws Exception {
     OzoneConfiguration conf = createConfiguration(false);
