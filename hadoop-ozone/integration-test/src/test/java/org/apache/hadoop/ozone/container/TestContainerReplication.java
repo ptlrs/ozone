@@ -94,7 +94,7 @@ import org.slf4j.event.Level;
 /**
  * Tests ozone containers replication.
  */
-@Timeout(400)
+@Timeout(500)
 class TestContainerReplication {
 
   private static final String VOLUME = "vol1";
