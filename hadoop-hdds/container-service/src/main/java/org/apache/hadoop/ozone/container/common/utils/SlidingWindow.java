@@ -21,11 +21,15 @@ import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import org.apache.hadoop.util.Time;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A time-based sliding window implementation that tracks event timestamps.
  */
 public class SlidingWindow {
+  private static final Logger LOG = LoggerFactory.getLogger(SlidingWindow.class);
+
   private final Object lock = new Object();
   private final int windowSize;
   private final Deque<Long> timestamps;
@@ -81,6 +85,8 @@ public class SlidingWindow {
       long expirationThreshold = currentTime - expiryDurationMillis;
 
       while (!timestamps.isEmpty() && timestamps.peek() < expirationThreshold) {
+        LOG.debug("Removing expired event at timestamp: {}", timestamps.peek());
+
         timestamps.remove();
       }
     }

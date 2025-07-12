@@ -36,8 +36,6 @@ import org.apache.hadoop.hdds.annotation.InterfaceStability;
 import org.apache.hadoop.hdds.conf.ConfigurationSource;
 import org.apache.hadoop.hdds.fs.SpaceUsageSource;
 import org.apache.hadoop.hdds.upgrade.HDDSLayoutFeature;
-import org.apache.hadoop.hdds.utils.db.managed.ManagedOptions;
-import org.apache.hadoop.hdds.utils.db.managed.ManagedRocksDB;
 import org.apache.hadoop.hdfs.server.datanode.checker.VolumeCheckResult;
 import org.apache.hadoop.ozone.common.Storage;
 import org.apache.hadoop.ozone.container.common.impl.StorageLocationReport;
@@ -298,37 +296,6 @@ public class HddsVolume extends StorageVolume {
     }
 
     return checkDbHealth(dbFile);
-  }
-
-  @VisibleForTesting
-  public VolumeCheckResult checkDbHealth(File dbFile) throws InterruptedException {
-    if (getIoTestCount() == 0) {
-      return VolumeCheckResult.HEALTHY;
-    }
-
-    try (ManagedOptions managedOptions = new ManagedOptions();
-         ManagedRocksDB readOnlyDb = ManagedRocksDB.openReadOnly(managedOptions, dbFile.toString())) {
-      // Do nothing. Only check if rocksdb is accessible.
-      LOG.debug("Successfully opened the database at \"{}\" for HDDS volume {}.", dbFile, getStorageDir());
-    } catch (Exception e) {
-      if (Thread.currentThread().isInterrupted()) {
-        throw new InterruptedException("Check of database for volume " + this + " interrupted.");
-      }
-      LOG.warn("Could not open Volume DB located at {}", dbFile, e);
-      getIoTestSlidingWindow().add();
-    }
-
-    if (getIoTestSlidingWindow().isFull()) {
-      LOG.error("Failed to open the database at \"{}\" for HDDS volume {}: " +
-              "encountered more than the {} tolerated failures.",
-          dbFile, this, getIoTestSlidingWindow().getWindowSize());
-      return VolumeCheckResult.FAILED;
-    }
-
-    LOG.debug("Successfully opened the database at \"{}\" for HDDS volume {}: " +
-            "encountered {} out of {} tolerated failures",
-        dbFile, this, getIoTestSlidingWindow().getSize(), getIoTestSlidingWindow().getWindowSize());
-    return VolumeCheckResult.HEALTHY;
   }
 
   @VisibleForTesting
