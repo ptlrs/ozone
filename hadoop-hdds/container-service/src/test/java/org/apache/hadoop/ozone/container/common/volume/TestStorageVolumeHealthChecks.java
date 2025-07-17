@@ -17,10 +17,12 @@
 
 package org.apache.hadoop.ozone.container.common.volume;
 
+import static org.apache.hadoop.hdds.HddsConfigKeys.OZONE_METADATA_DIRS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -34,6 +36,7 @@ import org.apache.hadoop.hdfs.server.datanode.checker.VolumeCheckResult;
 import org.apache.hadoop.ozone.container.common.statemachine.DatanodeConfiguration;
 import org.apache.hadoop.ozone.container.common.utils.DiskCheckUtil;
 import org.apache.hadoop.ozone.container.common.utils.SlidingWindow;
+import org.apache.hadoop.ozone.container.metadata.WitnessedContainerMetadataStoreImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Named;
 import org.junit.jupiter.api.Test;
@@ -55,7 +58,12 @@ public class TestStorageVolumeHealthChecks {
   @TempDir
   private static Path volumePath;
 
-  public static Stream<Arguments> volumeBuilders() {
+  @TempDir
+  private static Path metadataVolumePath;
+
+  public static Stream<Arguments> volumeBuilders() throws IOException {
+    CONF.set(OZONE_METADATA_DIRS, metadataVolumePath.toString());
+    WitnessedContainerMetadataStoreImpl.get(CONF);
     HddsVolume.Builder hddsVolumeBuilder =
         new HddsVolume.Builder(volumePath.toString())
             .datanodeUuid(DATANODE_UUID)
@@ -314,7 +322,7 @@ public class TestStorageVolumeHealthChecks {
     volume.createTmpDirs(CLUSTER_ID);
     // Sliding window protocol transitioned from count-based to a time-based system
     // Update the default failure duration of the window from 1 hour to a shorter duration for the test
-    long eventRate = 1L;
+    long eventRate = 10L;
     Field expiryDuration = SlidingWindow.class.getDeclaredField("expiryDuration");
     Field expiryDurationMillis = SlidingWindow.class.getDeclaredField("expiryDurationMillis");
     expiryDuration.setAccessible(true);
