@@ -29,7 +29,7 @@ Execute curl command
     ${curl_extra_commands} =            Set Variable If     '${SECURITY_ENABLED}'=='true'       --negotiate -u :    ${EMPTY}
     ${output}         Run process       curl ${extra_commands} ${curl_extra_commands} "${final_url}"    shell=True
     Should Be Equal As Integers         ${output.rc}    0
-    [return]          ${output}
+    RETURN          ${output}
 
 Execute create file command
     [Arguments]       ${path}           ${file_name}
@@ -41,4 +41,4 @@ Execute create file command
     ${final_url2} =   Catenate          SEPARATOR=      ${URL}  ${path}  ?op=CREATE&data=true       ${user.name}
     ${output2}        Run process       curl -X PUT -T ${file_name} ${curl_extra_commands} "${final_url2}" -H"Content-Type: application/octet-stream"   shell=True
     Should Be Equal As Integers         ${output2.rc}    0
-    [return]          ${output2}
+    RETURN          ${output2}

@@ -27,10 +27,10 @@ Ozone Shell Batch
 Bucket Exists
     [arguments]    ${bucket}
     ${rc}    ${output} =      Run And Return Rc And Output             timeout 15 ozone sh bucket info ${bucket}
-    Return From Keyword If    ${rc} != 0                               ${FALSE}
-    Return From Keyword If    'VOLUME_NOT_FOUND' in '''${output}'''    ${FALSE}
-    Return From Keyword If    'BUCKET_NOT_FOUND' in '''${output}'''    ${FALSE}
-    [Return]                  ${TRUE}
+    If    ${rc} != 0                               ${FALSE}     Return
+    If    'VOLUME_NOT_FOUND' in '''${output}'''    ${FALSE}     Return
+    If    'BUCKET_NOT_FOUND' in '''${output}'''    ${FALSE}     Return
+    RETURN                  ${TRUE}
 
 Compare Key With Local File
     [arguments]    ${key}    ${file}    ${cmd}=sh key get
@@ -40,7 +40,7 @@ Compare Key With Local File
     ${rc} =        Run And Return Rc    diff -q ${file} ${tmpfile}
     Execute        rm -f ${tmpfile}
     ${result} =    Set Variable If    ${rc} == 0    ${TRUE}   ${FALSE}
-    [Return]       ${result}
+    RETURN       ${result}
 
 Key Should Match Local File
     [arguments]    ${key}    ${file}
@@ -60,19 +60,19 @@ Verify ACL
 Create Random Volume
     ${random} =    Generate Random String  5  [LOWER]
     Execute        ozone sh volume create o3://${OM_SERVICE_ID}/vol-${random}
-    [return]       vol-${random}
+    RETURN       vol-${random}
 
 Find Jars Dir
     [arguments]    ${ozone_dir}=${OZONE_DIR}
     ${dir} =    Execute    ${ozone_dir}/bin/ozone envvars | grep 'HDDS_LIB_JARS_DIR' | cut -f2 -d= | sed -e "s/'//g" -e 's/"//g'
-    [return]    ${dir}
+    RETURN    ${dir}
 
 Create bucket with layout
     [Arguments]          ${volume}    ${layout}
     ${postfix} =         Generate Random String    10    [LOWER]
     ${bucket} =          Set Variable    bucket-${postfix}
     ${result} =          Execute         ozone sh bucket create --layout ${layout} ${volume}/${bucket}
-    [Return]             ${bucket}
+    RETURN             ${bucket}
 
 Create Key
     [arguments]    ${key}    ${file}    ${args}=${EMPTY}

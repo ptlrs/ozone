@@ -25,14 +25,14 @@ Execute And Ignore Error
     [arguments]                     ${command}
     ${rc}                           ${output} =                 Run And Return Rc And Output           ${command}
     Log                             ${output}
-    [return]                        ${output}
+    RETURN                        ${output}
 
 Execute and checkrc
     [arguments]                     ${command}                  ${expected_error_code}
     ${rc}                           ${output} =                 Run And Return Rc And Output           ${command}
     Log                             ${output}
     Should Be Equal As Integers     ${rc}                       ${expected_error_code}
-    [return]                        ${output}
+    RETURN                        ${output}
 
 Compare files
     [arguments]                 ${file1}                   ${file2}
@@ -43,26 +43,26 @@ Compare files
 Create Random File MB
     [arguments]    ${size_in_megabytes}    ${path}=${EMPTY}
     ${path} =      Create Random File      ${size_in_megabytes}    1048576    ${path}
-    [return]       ${path}
+    RETURN       ${path}
 
 Create Random File KB
     [arguments]    ${size_in_kilobytes}    ${path}=${EMPTY}
     ${path} =      Create Random File      ${size_in_kilobytes}    1024    ${path}
-    [return]       ${path}
+    RETURN       ${path}
 
 Create Random File
     [arguments]    ${block_count}    ${block_size}    ${path}=${EMPTY}
     ${path} =      Run Keyword If   '${path}' == '${EMPTY}'    Get Random Filename
     ...            ELSE             Set Variable    ${path}
     Execute        dd if=/dev/urandom of=${path} bs=${block_size} count=${block_count} status=none
-    [return]       ${path}
+    RETURN       ${path}
 
 Get Random Filename
     ${postfix} =             Generate Random String  10  [LOWER]
     ${tmpfile} =             Set Variable   /tmp/tempfile-${postfix}
     File Should Not Exist    ${tmpfile}
-    [return]                 ${tmpfile}
+    RETURN                 ${tmpfile}
 
 List All Processes
     ${output} =    Execute    ps aux
-    [return]    ${output}
+    RETURN    ${output}

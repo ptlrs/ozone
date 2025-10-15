@@ -37,7 +37,7 @@ Create volume bucket and put key
 Execute Lease recovery cli
     [Arguments]             ${KEY_PATH}
     ${result} =             Execute And Ignore Error      ozone admin om lease recover --path=${KEY_PATH}
-    [Return]                ${result}
+    RETURN                ${result}
 
 *** Test Cases ***
 Test ozone admin om lease recover for o3fs

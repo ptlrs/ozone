@@ -56,7 +56,7 @@ Execute and validate replicas verify with filter
     ${key_count} =        Get Length              ${keys}
     Should Be Equal As Integers           ${key_count}    ${expected_key_count}
     ${key_names} =        Get key names from output    ${json}
-    [Return]              ${key_names}
+    RETURN              ${key_names}
 
 *** Test Cases ***
 Test ozone debug replicas verify checksums, block-existence and container-state

@@ -102,7 +102,7 @@ Get Ratis Logs
     @{logs} =               SSHLibrary.List Files In Directory              ${currDir}           log_*
                             Close Connection
     ${numLogs} =            Get Length                                      ${logs}
-    [return]                ${numLogs}                                      ${logs}
+    RETURN                ${numLogs}                                      ${logs}
 
 ** Test Cases ***
 Stop Leader OM and Verify Failover

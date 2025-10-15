@@ -180,5 +180,4 @@ Get Disk Usage of File with RATIS Replication
     # the formula comes from https://github.com/apache/ozone/blob/master/hadoop-ozone/common/src/main/java/org/apache/hadoop/ozone/om/helpers/QuotaUtil.java#L42-L60
     ${expectedDiskUsage} =           Evaluate             ${fileLength} * ${replicationFactor}
     ${expectedDiskUsage} =           Convert To String    ${expectedDiskUsage}
-                                     [return]             ${expectedDiskUsage}
-
+                                     RETURN             ${expectedDiskUsage}

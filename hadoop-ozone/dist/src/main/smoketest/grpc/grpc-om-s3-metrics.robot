@@ -46,15 +46,15 @@ Verify endpoint is up
 
 Get SentBytes
     ${sentBytes} =              Execute         curl --negotiate -u : -LSs ${OM_JMX_ENDPOINT} | sed -n '/${GRPC_METRICS_NAME}/,/}/p' | grep 'SentBytes' | grep -Eo '[0-9]{1,}'
-    [return]                    ${sentBytes}
+    RETURN                    ${sentBytes}
 
 Get ReceivedBytes
     ${receivedBytes} =          Execute         curl --negotiate -u : -LSs ${OM_JMX_ENDPOINT} | sed -n '/${GRPC_METRICS_NAME}/,/}/p' | grep 'ReceivedBytes' | grep -Eo '[0-9]{1,}'
-    [return]                    ${receivedBytes}
+    RETURN                    ${receivedBytes}
 
 Get NumOpenClientConnections
     ${activeConnections} =      Execute         curl --negotiate -u : -LSs ${OM_JMX_ENDPOINT} | sed -n '/${GRPC_METRICS_NAME}/,/}/p' | grep 'NumOpenClientConnections' | grep -Eo '[0-9]{1,}'
-    [return]                    ${activeConnections}
+    RETURN                    ${activeConnections}
 
 SentBytes are equal to zero
     ${sentBytes} =                  Get SentBytes

@@ -25,7 +25,7 @@ Key List With Replication
     [arguments]    ${args}
     ${list} =      Execute    ozone sh key list ${args}
     ${result} =    Execute    echo '${list}' | jq -r '[.name, .replicationType, (.replicationFactor | tostring)] | join (" ")'
-    [return]    ${result}
+    RETURN    ${result}
 
 
 *** Test Cases ***

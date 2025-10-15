@@ -24,21 +24,21 @@ ${OM_SERVICE_ID}                    %{OM_SERVICE_ID}
 *** Keywords ***
 Execute replicas verify checksums debug tool
     ${output}      Execute          ozone debug replicas verify --checksums o3://${OM_SERVICE_ID}/${VOLUME}/${BUCKET}/${TESTFILE} --all-results
-    [Return]       ${output}
+    RETURN       ${output}
 
 Execute replicas verify block existence debug tool
     ${output}      Execute          ozone debug replicas verify --block-existence o3://${OM_SERVICE_ID}/${VOLUME}/${BUCKET}/${TESTFILE} --all-results
-    [Return]       ${output}
+    RETURN       ${output}
 
 Execute replicas verify container state debug tool
     ${output}      Execute          ozone debug replicas verify --container-state o3://${OM_SERVICE_ID}/${VOLUME}/${BUCKET}/${TESTFILE} --all-results
-    [Return]       ${output}
+    RETURN       ${output}
 
 Parse replicas verify JSON output
     [Arguments]    ${output}
     ${json_split} =  Evaluate  '''${output}'''.split('***')[0].strip()
     ${json} =      Evaluate  json.loads('''${json_split}''')  json
-    [Return]       ${json}
+    RETURN       ${json}
 
 Check to Verify Replicas
     [Arguments]    ${json}  ${check_type}  ${faulty_datanode}  ${expected_message}
@@ -90,7 +90,7 @@ Check Replica Passed
 Execute replicas verify with replication filter
     [Arguments]    ${replication_type}    ${replication_factor}    ${verification_type}
     ${output}      Execute          ozone debug replicas verify --${verification_type} --type ${replication_type} --replication ${replication_factor} o3://${OM_SERVICE_ID}/${VOLUME}/${BUCKET} --all-results
-    [Return]       ${output}
+    RETURN       ${output}
 
 Get key names from output
     [Arguments]    ${json}
@@ -100,4 +100,4 @@ Get key names from output
         ${key_name} =    Get From Dictionary    ${key}    name
         Append To List    ${key_names}    ${key_name}
     END
-    [Return]       ${key_names}
+    RETURN       ${key_names}

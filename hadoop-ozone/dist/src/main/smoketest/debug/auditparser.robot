@@ -31,7 +31,7 @@ ${auditworkdir}      /tmp
 Set username
     ${principal} =     Get test user principal    testuser
     Set Suite Variable    ${user}    ${principal}
-    [Return]      ${principal}
+    RETURN      ${principal}
 
 Create data
     Freon OMBG    prefix=auditparser    n=${buckets}

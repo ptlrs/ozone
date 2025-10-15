@@ -33,7 +33,7 @@ Create Container State Rule
     [Arguments]          ${state}
     ${rule_file} =       Set Variable    /tmp/container-state-${state}.btm
     Execute              sed 's/STATE_PLACEHOLDER/${state}/g' ${TEMPLATE_RULE} > ${rule_file}
-    Return From Keyword  ${rule_file}
+    Return               ${rule_file}
 
 Verify Container State with Rule
     [Arguments]          ${expected_state}

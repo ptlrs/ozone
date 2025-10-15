@@ -29,10 +29,10 @@ ${OM_SERVICE_ID}     om
 Get test user principal
     [arguments]         ${user}
     ${instance} =       Execute                    hostname | sed 's/scm[0-9].org/scm/;s/scm[0-9]/scm/;s/om[0-9]/om/'
-    [return]            ${user}/${instance}@EXAMPLE.COM
+    RETURN            ${user}/${instance}@EXAMPLE.COM
 
 Get Security Enabled From Config
-    Return From Keyword If    '${SECURITY_ENABLED}' != ''
+    If    '${SECURITY_ENABLED}' != ''     Return
     ${value} =    Execute    ozone getconf confKey ozone.security.enabled
     IF    '${value}' != 'true' and '${value}' != 'false'
            ${value} =    Set Variable    false

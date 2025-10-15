@@ -33,7 +33,7 @@ Get SCM Leader Node
     ${splits} =             Split String            ${scmLine}          :
     ${leaderSCM} =          Strip String            ${splits[3]}
                             LOG                     Leader SCM: ${leaderSCM}
-    [return]                ${leaderSCM}
+    RETURN                ${leaderSCM}
 
 Get SCM UUID
     ${result} =             Execute                 ozone admin scm roles --service-id=scmservice
@@ -41,7 +41,7 @@ Get SCM UUID
     ${scm_line} =           Get Lines Containing String                     ${result}            ${TARGET_SCM}
     ${scm_split} =          Split String            ${scm_line}             :
     ${scm_uuid} =           Strip String            ${scm_split[3]}
-    [return]                ${scm_uuid}
+    RETURN                ${scm_uuid}
 
 *** Test Cases ***
 Transfer Leadership

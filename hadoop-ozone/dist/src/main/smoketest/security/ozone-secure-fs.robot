@@ -46,7 +46,7 @@ Format ofs TMPMOUNT
     ${path_with_leading} =    Run Keyword If    '${path}' != '${EMPTY}'    Ensure Leading    /    ${path}
     ...                       ELSE              Set Variable    ${EMPTY}
 
-    [return]       ofs://${om_with_trailing}${volume}/${path_with_leading}
+    RETURN       ofs://${om_with_trailing}${volume}/${path_with_leading}
 
 *** Test Cases ***
 Create volume bucket with wrong credentials
@@ -122,4 +122,3 @@ Test tmp mount for shared ofs tmp dir
         Execute       ozone fs -rm -r -skipTrash ${tmpdirmount}
         Execute       ozone sh volume delete /${TMP_MOUNT}
    END
-

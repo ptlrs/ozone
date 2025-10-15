@@ -34,20 +34,20 @@ Create volume bucket and put key
     Execute                 echo "This is a decommissioning test" > /tmp/${TESTFILE}
     ${md5sum} =             Execute     md5sum /tmp/${TESTFILE} | awk '{print $1}'
     Execute                 ozone sh key put /${VOLUME}/${BUCKET}/${TESTFILE} /tmp/${TESTFILE}
-    [Return]                ${md5sum}
+    RETURN                ${md5sum}
 
 Get Primordial SCM ID
     ${result} =             Execute                 ozone admin scm roles --service-id=scmservice
     ${primordial_node} =    Get Lines Matching Pattern            ${result}         scm[1234].org:9894:LEADER*
     ${primordial_split} =   Split String            ${primordial_node}         :
     ${primordial_scmId} =   Strip String            ${primordial_split[3]}
-    [Return]                ${primordial_scmId}
+    RETURN                ${primordial_scmId}
 
 Get SCM Node count
     ${result} =              Execute                 ozone admin scm roles --service-id=scmservice
     ${nodes_in_quorum} =     Get Lines Matching Pattern                      ${result}           scm[1234].org:9894:*
     ${node_count} =          Get Line Count          ${nodes_in_quorum}
-    [Return]                 ${node_count}
+    RETURN                 ${node_count}
 
 
 Transfer Leader to non-primordial node Follower
@@ -60,7 +60,7 @@ Transfer Leader to non-primordial node Follower
 
     ${result} =             Execute                 ozone admin scm transfer --service-id=scmservice -n ${follower_scmId}
                             LOG                     ${result}
-    [Return]                ${result}
+    RETURN                ${result}
 
 *** Test Cases ***
 Decommission SCM Primordial Node

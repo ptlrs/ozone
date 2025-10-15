@@ -65,7 +65,7 @@ Check snapshots on OM
 Run snap diff and get response
     [arguments]         ${volume}           ${bucket}           ${snap_1}       ${snap_2}
     ${diff_res} =       Execute             ozone sh snapshot diff /${volume}/${bucket} ${snap_1} ${snap_2}
-                        [return]            ${diff_res}
+                        RETURN            ${diff_res}
 
 Snap diff finished
     [arguments]         ${volume}           ${bucket}           ${snap_1}       ${snap_2}

@@ -55,7 +55,7 @@ Get Disk Usage of File with EC RS Replication
     # Convert float to int
     ${expectedDiskUsage} =           Convert To Integer    ${expectedDiskUsage}
     ${expectedDiskUsage} =           Convert To String    ${expectedDiskUsage}
-                                     [return]             ${expectedDiskUsage}
+                                     RETURN             ${expectedDiskUsage}
 
 
 *** Test Cases ***

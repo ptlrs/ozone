@@ -42,7 +42,7 @@ Add ACLs
 Get key
     [arguments]     ${snapshotName}                 ${keyDest}
     ${result} =     Execute And Ignore Error        ozone sh key get ${VOLUME}/${BUCKET}/${SNAPSHOT_INDICATOR}/${snapshotName}/${KEY} ${keyDest}
-    [return]        ${result}
+    RETURN        ${result}
 
 *** Test Cases ***
 Test creating first snapshot as user1

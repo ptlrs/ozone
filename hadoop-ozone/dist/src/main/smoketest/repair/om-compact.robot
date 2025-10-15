@@ -30,7 +30,7 @@ Delete Test Keys
 Get OM DB SST Files Size
     ${output} =    Execute    find ${OM_DB_PATH} -name '*.sst' -exec du -b {} + | awk '{sum += $1} END {print sum}'
     ${sst_size} =  Convert To Integer    ${output}
-    [Return]      ${sst_size}
+    RETURN      ${sst_size}
 
 Compact OM DB Column Family
     [Arguments]        ${column_family}

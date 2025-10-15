@@ -31,7 +31,7 @@ Create volume
     ${volume} =     Set Variable        vol-${random}
     ${result} =     Execute             ozone sh volume create /${volume}
                     Should not contain  ${result}       Failed
-    [Return]        ${volume}
+    RETURN        ${volume}
 
 Create bucket
     [Arguments]     ${volume}           ${bucket_layout}
@@ -39,14 +39,14 @@ Create bucket
     ${bucket} =     Set Variable        buc-${random}
     ${result} =     Execute             ozone sh bucket create -l ${bucket_layout} /${volume}/${bucket}
                     Should not contain  ${result}       Failed
-    [Return]        ${bucket}
+    RETURN        ${bucket}
 
 Create key
     [Arguments]     ${volume}           ${bucket}       ${file}
     ${random} =     Generate Random String  5  [LOWER]
     ${key} =        Set Variable        key-${random}
     ${result} =     Execute             ozone sh key put /${volume}/${bucket}/${key} ${file}
-    [Return]        ${key}
+    RETURN        ${key}
 
 Create snapshot
     [Arguments]     ${volume}           ${bucket}
@@ -54,7 +54,7 @@ Create snapshot
     ${snapshot} =   Set Variable        snap-${random}
     ${result} =     Execute             ozone sh snapshot create /${volume}/${bucket} ${snapshot}
                     Should not contain  ${result}       Failed
-    [Return]        ${snapshot}
+    RETURN        ${snapshot}
 
 Setup volume and bucket
     ${volume} =             Create Volume

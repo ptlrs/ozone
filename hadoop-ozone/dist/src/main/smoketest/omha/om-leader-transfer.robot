@@ -27,19 +27,19 @@ Get OM Nodes
     ${leader}=         Get Line                ${result}    0
     ${follower1}=      Get Line                ${result}    1
     ${follower2}=      Get Line                ${result}    2
-    [Return]           ${leader}    ${follower1}    ${follower2}
+    RETURN           ${leader}    ${follower1}    ${follower2}
 
 Get OM Leader Node
     ${result} =        Get OM Nodes
-    [Return]           ${result}[0]
+    RETURN           ${result}[0]
 
 Get One OM Follower Node
     ${result} =        Get OM Nodes
-    [Return]           ${result}[1]
+    RETURN           ${result}[1]
 
 Get OM Leader and One Follower Node
     ${result} =        Get OM Nodes
-    [Return]           ${result}[0]      ${result}[1]
+    RETURN           ${result}[0]      ${result}[1]
 
 Assert OM leader Role Transitions
     [arguments]             ${leaderOM}     ${followerOM}     ${isEqualCheck}

@@ -131,7 +131,7 @@ Datanode Usageinfo
 
 Get Uuid
     ${result} =             Execute          ozone admin datanode list | awk -v RS= '{$1=$1}1'| grep ${HOST} | sed -e 's/Datanode: //'|sed -e 's/ .*$//'
-    [return]          ${result}
+    RETURN          ${result}
 
 Close All Containers
     FOR     ${INDEX}    IN RANGE    15
@@ -152,7 +152,7 @@ Get Datanode Ozone Used Bytes Info
     [arguments]             ${uuid}
     ${output} =    Execute    export DATANODES=$(ozone admin datanode list --json) && for datanode in $(echo "$\{DATANODES\}" | jq -r '.[].id'); do ozone admin datanode usageinfo --uuid=$\{datanode\} --json | jq '{(.[0].datanodeDetails.uuid) : .[0].ozoneUsed}'; done | jq -s add
     ${result} =    Execute    echo '${output}' | jq '. | to_entries | .[] | select(.key == "${uuid}") | .value'
-    [return]          ${result}
+    RETURN          ${result}
 
 ** Test Cases ***
 Verify Container Balancer for RATIS/EC containers

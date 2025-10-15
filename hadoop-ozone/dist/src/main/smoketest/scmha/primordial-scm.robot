@@ -27,7 +27,7 @@ Get SCM Node Count
     ${result} =             Execute                 ozone admin scm roles --service-id=scmservice
                             LOG                     ${result}
     ${scm_count} =          Get Line Count          ${result}
-    [return]                ${scm_count}
+    RETURN                ${scm_count}
 
 *** Test Cases ***
 Verify SCM Count

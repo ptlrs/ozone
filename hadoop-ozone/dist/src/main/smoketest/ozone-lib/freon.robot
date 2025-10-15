@@ -22,13 +22,13 @@ ${OM_HA_PARAM}         ${EMPTY}
 *** Keywords ***
 Freon DCG
     [arguments]    ${prefix}=dcg    ${n}=1    ${threads}=1    ${args}=${EMPTY}
-    Return From Keyword If    '${SECURITY_ENABLED}' == 'true'
+    If    '${SECURITY_ENABLED}' == 'true'     Return
     ${result} =        Execute          ozone freon dcg -t ${threads} -n${n} -p ${prefix} ${args}
                        Should contain   ${result}   Successful executions: ${n}
 
 Freon DCV
     [arguments]    ${prefix}=dcg    ${n}=1    ${threads}=1    ${args}=${EMPTY}
-    Return From Keyword If    '${SECURITY_ENABLED}' == 'true'
+    If    '${SECURITY_ENABLED}' == 'true'     Return
     ${result} =        Execute          ozone freon dcv -t ${threads} -n${n} -p ${prefix} ${args}
                        Should contain   ${result}   Successful executions: ${n}
 
@@ -71,4 +71,3 @@ Freon DFSG
     [arguments]    ${prefix}=dfsg    ${n}=1000    ${path}={EMPTY}    ${threads}=1    ${sync}=HSYNC    ${buffer}=1024    ${copy-buffer}=1024    ${size}=10240    ${args}=${EMPTY}
     ${result} =    Execute    ozone freon dfsg -n ${n} --sync ${sync} -s ${size} --path ${path} --buffer ${buffer} --copy-buffer ${copy-buffer} -p ${prefix} -t ${threads} ${args}
                    Should contain   ${result}   Successful executions: ${n}
-

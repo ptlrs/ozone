@@ -35,11 +35,11 @@ Basic key generation and validation
 Find certificate duration
     ${waitTime} =     Execute               ozone getconf confKey hdds.x509.default.duration | sed 's/PT//'
     ${result} =       Set Variable if       "${waitTime}" != "${EMPTY}"      ${waitTime}    0s
-    [return]          ${result}
+    RETURN          ${result}
 
 Get datanode cert serial
     ${certSerial}       Execute     openssl s_client -connect "${datanode}":"${port}" -showcerts | openssl x509 -noout -serial | grep serial | sed 's/serial=//'
-    [return]            ${certSerial}
+    RETURN            ${certSerial}
 
 Datanode has new certificate
     [arguments]             ${certId}
@@ -49,7 +49,7 @@ Datanode has new certificate
 Double duration
     [arguments]             ${duration}
     ${doubleDuration} =     Add Time To Time    ${duration}     ${duration}
-    [return]                  ${doubleDuration}
+    RETURN                  ${doubleDuration}
 
 *** Test Cases ***
 Test datanode functions before and after certificate rotation

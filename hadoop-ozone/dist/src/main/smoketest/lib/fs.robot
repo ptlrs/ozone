@@ -29,13 +29,13 @@ Format FS URL
     ...            ELSE IF           '${scheme}' == 'ofs'     Format ofs URL     ${volume}    ${bucket}    ${path}
     ...            ELSE              Fail                     Unsupported FS scheme: ${scheme}
 
-    [return]       ${url}
+    RETURN       ${url}
 
 Format o3fs URL
     [arguments]    ${volume}    ${bucket}    ${path}=${EMPTY}    ${om}=${OM_SERVICE_ID}
     ${om_with_leading} =     Run Keyword If    '${om}' != '${EMPTY}'      Ensure Leading    .    ${om}
     ...                      ELSE              Set Variable    ${EMPTY}
-    [return]       o3fs://${bucket}.${volume}${om_with_leading}/${path}
+    RETURN       o3fs://${bucket}.${volume}${om_with_leading}/${path}
 
 Format ofs URL
     [arguments]    ${volume}    ${bucket}    ${path}=${EMPTY}    ${om}=${OM_SERVICE_ID}
@@ -46,5 +46,4 @@ Format ofs URL
     ${path_with_leading} =    Run Keyword If    '${path}' != '${EMPTY}'    Ensure Leading    /    ${path}
     ...                       ELSE              Set Variable    ${EMPTY}
 
-    [return]       ofs://${om_with_trailing}${volume}/${bucket}${path_with_leading}
-
+    RETURN       ofs://${om_with_trailing}${volume}/${bucket}${path_with_leading}

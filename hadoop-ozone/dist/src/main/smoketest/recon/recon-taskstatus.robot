@@ -41,13 +41,13 @@ Kinit as ozone admin
 
 Sync OM Data
   ${result} =             Execute       curl --negotiate -u : -LSs ${TRIGGER_SYNC_ENDPOINT}
-  [return]  ${result}
+  RETURN  ${result}
 
 Fetch Task Status
   ${result} =             Execute     curl -H "Accepts: application/json" --negotiate -u : -LSs ${TASK_STATUS_ENDPOINT}
   ${parsed_response} =    Evaluate    json.loads('''${result}''')
   ${tasks} =              Evaluate    [task for task in ${parsed_response}]
-  [return]  ${tasks}
+  RETURN  ${tasks}
 
 *** Test Cases ***
 
