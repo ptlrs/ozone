@@ -257,7 +257,7 @@ Test prefix Acls
 Test native authorizer
     [arguments]     ${protocol}         ${server}       ${volume}
 
-    If    '${SECURITY_ENABLED}' == 'false'      Return
+    IF    '${SECURITY_ENABLED}' == 'false'      RETURN
 
     Execute         ozone sh volume removeacl ${protocol}${server}/${volume} -a group:root:a
     Execute         kdestroy

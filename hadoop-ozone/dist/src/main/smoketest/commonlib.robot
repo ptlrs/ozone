@@ -32,7 +32,7 @@ Get test user principal
     RETURN            ${user}/${instance}@EXAMPLE.COM
 
 Get Security Enabled From Config
-    If    '${SECURITY_ENABLED}' != ''     Return
+    IF    '${SECURITY_ENABLED}' != ''     RETURN
     ${value} =    Execute    ozone getconf confKey ozone.security.enabled
     IF    '${value}' != 'true' and '${value}' != 'false'
            ${value} =    Set Variable    false

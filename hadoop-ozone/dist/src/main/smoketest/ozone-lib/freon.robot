@@ -22,13 +22,13 @@ ${OM_HA_PARAM}         ${EMPTY}
 *** Keywords ***
 Freon DCG
     [arguments]    ${prefix}=dcg    ${n}=1    ${threads}=1    ${args}=${EMPTY}
-    If    '${SECURITY_ENABLED}' == 'true'     Return
+    IF    '${SECURITY_ENABLED}' == 'true'     RETURN
     ${result} =        Execute          ozone freon dcg -t ${threads} -n${n} -p ${prefix} ${args}
                        Should contain   ${result}   Successful executions: ${n}
 
 Freon DCV
     [arguments]    ${prefix}=dcg    ${n}=1    ${threads}=1    ${args}=${EMPTY}
-    If    '${SECURITY_ENABLED}' == 'true'     Return
+    IF    '${SECURITY_ENABLED}' == 'true'     RETURN
     ${result} =        Execute          ozone freon dcv -t ${threads} -n${n} -p ${prefix} ${args}
                        Should contain   ${result}   Successful executions: ${n}
 

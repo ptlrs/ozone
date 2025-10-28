@@ -58,7 +58,7 @@ Execute AWSS3CliDebug
 
 Install aws cli
     ${rc}              ${output} =                 Run And Return Rc And Output           which aws
-    If    '${rc}' == '0'                           Return
+    IF    '${rc}' == '0'                           RETURN
     ${rc}              ${output} =                 Run And Return Rc And Output           which apt-get
     Run Keyword if     '${rc}' == '0'              Install aws cli s3 debian
     ${rc}              ${output} =                 Run And Return Rc And Output           yum --help
@@ -131,7 +131,7 @@ Create bucket with name
                          Should contain              ${result}         ${bucket}
 
 Setup s3 tests
-    If    ${OZONE_S3_TESTS_SET_UP}     Return
+    IF    ${OZONE_S3_TESTS_SET_UP}     RETURN
     Run Keyword        Generate random prefix
     Run Keyword        Install aws cli
     Run Keyword        Get Security Enabled From Config
@@ -144,7 +144,7 @@ Setup s3 tests
 
 Setup links for S3 tests
     ${exists} =        Bucket Exists    o3://${OM_SERVICE_ID}/s3v/link
-    If    ${exists}    Return
+    IF    ${exists}    RETURN
     Execute            ozone sh volume create o3://${OM_SERVICE_ID}/legacy
     Execute            ozone sh bucket create --layout ${BUCKET_LAYOUT} o3://${OM_SERVICE_ID}/legacy/source-bucket
     Create link        link
@@ -155,9 +155,9 @@ Create generated bucket
     Set Global Variable   ${BUCKET}
 
 Create encrypted bucket
-    If    '${SECURITY_ENABLED}' == 'false'      Return
+    IF    '${SECURITY_ENABLED}' == 'false'      RETURN
     ${exists} =        Bucket Exists    o3://${OM_SERVICE_ID}/s3v/encrypted
-    If    ${exists}    Return
+    IF    ${exists}    RETURN
     Execute            ozone sh bucket create -k ${ENCRYPTION_KEY} --layout ${BUCKET_LAYOUT} o3://${OM_SERVICE_ID}/s3v/encrypted
 
 Create link
@@ -167,7 +167,7 @@ Create link
 
 Create EC bucket
     ${exists} =        Bucket Exists    o3://${OM_SERVICE_ID}/s3v/erasure
-    If    ${exists}    Return
+    IF    ${exists}    RETURN
     Execute            ozone sh bucket create --replication rs-3-2-1024k --type EC --layout ${BUCKET_LAYOUT} o3://${OM_SERVICE_ID}/s3v/erasure
 
 Generate random prefix
