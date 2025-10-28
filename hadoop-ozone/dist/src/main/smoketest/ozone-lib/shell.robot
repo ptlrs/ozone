@@ -27,9 +27,9 @@ Ozone Shell Batch
 Bucket Exists
     [arguments]    ${bucket}
     ${rc}    ${output} =      Run And Return Rc And Output             timeout 15 ozone sh bucket info ${bucket}
-    IF    ${rc} != 0                               ${FALSE}     RETURN
-    IF    'VOLUME_NOT_FOUND' in '''${output}'''    ${FALSE}     RETURN
-    IF    'BUCKET_NOT_FOUND' in '''${output}'''    ${FALSE}     RETURN
+    IF    ${rc} != 0                               RETURN    ${FALSE}
+    IF    'VOLUME_NOT_FOUND' in '''${output}'''    RETURN    ${FALSE}
+    IF    'BUCKET_NOT_FOUND' in '''${output}'''    RETURN    ${FALSE}
     RETURN                  ${TRUE}
 
 Compare Key With Local File
