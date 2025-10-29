@@ -22,7 +22,7 @@ Resource            ../commonlib.robot
 Test Timeout        5 minutes
 Suite Setup         Run Keywords       Generate volume and bucket names
 ...    AND          Get Security Enabled From Config
-Test Setup          Kinit If Secure     testuser     testuser.keytab
+Test Setup          Kinit When Secure     testuser     testuser.keytab
 
 ** Keywords ***
 Generate volume and bucket names

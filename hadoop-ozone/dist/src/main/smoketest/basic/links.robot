@@ -18,7 +18,7 @@ Documentation       Test bucket links via Ozone CLI
 Library             OperatingSystem
 Resource            ../commonlib.robot
 Resource            ../ozone-lib/shell.robot
-Test Setup          Kinit If Secure     testuser     testuser.keytab
+Test Setup          Kinit When Secure     testuser     testuser.keytab
 Test Timeout        4 minute
 Suite Setup         Create volumes
 

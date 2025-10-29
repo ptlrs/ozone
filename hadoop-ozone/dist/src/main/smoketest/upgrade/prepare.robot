@@ -19,7 +19,7 @@ Resource            ../commonlib.robot
 Resource            lib.robot
 Test Timeout        5 minutes
 Suite Setup         Get Security Enabled From Config
-Test Setup          Kinit If Secure     testuser     testuser.keytab
+Test Setup          Kinit When Secure     testuser     testuser.keytab
 
 *** Test Cases ***
 Prepare Ozone Manager

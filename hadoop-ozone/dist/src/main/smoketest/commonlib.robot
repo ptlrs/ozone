@@ -52,7 +52,7 @@ Kinit test user
     Set Suite Variable  ${TEST_USER}
     Wait Until Keyword Succeeds      2min       10sec      Execute            kinit -k -t /etc/security/keytabs/${keytab} ${TEST_USER}
 
-Kinit If Secure
+Kinit When Secure
     [arguments]                      ${user}       ${keytab}
     Get Security Enabled From Config
     IF    '${SECURITY_ENABLED}' == 'true'
