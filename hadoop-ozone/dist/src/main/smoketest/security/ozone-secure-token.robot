@@ -84,6 +84,9 @@ Token Test in Unsecure Cluster
 
 *** Test Cases ***
 Token Test
-    Run Keyword if    '${SECURITY_ENABLED}' == 'false'   Token Test in Unsecure Cluster
-    Run Keyword if    '${SECURITY_ENABLED}' == 'true'    Token Test in Secure Cluster
+    IF    '${SECURITY_ENABLED}' == 'false'
+        Token Test in Unsecure Cluster
+    ELSE IF    '${SECURITY_ENABLED}' == 'true'
+        Token Test in Secure Cluster
+    END
     Print Nonexistent Token File

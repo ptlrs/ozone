@@ -35,7 +35,9 @@ Create Dest Bucket
 
 *** Test Cases ***
 Copy Object Happy Scenario
-    Run Keyword if    '${DESTBUCKET}' == 'generated1'    Create Dest Bucket
+    IF    '${DESTBUCKET}' == 'generated1'
+        Create Dest Bucket
+    END
                         Execute                    date > /tmp/copyfile
     ${file_checksum} =  Execute                    md5sum /tmp/copyfile | awk '{print $1}'
 
@@ -117,7 +119,9 @@ Copy Object with user defined metadata size larger than 2 KB
                                 Should contain                        ${result}   MetadataTooLarge
 
 Check Bucket Ownership Verification
-    Run Keyword if      '${DESTBUCKET}' == 'generated1'    Create Dest Bucket
+    IF    '${DESTBUCKET}' == 'generated1'
+        Create Dest Bucket
+    END
     Execute              echo "Randomtext" > /tmp/testfile
     ${correct_dest_owner} =     Get bucket owner    ${DESTBUCKET}
     ${correct_source_owner} =   Get bucket owner    ${BUCKET}

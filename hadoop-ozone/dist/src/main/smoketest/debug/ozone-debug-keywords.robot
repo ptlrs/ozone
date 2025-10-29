@@ -51,8 +51,11 @@ Check Standard Replicas
     FOR    ${replica}    IN    @{replicas}
         ${datanode} =     Get From Dictionary    ${replica}    datanode
         ${hostname} =     Get From Dictionary    ${datanode}   hostname
-        Run Keyword If    '${hostname}' == '${faulty_datanode}'    Check Replica Failed    ${replica}  ${check_type}  ${expected_message}
-        Run Keyword If    '${hostname}' != '${faulty_datanode}'    Check Replica Passed    ${replica}  ${check_type}
+        IF    '${hostname}' == '${faulty_datanode}'
+            Check Replica Failed    ${replica}  ${check_type}  ${expected_message}
+        ELSE
+            Check Replica Passed    ${replica}  ${check_type}
+        END
     END
 
 Check Container State Replicas

@@ -53,13 +53,19 @@ Create keys
     ${result} =     Execute             ozone sh key put /${VOLUME}/${BUCKET}/dir1/dir2/file2 HISTORY.md
                     Should not contain  ${result}       Failed
 Kinit as non admin
-    Run Keyword if      '${SECURITY_ENABLED}' == 'true'     Kinit test user     scm     scm.keytab
+    IF    '${SECURITY_ENABLED}' == 'true'
+        Kinit test user     scm     scm.keytab
+    END
 
 Kinit as ozone admin
-    Run Keyword if      '${SECURITY_ENABLED}' == 'true'     Kinit test user     testuser     testuser.keytab
+    IF    '${SECURITY_ENABLED}' == 'true'
+        Kinit test user     testuser     testuser.keytab
+    END
 
 Kinit as recon admin
-    Run Keyword if      '${SECURITY_ENABLED}' == 'true'     Kinit test user     testuser2           testuser2.keytab
+    IF    '${SECURITY_ENABLED}' == 'true'
+        Kinit test user     testuser2           testuser2.keytab
+    END
 
 Check http return code
     [Arguments]         ${url}          ${expected_code}
@@ -133,8 +139,11 @@ Check Recon Namespace Summary Key
     Wait For Summary      ${SUMMARY_URL}?path=/${VOLUME}/${BUCKET}/file1   KEY
 
 Check Recon Namespace Summary Directory
-    Run Keyword If    '${BUCKET_LAYOUT}' == 'LEGACY'                    Wait For Summary      ${SUMMARY_URL}?path=/${VOLUME}/${BUCKET}/dir1/dir2/   DIRECTORY
-    Run Keyword If    '${BUCKET_LAYOUT}' == 'FILE_SYSTEM_OPTIMIZED'     Wait For Summary      ${SUMMARY_URL}?path=/${VOLUME}/${BUCKET}/dir1/dir2    DIRECTORY
+    IF    '${BUCKET_LAYOUT}' == 'LEGACY'
+        Wait For Summary      ${SUMMARY_URL}?path=/${VOLUME}/${BUCKET}/dir1/dir2/   DIRECTORY
+    ELSE IF    '${BUCKET_LAYOUT}' == 'FILE_SYSTEM_OPTIMIZED'
+        Wait For Summary      ${SUMMARY_URL}?path=/${VOLUME}/${BUCKET}/dir1/dir2    DIRECTORY
+    END
 
 Check Recon Namespace Disk Usage
     Wait For Summary      ${DISK_USAGE_URL}?path=/${VOLUME}/${BUCKET}&files=true&replica=true     \"sizeWithReplica\"

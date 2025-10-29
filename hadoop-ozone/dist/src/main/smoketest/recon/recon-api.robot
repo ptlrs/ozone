@@ -34,7 +34,9 @@ ${BUCKET}     bucket1
 
 *** Keywords ***
 Check if Recon picks up container from OM
-    Run Keyword if      '${SECURITY_ENABLED}' == 'true'     Kinit as ozone admin
+    IF    '${SECURITY_ENABLED}' == 'true'
+        Kinit as ozone admin
+    END
     ${result} =         Execute                             curl --negotiate -u : -LSs ${API_ENDPOINT_URL}/containers
                         Should contain      ${result}       \"ContainerID\"
 
@@ -42,13 +44,19 @@ Check if Recon picks up container from OM
                         Should contain      ${result}       \"fileSize\":2048,\"count\":10
 
 Kinit as non admin
-    Run Keyword if      '${SECURITY_ENABLED}' == 'true'     Kinit test user     scm     scm.keytab
+    IF    '${SECURITY_ENABLED}' == 'true'
+        Kinit test user     scm     scm.keytab
+    END
 
 Kinit as ozone admin
-    Run Keyword if      '${SECURITY_ENABLED}' == 'true'     Kinit test user     testuser     testuser.keytab
+    IF    '${SECURITY_ENABLED}' == 'true'
+        Kinit test user     testuser     testuser.keytab
+    END
 
 Kinit as recon admin
-    Run Keyword if      '${SECURITY_ENABLED}' == 'true'     Kinit test user     testuser2           testuser2.keytab
+    IF    '${SECURITY_ENABLED}' == 'true'
+        Kinit test user     testuser2           testuser2.keytab
+    END
 
 Check http return code
     [Arguments]         ${url}          ${expected_code}
@@ -62,7 +70,9 @@ Check http return code
 
 Check if the listKeys api responds OK
     [Arguments]     ${volume}    ${bucket}
-    Run Keyword if     '${SECURITY_ENABLED}' == 'true'     Kinit as ozone admin
+    IF    '${SECURITY_ENABLED}' == 'true'
+        Kinit as ozone admin
+    END
     ${result} =        Execute         curl --negotiate -u : -LSs ${API_ENDPOINT_URL}/keys/listKeys?startPrefix=/${volume}/${bucket}&limit=1000
     Should contain  ${result}   "OK"
     Should contain  ${result}   "keys"
@@ -105,7 +115,9 @@ Check if Recon picks up DN heartbeats
                         Should contain      ${result}       \"containerId\":1
 
 Check if Recon Web UI is up
-    Run Keyword if      '${SECURITY_ENABLED}' == 'true'     Kinit HTTP user
+    IF    '${SECURITY_ENABLED}' == 'true'
+        Kinit HTTP user
+    END
     ${result} =         Execute                             curl --negotiate -u : -LSs ${ENDPOINT_URL}
                         Should contain      ${result}       Ozone Recon
 

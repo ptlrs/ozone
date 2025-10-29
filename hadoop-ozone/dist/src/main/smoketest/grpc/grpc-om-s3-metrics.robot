@@ -40,7 +40,9 @@ Check gRPC conf
 
 Verify endpoint is up
     [arguments]         ${url}
-    Run Keyword if      '${SECURITY_ENABLED}' == 'true'     Kinit HTTP user
+    IF    '${SECURITY_ENABLED}' == 'true'
+        Kinit HTTP user
+    END
     ${result} =         Execute                             curl --negotiate -u : -v -s -I ${url}
     Should contain      ${result}       200 OK
 

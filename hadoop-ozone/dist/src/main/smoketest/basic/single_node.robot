@@ -24,7 +24,9 @@ Suite Setup         Get Security Enabled From Config
 *** Test Cases ***
 
 Basic Freon smoketest for one datanode
-    Run Keyword if    '${SECURITY_ENABLED}' == 'true'    Kinit test user     testuser     testuser.keytab
+    IF    '${SECURITY_ENABLED}' == 'true'
+        Kinit test user     testuser     testuser.keytab
+    END
     ${random} =        Generate Random String    10
     Freon OCKG    prefix=${random}   args=--replication ONE --replication-type RATIS
     Freon OCKV    prefix=${random}

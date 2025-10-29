@@ -18,8 +18,7 @@ Documentation       Test for reading snapshots with ACLs as different users
 Library             OperatingSystem
 Resource            snapshot-setup.robot
 Test Timeout        5 minutes
-Suite Setup         Run Keywords       Get Security Enabled From Config
-...    AND          Run Keyword if  '${SECURITY_ENABLED}' == 'false'    BuiltIn.Skip
+Suite Setup         Snapshot ACLs Suite Setup
 
 *** Variables ***
 ${USER1} =              testuser
@@ -29,6 +28,12 @@ ${FIRST_SNAPSHOT}
 ${SECOND_SNAPSHOT}
 
 *** Keywords ***
+Snapshot ACLs Suite Setup
+    Get Security Enabled From Config
+    IF    '${SECURITY_ENABLED}' == 'false'
+        BuiltIn.Skip
+    END
+
 Add ACL
     [arguments]         ${object}   ${user}     ${objectName}
     ${result} =         Execute     ozone sh ${object} addacl -a user:${user}:a ${objectName}

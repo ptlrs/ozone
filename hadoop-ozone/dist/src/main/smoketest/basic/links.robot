@@ -18,7 +18,7 @@ Documentation       Test bucket links via Ozone CLI
 Library             OperatingSystem
 Resource            ../commonlib.robot
 Resource            ../ozone-lib/shell.robot
-Test Setup          Run Keyword if    '${SECURITY_ENABLED}' == 'true'    Kinit test user     testuser     testuser.keytab
+Test Setup          Kinit If Secure     testuser     testuser.keytab
 Test Timeout        4 minute
 Suite Setup         Create volumes
 
@@ -34,7 +34,9 @@ Create volumes
     Set Suite Variable  ${target}  ${random}-target
     Ozone Shell Batch   volume create ${source}
     ...                 volume create ${target}
-    Run Keyword if      '${SECURITY_ENABLED}' == 'true'    Setup ACL tests
+    IF    '${SECURITY_ENABLED}' == 'true'
+        Setup ACL tests
+    END
 
 Setup ACL tests
     Ozone Shell Batch   bucket create ${source}/readable-bucket
@@ -78,7 +80,9 @@ ACL verified on source and target bucket
                         Should Contain              ${result}         PERMISSION_DENIED
 
 Create link loop
-    Run Keyword if      '${SECURITY_ENABLED}' == 'true'    Kinit test user     testuser     testuser.keytab
+    IF    '${SECURITY_ENABLED}' == 'true'
+        Kinit test user     testuser     testuser.keytab
+    END
                         Ozone Shell Batch   bucket link ${target}/loop1 ${target}/loop2
                         ...                 bucket link ${target}/loop2 ${target}/loop3
                         ...                 bucket link ${target}/loop3 ${target}/loop1
@@ -194,13 +198,19 @@ Buckets and links share namespace
                         Should Contain              ${result}    BUCKET_ALREADY_EXISTS
 
 Can follow link with read access
-    Run Keyword if    '${SECURITY_ENABLED}' == 'true'    Can follow link with read access
+    IF    '${SECURITY_ENABLED}' == 'true'
+        Can follow link with read access
+    END
 
 Cannot follow link without read access
-    Run Keyword if    '${SECURITY_ENABLED}' == 'true'    Cannot follow link without read access
+    IF    '${SECURITY_ENABLED}' == 'true'
+        Cannot follow link without read access
+    END
 
 ACL verified on source and target bucket
-    Run Keyword if    '${SECURITY_ENABLED}' == 'true'    ACL verified on source and target bucket
+    IF    '${SECURITY_ENABLED}' == 'true'
+        ACL verified on source and target bucket
+    END
 
 Loop in link chain is detected
     [setup]             Create link loop

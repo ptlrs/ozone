@@ -60,9 +60,13 @@ Install aws cli
     ${rc}              ${output} =                 Run And Return Rc And Output           which aws
     IF    '${rc}' == '0'                           RETURN
     ${rc}              ${output} =                 Run And Return Rc And Output           which apt-get
-    Run Keyword if     '${rc}' == '0'              Install aws cli s3 debian
+    IF    '${rc}' == '0'
+        Install aws cli s3 debian
+    END
     ${rc}              ${output} =                 Run And Return Rc And Output           yum --help
-    Run Keyword if     '${rc}' == '0'              Install aws cli s3 centos
+    IF    '${rc}' == '0'
+        Install aws cli s3 centos
+    END
 
 Install aws cli s3 centos
     Execute            sudo -E yum install -y awscli
@@ -76,9 +80,12 @@ Setup v2 headers
 
 Setup v4 headers
     Get Security Enabled From Config
-    Run Keyword if      '${SECURITY_ENABLED}' == 'true'     Kinit test user    testuser    testuser.keytab
-    Run Keyword if      '${SECURITY_ENABLED}' == 'true'     Setup secure v4 headers
-    Run Keyword if      '${SECURITY_ENABLED}' == 'false'    Setup dummy credentials for S3
+    IF    '${SECURITY_ENABLED}' == 'true'
+        Kinit test user    testuser    testuser.keytab
+        Setup secure v4 headers
+    ELSE
+        Setup dummy credentials for S3
+    END
 
 Setup secure v4 headers
     ${result} =         Execute and Ignore error             ozone s3 getsecret ${OM_HA_PARAM}
@@ -135,11 +142,18 @@ Setup s3 tests
     Run Keyword        Generate random prefix
     Run Keyword        Install aws cli
     Run Keyword        Get Security Enabled From Config
-    Run Keyword if    '${OZONE_S3_SET_CREDENTIALS}' == 'true'    Setup v4 headers
-    Run Keyword if    '${BUCKET}' == 'generated'            Create generated bucket    ${BUCKET_LAYOUT}
-    Run Keyword if    '${BUCKET}' == 'link'                 Setup links for S3 tests
-    Run Keyword if    '${BUCKET}' == 'encrypted'            Create encrypted bucket
-    Run Keyword if    '${BUCKET}' == 'erasure'              Create EC bucket
+    IF    '${OZONE_S3_SET_CREDENTIALS}' == 'true'
+        Setup v4 headers
+    END
+    IF    '${BUCKET}' == 'generated'
+        Create generated bucket    ${BUCKET_LAYOUT}
+    ELSE IF    '${BUCKET}' == 'link'
+        Setup links for S3 tests
+    ELSE IF    '${BUCKET}' == 'encrypted'
+        Create encrypted bucket
+    ELSE IF    '${BUCKET}' == 'erasure'
+        Create EC bucket
+    END
     Set Global Variable  ${OZONE_S3_TESTS_SET_UP}    ${TRUE}
 
 Setup links for S3 tests
@@ -216,8 +230,11 @@ Execute AWSS3APICli and failed bucket ownership verification
 Execute AWSS3APICli with bucket owner check
     [arguments]    ${command}    ${bucket_owner}    ${source_bucket_owner}=${EMPTY}
 
-    Run Keyword If    '${source_bucket_owner}' != '${EMPTY}'    Execute AWSS3APICli and failed bucket ownership verification    ${command}    wrong-${bucket_owner}    ${source_bucket_owner}
-    Run Keyword If    '${source_bucket_owner}' != '${EMPTY}'    Execute AWSS3APICli and failed bucket ownership verification    ${command}    ${bucket_owner}    wrong-${source_bucket_owner}
-    Run Keyword If    '${source_bucket_owner}' == '${EMPTY}'    Execute AWSS3APICli and failed bucket ownership verification    ${command}    wrong-${bucket_owner}
+    IF    '${source_bucket_owner}' != '${EMPTY}'
+        Execute AWSS3APICli and failed bucket ownership verification    ${command}    wrong-${bucket_owner}    ${source_bucket_owner}
+        Execute AWSS3APICli and failed bucket ownership verification    ${command}    ${bucket_owner}    wrong-${source_bucket_owner}
+    ELSE
+        Execute AWSS3APICli and failed bucket ownership verification    ${command}    wrong-${bucket_owner}
+    END
     ${result} =    Execute AWSS3APICli using bucket ownership verification    ${command}    ${bucket_owner}    ${source_bucket_owner}
     RETURN              ${result}

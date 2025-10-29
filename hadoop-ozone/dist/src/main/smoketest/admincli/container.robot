@@ -188,7 +188,9 @@ Cannot reconcile container without admin privilege
     Requires admin privilege    ozone admin container reconcile "${CONTAINER}"
 
 Reset user
-    Run Keyword if      '${SECURITY_ENABLED}' == 'true'     Kinit test user     testuser     testuser.keytab
+    IF    '${SECURITY_ENABLED}' == 'true'
+        Kinit test user     testuser     testuser.keytab
+    END
 
 Cannot reconcile open container
     # At this point we should have an open Ratis Three container.

@@ -49,7 +49,9 @@ Wait Til Date Past
     [arguments]         ${date}
     ${latestDate} =     Get Current Date         UTC
     ${sleepSeconds} =   Subtract Date From Date  ${date}  ${latestDate}
-    Run Keyword If      ${sleepSeconds} > 0      Sleep  ${sleepSeconds}
+    IF    ${sleepSeconds} > 0
+        Sleep  ${sleepSeconds}
+    END
 
 *** Variables ***
 ${ENDPOINT_URL}       http://s3g:9878

@@ -35,7 +35,9 @@ ${SIZE}                             104857600
 ** Keywords ***
 Prepare For Tests
     Execute             dd if=/dev/urandom of=/tmp/100mb bs=1048576 count=100
-    Run Keyword if      '${SECURITY_ENABLED}' == 'true'     Kinit test user    testuser    testuser.keytab
+    IF    '${SECURITY_ENABLED}' == 'true'
+        Kinit test user    testuser    testuser.keytab
+    END
     Execute                 ozone sh volume create /${VOLUME}
     Execute                 ozone sh bucket create --replication ${REPLICATION} --type ${TYPE} /${VOLUME}/${BUCKET}
 
@@ -138,7 +140,9 @@ Close All Containers
         ${container} =      Execute          ozone admin container list --state OPEN | jq -r '.[] | select(.replicationConfig.data == 3) | .containerID' | head -1
         EXIT FOR LOOP IF    "${container}" == "${EMPTY}"
                             ${message} =    Execute And Ignore Error    ozone admin container close "${container}"
-                            Run Keyword If    '${message}' != '${EMPTY}'      Should Contain   ${message}   is in closing state
+        IF    '${message}' != '${EMPTY}'
+            Should Contain   ${message}   is in closing state
+        END
         ${output} =         Execute          ozone admin container info "${container}"
                             Should contain   ${output}   CLOS
     END

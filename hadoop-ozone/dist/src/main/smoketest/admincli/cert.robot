@@ -21,7 +21,9 @@ Suite Setup         Get Security Enabled From Config
 
 *** Keywords ***
 Setup Test
-    Run Keyword if    '${SECURITY_ENABLED}' == 'true'    Kinit test user     testuser     testuser.keytab
+    IF    '${SECURITY_ENABLED}' == 'true'
+        Kinit test user     testuser     testuser.keytab
+    END
 
 *** Test Cases ***
 List certificates

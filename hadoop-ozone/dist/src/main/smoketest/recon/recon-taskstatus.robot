@@ -37,7 +37,9 @@ ${KEYPATH}                ${VOLUME}/${BUCKET}/testkey
 *** Keywords ***
 
 Kinit as ozone admin
-    Run Keyword if      '${SECURITY_ENABLED}' == 'true'     Kinit test user     testuser     testuser.keytab
+    IF    '${SECURITY_ENABLED}' == 'true'
+        Kinit test user     testuser     testuser.keytab
+    END
 
 Sync OM Data
   ${result} =             Execute       curl --negotiate -u : -LSs ${TRIGGER_SYNC_ENDPOINT}

@@ -29,8 +29,11 @@ ${ENDPOINT_URL}       http://s3g:9878
 
 *** Keywords ***
 Create bucket to be deleted
-    ${bucket} =    Run Keyword if    '${BUCKET}' == 'link'    Create link    to-be-deleted
-    ...            ELSE              Run Keyword              Create bucket
+    IF    '${BUCKET}' == 'link'
+        ${bucket} =    Create link    to-be-deleted
+    ELSE
+        ${bucket} =    Create bucket
+    END
     RETURN       ${bucket}
 
 *** Test Cases ***

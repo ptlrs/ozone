@@ -23,7 +23,7 @@ Resource            ../ozone-lib/freon.robot
 Test Timeout        5 minutes
 Suite Setup         Run Keywords       Get Security Enabled From Config
 ...                 AND                Create Specific OM data for prepare
-Test Setup          Run Keyword if    '${SECURITY_ENABLED}' == 'true'    Kinit test user     testuser     testuser.keytab
+Test Setup          Kinit If Secure     testuser     testuser.keytab
 
 *** Keywords ***
 Create Specific OM data for prepare

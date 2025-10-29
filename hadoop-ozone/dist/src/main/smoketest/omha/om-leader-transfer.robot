@@ -45,7 +45,9 @@ Assert OM leader Role Transitions
     [arguments]             ${leaderOM}     ${followerOM}     ${isEqualCheck}
     ${newLeaderOM} =        Get OM Leader Node
                             Should not be Equal     ${leaderOM}             ${newLeaderOM}
-    Run Keyword If          '${isEqualCheck}' == 'true'         Should be Equal    ${followerOM}    ${newLeaderOM}
+    IF    '${isEqualCheck}' == 'true'
+        Should be Equal    ${followerOM}    ${newLeaderOM}
+    END
 
 
 *** Test Cases ***
