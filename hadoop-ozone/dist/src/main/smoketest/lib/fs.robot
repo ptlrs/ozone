@@ -25,25 +25,38 @@ ${OM_SERVICE_ID}     om
 Format FS URL
     [arguments]    ${scheme}    ${volume}    ${bucket}    ${path}=${EMPTY}
 
-    ${url} =       Run Keyword If    '${scheme}' == 'o3fs'    Format o3fs URL    ${volume}    ${bucket}    ${path}
-    ...            ELSE IF           '${scheme}' == 'ofs'     Format ofs URL     ${volume}    ${bucket}    ${path}
-    ...            ELSE              Fail                     Unsupported FS scheme: ${scheme}
+    IF    '${scheme}' == 'o3fs'
+        ${url} =    Format o3fs URL    ${volume}    ${bucket}    ${path}
+    ELSE IF    '${scheme}' == 'ofs'
+        ${url} =    Format ofs URL     ${volume}    ${bucket}    ${path}
+    ELSE
+        Fail    Unsupported FS scheme: ${scheme}
+    END
 
     RETURN       ${url}
 
 Format o3fs URL
     [arguments]    ${volume}    ${bucket}    ${path}=${EMPTY}    ${om}=${OM_SERVICE_ID}
-    ${om_with_leading} =     Run Keyword If    '${om}' != '${EMPTY}'      Ensure Leading    .    ${om}
-    ...                      ELSE              Set Variable    ${EMPTY}
+    IF    '${om}' != '${EMPTY}'
+        ${om_with_leading} =    Ensure Leading    .    ${om}
+    ELSE
+        ${om_with_leading} =    Set Variable    ${EMPTY}
+    END
     RETURN       o3fs://${bucket}.${volume}${om_with_leading}/${path}
 
 Format ofs URL
     [arguments]    ${volume}    ${bucket}    ${path}=${EMPTY}    ${om}=${OM_SERVICE_ID}
 
-    ${om_with_trailing} =     Run Keyword If    '${om}' != '${EMPTY}'      Ensure Trailing   /    ${om}
-    ...                       ELSE              Set Variable    ${EMPTY}
+    IF    '${om}' != '${EMPTY}'
+        ${om_with_trailing} =    Ensure Trailing   /    ${om}
+    ELSE
+        ${om_with_trailing} =    Set Variable    ${EMPTY}
+    END
 
-    ${path_with_leading} =    Run Keyword If    '${path}' != '${EMPTY}'    Ensure Leading    /    ${path}
-    ...                       ELSE              Set Variable    ${EMPTY}
+    IF    '${path}' != '${EMPTY}'
+        ${path_with_leading} =    Ensure Leading    /    ${path}
+    ELSE
+        ${path_with_leading} =    Set Variable    ${EMPTY}
+    END
 
     RETURN       ofs://${om_with_trailing}${volume}/${bucket}${path_with_leading}

@@ -40,11 +40,17 @@ Setup volume names
 Format ofs TMPMOUNT
     [arguments]    ${volume}  ${path}=${EMPTY}    ${om}=${OM_SERVICE_ID}
 
-    ${om_with_trailing} =     Run Keyword If    '${om}' != '${EMPTY}'      Ensure Trailing   /    ${om}
-    ...                       ELSE              Set Variable    ${EMPTY}
+    IF    '${om}' != '${EMPTY}'
+        ${om_with_trailing} =    Ensure Trailing   /    ${om}
+    ELSE
+        ${om_with_trailing} =    Set Variable    ${EMPTY}
+    END
 
-    ${path_with_leading} =    Run Keyword If    '${path}' != '${EMPTY}'    Ensure Leading    /    ${path}
-    ...                       ELSE              Set Variable    ${EMPTY}
+    IF    '${path}' != '${EMPTY}'
+        ${path_with_leading} =    Ensure Leading    /    ${path}
+    ELSE
+        ${path_with_leading} =    Set Variable    ${EMPTY}
+    END
 
     RETURN       ofs://${om_with_trailing}${volume}/${path_with_leading}
 

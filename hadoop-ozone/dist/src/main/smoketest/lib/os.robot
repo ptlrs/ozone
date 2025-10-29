@@ -52,8 +52,11 @@ Create Random File KB
 
 Create Random File
     [arguments]    ${block_count}    ${block_size}    ${path}=${EMPTY}
-    ${path} =      Run Keyword If   '${path}' == '${EMPTY}'    Get Random Filename
-    ...            ELSE             Set Variable    ${path}
+    IF    '${path}' == '${EMPTY}'
+        ${path} =    Get Random Filename
+    ELSE
+        ${path} =    Set Variable    ${path}
+    END
     Execute        dd if=/dev/urandom of=${path} bs=${block_size} count=${block_count} status=none
     RETURN       ${path}
 
