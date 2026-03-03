@@ -16,8 +16,10 @@
  */
 package org.apache.hadoop.ozone.container.replication;
 
+import static org.apache.hadoop.ozone.container.replication.CopyContainerCompression.NO_COMPRESSION;
+
+import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -33,6 +35,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.hadoop.hdds.client.DefaultReplicationConfig;
 import org.apache.hadoop.hdds.client.ECReplicationConfig;
+import org.apache.hadoop.hdds.client.RatisReplicationConfig;
+import org.apache.hadoop.hdds.client.ReplicationConfig;
 import org.apache.hadoop.hdds.conf.OzoneConfiguration;
 import org.apache.hadoop.hdds.conf.StorageUnit;
 import org.apache.hadoop.hdds.protocol.proto.HddsProtos;
@@ -50,15 +54,18 @@ import org.apache.hadoop.ozone.client.OzoneClientFactory;
 import org.apache.hadoop.ozone.client.OzoneVolume;
 import org.apache.hadoop.ozone.client.io.OzoneOutputStream;
 import org.apache.hadoop.ozone.container.common.interfaces.Container;
+import org.apache.hadoop.ozone.container.common.statemachine.DatanodeConfiguration;
 import org.apache.hadoop.ozone.container.common.utils.DatanodeStoreCache;
+import org.apache.hadoop.ozone.container.common.volume.HddsVolume;
+import org.apache.hadoop.ozone.container.common.volume.StorageVolume;
 import org.apache.hadoop.ozone.container.keyvalue.KeyValueContainer;
 import org.apache.hadoop.ozone.container.keyvalue.KeyValueContainerData;
+import org.apache.hadoop.ozone.container.keyvalue.TarContainerPacker;
+import org.apache.hadoop.ozone.container.keyvalue.helpers.BlockUtils;
 import org.apache.hadoop.ozone.container.ozoneimpl.ContainerScannerConfiguration;
 import org.apache.hadoop.ozone.container.ozoneimpl.OnDemandContainerScanner;
 import org.apache.hadoop.ozone.container.ozoneimpl.OzoneContainer;
 import org.apache.ozone.test.GenericTestUtils;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,47 +81,94 @@ import org.slf4j.LoggerFactory;
  * crashes caused by the underlying RocksDB {@code DB*} being closed while a
  * live C++ {@code rocksdb::Iterator*} is still mid-iteration.
  *
- * <p>EC 3-2 containers use Schema V3: all containers on a given volume share a
- * single RocksDB instance, managed by {@link DatanodeStoreCache} (a JVM
- * singleton). {@code DatanodeStoreCache.removeDB()} calls
- * {@code db.getStore().stop()} which closes the native DB immediately — no
- * reference counting, no iterator protection. Any active iterator opened via a
- * prior {@code getDB()} call on the same path will SIGSEGV on its next
- * {@code next()} invocation.
+ * <h3>Schema V3 vs V2 Protection</h3>
  *
- * <p>Two scanner sources run simultaneously to maximise the race window:
+ * <p><b>Schema V3</b> (shared per-volume DB, managed by
+ * {@link DatanodeStoreCache}): NO protection at all.
+ * {@code DatanodeStoreCache.removeDB()} calls {@code db.getStore().stop()}
+ * immediately — no reference counting, no iterator tracking.  Any active
+ * iterator opened via a prior {@code getDB()} call WILL SIGSEGV.
+ *
+ * <p><b>Schema V2</b> (per-container DB, managed by {@code ContainerCache}):
+ * PROTECTED by {@code ReferenceCountedDB} refCount.  The scanner holds
+ * refCount &gt; 0 during iteration (within its try-with-resources block).
+ * {@code ContainerCache.removeDB()}, {@code shutdownCache()}, and LRU
+ * eviction all check refCount before closing and refuse to close when
+ * refCount &gt; 0 (throwing {@code IllegalArgumentException} or skipping
+ * eviction).  This means V2 scanner paths do NOT produce SIGSEGV in
+ * production — the race exists but is caught by the refCount assertion.
+ *
+ * <h3>Scenarios covered by this harness</h3>
  * <ol>
- *   <li><b>Background scanner</b> — starts automatically with
- *       {@code dataScanInterval=0}; sweeps ALL containers on a volume
- *       sequentially in a single continuous loop, holding iterators open for
- *       seconds at a time (largest race window).</li>
- *   <li><b>On-demand scan loop</b> — fires {@code scanContainerWithoutGap()}
- *       for every container on every datanode, fire-and-forget, adding
- *       additional in-flight iterators.</li>
+ *   <li><b>V3 Direct RemoveDB</b> ({@link #runV3DirectRemoveDB()}) —
+ *       calls {@code DatanodeStoreCache.removeDB()} directly.
+ *       <b>SIGSEGV expected.</b></li>
+ *   <li><b>V3 Volume Failure</b> ({@link #runV3VolumeFailureDuringScan()}) —
+ *       calls {@code HddsVolume.failVolume()}, the full production path
+ *       triggered by {@code StorageVolumeChecker} on I/O errors.
+ *       <b>SIGSEGV expected.</b></li>
+ *   <li><b>V3 Shutdown Ordering</b>
+ *       ({@link #runV3ShutdownCacheDuringScan()}) — bypasses
+ *       miniClusterMode and calls {@code DatanodeStoreCache.shutdownCache()},
+ *       simulating the shutdown ordering bug where
+ *       {@code KeyValueHandler.stop()} closes all V3 DBs (step 5 of
+ *       {@code OzoneContainer.stop()}) before scanners and
+ *       blockDeletingService are stopped (steps 8-10).
+ *       <b>SIGSEGV expected.</b></li>
+ *   <li><b>V3 DbVolume Failure</b> — DbVolume.failVolume() calls
+ *       {@code closeAllDbStore()} which calls {@code removeDB()} for every
+ *       HDDS volume mapped to that DB volume.  This is the same
+ *       {@code removeDB()} mechanism as Scenario 1.  Not separately testable
+ *       in MiniOzoneCluster (no dedicated DB volumes configured), but the
+ *       underlying close mechanism is identical.</li>
+ *   <li><b>V2 Export Race</b> ({@link #runV2ExportDuringScan()}) —
+ *       concurrent export + scan on Schema V2 containers.  Export calls
+ *       {@code BlockUtils.removeDB()} which calls
+ *       {@code ContainerCache.removeDB()}.  Scanner holds refCount &gt; 0,
+ *       so {@code cleanup()} returns false and the
+ *       {@code Preconditions.checkArgument} throws IAE — DB is NOT closed.
+ *       <b>No SIGSEGV; demonstrates refCount protection.</b></li>
+ *   <li><b>V2 Deletion Race</b> ({@link #runV2DeletionDuringScan()}) —
+ *       concurrent deletion + scan on Schema V2 containers.  Same refCount
+ *       protection as Scenario 5.  Deletion calls
+ *       {@code KeyValueContainerUtil.removeContainerDB()} →
+ *       {@code BlockUtils.removeDB()} which checks refCount.
+ *       <b>No SIGSEGV; demonstrates refCount protection.</b></li>
  * </ol>
  *
- * <p>A third thread per datanode (<b>RocksDB close loop</b>) continuously
- * collects unique Schema V3 DB paths from that datanode's containers and calls
- * {@code DatanodeStoreCache.getInstance().removeDB(path)} while both scanners
- * have active iterators.  This reproduces the crash in seconds/minutes rather
- * than the days it takes in production.
+ * <p>Run individual scenarios:
+ * <pre>
+ * mvn test -pl hadoop-ozone/integration-test \
+ *   -Dtest=TestRocksDBIteratorCrashRepro#runV3DirectRemoveDB
+ * </pre>
  *
- * <p>Expected outcome: the JVM crashes with SIGSEGV and produces a new
- * {@code hs_err_pid*.log} in the working directory, matching the pattern of
- * the existing production crash logs.
+ * <p>V2 scenarios (5, 6) automatically create a Schema V2 cluster with
+ * RATIS THREE containers — no special parameters required.  V3 scenarios
+ * (1-3) create a Schema V3 cluster with EC 3-2 containers.
  *
- * <p>This test never terminates on its own — run it manually and observe.
+ * <p>Each test runs for a configurable duration (default 10 minutes,
+ * override with {@code -Drepro.timeout.minutes=N}).  If no SIGSEGV occurs
+ * within the timeout the test exits normally.
+ *
+ * <p>To reduce log noise, the test suppresses INFO-level logging from
+ * {@code DatanodeStoreCache} and container scanner classes which otherwise
+ * produce thousands of lines per second from the tight add/remove/scan
+ * loops.
  */
 public class TestRocksDBIteratorCrashRepro {
 
   private static final Logger LOG =
       LoggerFactory.getLogger(TestRocksDBIteratorCrashRepro.class);
 
+  private static final long TIMEOUT_MINUTES =
+      Long.getLong("repro.timeout.minutes", 10L);
+  private static final long PROGRESS_LOG_INTERVAL_MS = 15_000L;
+
   private static final int DATANODE_COUNT = 5;
   private static final int MIN_SEED_KEY_COUNT = 60;
   private static final int MIN_SEED_CONTAINER_COUNT = 10;
   private static final int KEY_SIZE_MB = 8;
-  private static final long PROGRESS_LOG_INTERVAL_MS = 2_000L;
+  private static final AtomicLong v2ExportAttempts = new AtomicLong();
   // Give both scanners time to establish iterators before the first close.
   private static final long CLOSE_THREAD_STARTUP_DELAY_MS = 1_000L;
   // Short sleep between close rounds: lets scanners re-open the DB and start
@@ -127,16 +181,40 @@ public class TestRocksDBIteratorCrashRepro {
   private static final AtomicLong onDemandScanFailures = new AtomicLong();
   private static final AtomicLong closeRounds = new AtomicLong();
   private static final AtomicLong closeFailures = new AtomicLong();
+  private static final AtomicLong v2ExportRefCountBlocked = new AtomicLong();
+  private static final AtomicLong v2DeleteAttempts = new AtomicLong();
+  private static final AtomicLong v2DeleteRefCountBlocked = new AtomicLong();
+  private static boolean v2Mode;
 
   private static MiniOzoneCluster cluster;
   private static OzoneClient client;
   private static OzoneBucket bucket;
+  private static OzoneConfiguration clusterConf;
   private static volatile boolean stopWorkers = false;
   private static ExecutorService workers;
-  private static ECReplicationConfig ecReplication;
+  private static ReplicationConfig replicationConfig;
 
-  @BeforeAll
-  public static void setUp() throws Exception {
+  private static void setUpCluster(boolean v2) throws Exception {
+    v2Mode = v2;
+    resetCounters();
+
+    // Suppress the high-volume logs that overwhelm the IDE console.
+    // The tight close/reopen loop triggers INFO and WARN from many classes:
+    //   DatanodeStoreCache: "Added db"/"Removed db" on every add/remove
+    //   HddsVolume: "SchemaV3 db is stopped/loaded" on every close/reopen
+    //   OnDemandContainerScanner: "Unexpected exception" + stack trace
+    //   BlockUtils/RDBStore: errors on DB open during the race
+    //   StorageVolume: warnings during volume state changes
+    // Suppress the entire container package to ERROR — for a crash repro
+    // test we only care about the SIGSEGV, not container lifecycle logs.
+    GenericTestUtils.setLogLevel(
+        LoggerFactory.getLogger("org.apache.hadoop.ozone.container"),
+        org.slf4j.event.Level.ERROR);
+    // Also suppress RocksDB native wrapper logs.
+    GenericTestUtils.setLogLevel(
+        LoggerFactory.getLogger("org.rocksdb"),
+        org.slf4j.event.Level.ERROR);
+
     OzoneConfiguration conf = new OzoneConfiguration();
     conf.setBoolean(ContainerScannerConfiguration.HDDS_CONTAINER_SCRUB_ENABLED,
         true);
@@ -156,10 +234,18 @@ public class TestRocksDBIteratorCrashRepro {
     conf.setStorageSize(OzoneConfigKeys.OZONE_SCM_BLOCK_SIZE, 4,
         StorageUnit.MB);
 
+    if (v2) {
+      // Disable Schema V3 to force per-container RocksDB (Schema V2).
+      conf.setBoolean(DatanodeConfiguration.CONTAINER_SCHEMA_V3_ENABLED,
+          false);
+      LOG.info("V2 MODE: Schema V3 disabled, creating RATIS THREE containers");
+    }
+
     cluster = MiniOzoneCluster.newBuilder(conf)
         .setNumDatanodes(DATANODE_COUNT)
         .build();
     cluster.waitForClusterToBeReady();
+    clusterConf = conf;
 
     client = OzoneClientFactory.getRpcClient(conf);
     ObjectStore store = client.getObjectStore();
@@ -168,12 +254,23 @@ public class TestRocksDBIteratorCrashRepro {
     store.createVolume(volumeName);
     OzoneVolume volume = store.getVolume(volumeName);
 
-    ecReplication = new ECReplicationConfig(3, 2,
-        ECReplicationConfig.EcCodec.RS, (int) OzoneConsts.MB);
-    BucketArgs bucketArgs = BucketArgs.newBuilder()
-        .setDefaultReplicationConfig(new DefaultReplicationConfig(ecReplication))
-        .build();
-    volume.createBucket(bucketName, bucketArgs);
+    if (v2) {
+      replicationConfig = RatisReplicationConfig.getInstance(
+          HddsProtos.ReplicationFactor.THREE);
+      BucketArgs bucketArgs = BucketArgs.newBuilder()
+          .setDefaultReplicationConfig(
+              new DefaultReplicationConfig(replicationConfig))
+          .build();
+      volume.createBucket(bucketName, bucketArgs);
+    } else {
+      ECReplicationConfig ecConfig = new ECReplicationConfig(3, 2,
+          ECReplicationConfig.EcCodec.RS, (int) OzoneConsts.MB);
+      replicationConfig = ecConfig;
+      BucketArgs bucketArgs = BucketArgs.newBuilder()
+          .setDefaultReplicationConfig(new DefaultReplicationConfig(ecConfig))
+          .build();
+      volume.createBucket(bucketName, bucketArgs);
+    }
     bucket = volume.getBucket(bucketName);
 
     seedKeysAndContainers();
@@ -181,18 +278,40 @@ public class TestRocksDBIteratorCrashRepro {
     logProgress("seed complete");
   }
 
-  @AfterAll
-  public static void tearDown() throws IOException {
+  private static void tearDownCluster() {
     stopWorkers = true;
     if (workers != null) {
       workers.shutdownNow();
     }
-    if (client != null) {
-      client.close();
+    try {
+      if (client != null) {
+        client.close();
+      }
+    } catch (Exception ignored) {
     }
     if (cluster != null) {
       cluster.shutdown();
     }
+    cluster = null;
+    client = null;
+    bucket = null;
+    clusterConf = null;
+    workers = null;
+    replicationConfig = null;
+  }
+
+  private static void resetCounters() {
+    keyNames.clear();
+    containerIds.clear();
+    onDemandScanRounds.set(0);
+    onDemandScanFailures.set(0);
+    closeRounds.set(0);
+    closeFailures.set(0);
+    v2ExportAttempts.set(0);
+    v2ExportRefCountBlocked.set(0);
+    v2DeleteAttempts.set(0);
+    v2DeleteRefCountBlocked.set(0);
+    stopWorkers = false;
   }
 
   private static void seedKeysAndContainers() throws Exception {
@@ -207,7 +326,7 @@ public class TestRocksDBIteratorCrashRepro {
       writeAttempt++;
       String keyName = "repro-key-" + UUID.randomUUID();
       try (OzoneOutputStream out = bucket.createKey(
-          keyName, payload.length, ecReplication, new HashMap<>())) {
+          keyName, payload.length, replicationConfig, new HashMap<>())) {
         out.write(payload);
       }
       keyNames.add(keyName);
@@ -248,6 +367,10 @@ public class TestRocksDBIteratorCrashRepro {
       return closed >= Math.max(1, containerIds.size() / 2);
     }, 1000, 60_000);
   }
+
+  // ========================================================================
+  //  Common worker loops
+  // ========================================================================
 
   /**
    * Fires {@code scanContainerWithoutGap()} for every container on the given
@@ -294,13 +417,12 @@ public class TestRocksDBIteratorCrashRepro {
    * scanner may have live iterators open on it, reproducing the use-after-free
    * that causes the SIGSEGV in production.
    */
-  private static void runRocksDBCloseLoop(HddsDatanodeService dn) {
+  private static void runV3RemoveDBLoop(HddsDatanodeService dn) {
     OzoneContainer ozoneContainer =
         dn.getDatanodeStateMachine().getContainer();
     DatanodeStoreCache storeCache = DatanodeStoreCache.getInstance();
 
     try {
-      // Give both scanners time to open iterators before the first close.
       Thread.sleep(CLOSE_THREAD_STARTUP_DELAY_MS);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -309,35 +431,11 @@ public class TestRocksDBIteratorCrashRepro {
 
     while (!stopWorkers) {
       try {
-        // Collect the unique per-volume DB paths for this datanode.
-        // Multiple containers on the same volume share one path (Schema V3).
-        Set<String> dbPaths = new HashSet<>();
-        Iterator<Container<?>> iter =
-            ozoneContainer.getContainerSet().iterator();
-        while (iter.hasNext()) {
-          Container<?> container = iter.next();
-          if (container instanceof KeyValueContainer) {
-            KeyValueContainerData data =
-                ((KeyValueContainer) container).getContainerData();
-            File dbFile = data.getDbFile();
-            if (dbFile != null) {
-              dbPaths.add(dbFile.getAbsolutePath());
-            }
-          }
-        }
-
+        Set<String> dbPaths = collectV3DbPaths(ozoneContainer);
         for (String path : dbPaths) {
-          // removeDB calls db.getStore().stop() — closes the native RocksDB
-          // DB* immediately with no reference counting and no regard for
-          // live iterators.  Any scanner thread mid-iteration will SIGSEGV
-          // on its next RocksIterator.next0() call.
           storeCache.removeDB(path);
         }
-
         closeRounds.incrementAndGet();
-
-        // Brief pause to let scanners call getDB() and re-open the DB,
-        // establishing fresh iterators before the next close round.
         Thread.sleep(CLOSE_THREAD_SLEEP_MS);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
@@ -351,38 +449,502 @@ public class TestRocksDBIteratorCrashRepro {
     }
   }
 
-  private static void logProgress(String prefix) {
-    LOG.info(
-        "[{}] keys={}, containers={}, onDemandScanRounds={}, "
-            + "onDemandScanFailures={}, closeRounds={}, closeFailures={}",
-        prefix,
-        keyNames.size(),
-        containerIds.size(),
-        onDemandScanRounds.get(),
-        onDemandScanFailures.get(),
-        closeRounds.get(),
-        closeFailures.get());
-  }
+  /**
+   * Continuously calls {@link HddsVolume#failVolume()} on every HDDS volume
+   * of the given datanode.  This exercises the full production path:
+   * {@code StorageVolumeChecker} detects I/O error →
+   * {@code HddsVolume.failVolume()} → {@code closeDbStore()} →
+   * {@code DatanodeStoreCache.removeDB()}.
+   *
+   * <p>After failing a volume, the DB is removed from the cache.  The next
+   * scanner iteration will call {@code BlockUtils.getDB()} which calls
+   * {@code DatanodeStoreCache.getDB()}, which re-opens the DB and adds it
+   * back to the cache.  This allows the loop to continue producing the race.
+   */
+  private static void runV3VolumeFailureLoop(HddsDatanodeService dn) {
+    OzoneContainer ozoneContainer =
+        dn.getDatanodeStateMachine().getContainer();
 
-  @Test
-  public void runInfiniteRocksDBCloseDuringScan() throws Exception {
-    List<HddsDatanodeService> datanodes = cluster.getHddsDatanodes();
-    // 2 threads per datanode: one on-demand scan loop + one RocksDB close loop.
-    // The background scanner (dataScanInterval=0) runs for free in its own
-    // per-volume threads started by OzoneContainer during setUp().
-    workers = Executors.newFixedThreadPool(2 * datanodes.size(),
-        new NamedDaemonFactory("crash-repro"));
-
-    for (HddsDatanodeService dn : datanodes) {
-      workers.submit(() -> runOnDemandScanLoop(dn));
-      workers.submit(() -> runRocksDBCloseLoop(dn));
+    try {
+      Thread.sleep(CLOSE_THREAD_STARTUP_DELAY_MS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return;
     }
 
-    while (true) {
+    while (!stopWorkers) {
+      try {
+        List<StorageVolume> volumes =
+            ozoneContainer.getVolumeSet().getVolumesList();
+        for (StorageVolume vol : volumes) {
+          if (vol instanceof HddsVolume) {
+            // failVolume() → closeDbStore() → removeDB() — the production
+            // crash path.  This closes the shared V3 DB for this volume.
+            ((HddsVolume) vol).failVolume();
+          }
+        }
+        closeRounds.incrementAndGet();
+        Thread.sleep(CLOSE_THREAD_SLEEP_MS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return;
+      } catch (Exception ex) {
+        long failures = closeFailures.incrementAndGet();
+        if (failures % 100 == 0) {
+          LOG.warn("Volume failure loop failures so far: {}", failures, ex);
+        }
+      }
+    }
+  }
+
+  /**
+   * Bypasses miniClusterMode and calls
+   * {@link DatanodeStoreCache#shutdownCache()} while scanners are running.
+   *
+   * <p>In production, {@code OzoneContainer.stop()} calls
+   * {@code KeyValueHandler.stop()} → {@code BlockUtils.shutdownCache()} →
+   * {@code DatanodeStoreCache.shutdownCache()} at step 5, BEFORE scanners
+   * are stopped (step 8+) and BEFORE blockDeletingService.shutdown() (step
+   * 10).  This test simulates that ordering bug.
+   *
+   * <p>In MiniOzoneCluster, {@code DatanodeStoreCache.shutdownCache()} is a
+   * no-op because miniClusterMode is true.  We bypass that by calling
+   * {@code setMiniClusterMode(false)} before each shutdownCache() call.
+   */
+  private static void runV3ShutdownCacheLoop(HddsDatanodeService dn) {
+    try {
+      Thread.sleep(CLOSE_THREAD_STARTUP_DELAY_MS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return;
+    }
+
+    while (!stopWorkers) {
+      try {
+        // Bypass the miniClusterMode guard so shutdownCache() actually
+        // closes the DBs.
+        DatanodeStoreCache.setMiniClusterMode(false);
+        DatanodeStoreCache.getInstance().shutdownCache();
+        // Re-enable miniClusterMode so that normal datanode operations
+        // (scanner getDB() re-opening DBs) work correctly.
+        DatanodeStoreCache.setMiniClusterMode(true);
+
+        closeRounds.incrementAndGet();
+        Thread.sleep(CLOSE_THREAD_SLEEP_MS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return;
+      } catch (Exception ex) {
+        long failures = closeFailures.incrementAndGet();
+        if (failures % 100 == 0) {
+          LOG.warn("ShutdownCache loop failures so far: {}", failures, ex);
+        }
+      }
+    }
+  }
+
+  /**
+   * Continuously exports every container on the given datanode using
+   * {@link KeyValueContainer#exportContainerData}.  For Schema V2,
+   * export calls {@code BlockUtils.removeDB()} which goes through
+   * {@code ContainerCache.removeDB()} → {@code cleanup()} → checks refCount.
+   *
+   * <p>When the scanner holds refCount &gt; 0, {@code cleanup()} returns
+   * false and the Preconditions assertion throws {@code IllegalArgumentException}
+   * — the DB is NOT closed and no SIGSEGV occurs.  This test demonstrates
+   * that the race window exists but is caught by the refCount check.
+   */
+  private static void runV2ExportLoop(HddsDatanodeService dn) {
+    OzoneContainer ozoneContainer =
+        dn.getDatanodeStateMachine().getContainer();
+    TarContainerPacker packer = new TarContainerPacker(NO_COMPRESSION);
+
+    try {
+      Thread.sleep(CLOSE_THREAD_STARTUP_DELAY_MS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return;
+    }
+
+    while (!stopWorkers) {
+      try {
+        Iterator<Container<?>> iter =
+            ozoneContainer.getContainerSet().iterator();
+        while (iter.hasNext() && !stopWorkers) {
+          Container<?> container = iter.next();
+          if (container instanceof KeyValueContainer) {
+            KeyValueContainer kvContainer = (KeyValueContainer) container;
+            KeyValueContainerData data = kvContainer.getContainerData();
+            // Only V2 containers have per-container DB that export removes.
+            if (!data.hasSchema(OzoneConsts.SCHEMA_V3)) {
+              v2ExportAttempts.incrementAndGet();
+              try {
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                kvContainer.exportContainerData(out, packer);
+              } catch (IllegalArgumentException iae) {
+                // Expected: refCount > 0 because scanner holds a reference.
+                // This proves the race window exists but refCount prevents
+                // the DB from being closed.
+                v2ExportRefCountBlocked.incrementAndGet();
+              } catch (IllegalStateException ise) {
+                // Container may not be in CLOSED/QUASI_CLOSED state.
+              }
+            }
+          }
+        }
+        closeRounds.incrementAndGet();
+        Thread.sleep(CLOSE_THREAD_SLEEP_MS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return;
+      } catch (Exception ex) {
+        long failures = closeFailures.incrementAndGet();
+        if (failures % 100 == 0) {
+          LOG.warn("V2 export loop failures so far: {}", failures, ex);
+        }
+      }
+    }
+  }
+
+  /**
+   * Continuously attempts to delete every container on the given datanode
+   * by calling {@code BlockUtils.removeDB()} directly on V2 containers.
+   *
+   * <p>We don't call the full {@code KeyValueHandler.deleteInternal()} because
+   * that acquires the container write lock, marks the container for delete,
+   * and removes it from the container set — all of which would prevent the
+   * scanner from finding the container again.  Instead, we directly call
+   * {@code BlockUtils.removeDB()} to exercise only the V2 DB close path.
+   *
+   * <p>Same outcome as export: refCount &gt; 0 prevents the close.
+   */
+  private static void runV2DeletionLoop(HddsDatanodeService dn) {
+    OzoneContainer ozoneContainer =
+        dn.getDatanodeStateMachine().getContainer();
+
+    try {
+      Thread.sleep(CLOSE_THREAD_STARTUP_DELAY_MS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return;
+    }
+
+    while (!stopWorkers) {
+      try {
+        Iterator<Container<?>> iter =
+            ozoneContainer.getContainerSet().iterator();
+        while (iter.hasNext() && !stopWorkers) {
+          Container<?> container = iter.next();
+          if (container instanceof KeyValueContainer) {
+            KeyValueContainerData data =
+                ((KeyValueContainer) container).getContainerData();
+            if (!data.hasSchema(OzoneConsts.SCHEMA_V3)) {
+              v2DeleteAttempts.incrementAndGet();
+              try {
+                BlockUtils.removeDB(data, clusterConf);
+              } catch (IllegalArgumentException iae) {
+                // Expected: refCount > 0 blocks the close.
+                v2DeleteRefCountBlocked.incrementAndGet();
+              } catch (IllegalStateException ise) {
+                // Preconditions.checkState for schema version.
+              }
+            }
+          }
+        }
+        closeRounds.incrementAndGet();
+        Thread.sleep(CLOSE_THREAD_SLEEP_MS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return;
+      } catch (Exception ex) {
+        long failures = closeFailures.incrementAndGet();
+        if (failures % 100 == 0) {
+          LOG.warn("V2 deletion loop failures so far: {}", failures, ex);
+        }
+      }
+    }
+  }
+
+  // ========================================================================
+  //  Helpers
+  // ========================================================================
+
+  private static Set<String> collectV3DbPaths(OzoneContainer ozoneContainer) {
+    Set<String> dbPaths = new HashSet<>();
+    Iterator<Container<?>> iter =
+        ozoneContainer.getContainerSet().iterator();
+    while (iter.hasNext()) {
+      Container<?> container = iter.next();
+      if (container instanceof KeyValueContainer) {
+        KeyValueContainerData data =
+            ((KeyValueContainer) container).getContainerData();
+        File dbFile = data.getDbFile();
+        if (dbFile != null) {
+          dbPaths.add(dbFile.getAbsolutePath());
+        }
+      }
+    }
+    return dbPaths;
+  }
+
+  private static void startWorkers(int threadsPerDn,
+      List<HddsDatanodeService> datanodes, String name) {
+    workers = Executors.newFixedThreadPool(threadsPerDn * datanodes.size(),
+        new NamedDaemonFactory(name));
+  }
+
+  private static void logProgress(String prefix) {
+    if (v2Mode) {
+      LOG.info(
+          "[{}] keys={}, containers={}, onDemandScanRounds={}, "
+              + "onDemandScanFailures={}, closeRounds={}, closeFailures={}, "
+              + "v2ExportAttempts={}, v2ExportBlocked={}, "
+              + "v2DeleteAttempts={}, v2DeleteBlocked={}",
+          prefix,
+          keyNames.size(),
+          containerIds.size(),
+          onDemandScanRounds.get(),
+          onDemandScanFailures.get(),
+          closeRounds.get(),
+          closeFailures.get(),
+          v2ExportAttempts.get(),
+          v2ExportRefCountBlocked.get(),
+          v2DeleteAttempts.get(),
+          v2DeleteRefCountBlocked.get());
+    } else {
+      LOG.info(
+          "[{}] keys={}, containers={}, onDemandScanRounds={}, "
+              + "onDemandScanFailures={}, closeRounds={}, closeFailures={}",
+          prefix,
+          keyNames.size(),
+          containerIds.size(),
+          onDemandScanRounds.get(),
+          onDemandScanFailures.get(),
+          closeRounds.get(),
+          closeFailures.get());
+    }
+  }
+
+  private static void runProgressLoop() throws InterruptedException {
+    long deadlineMs = System.currentTimeMillis()
+        + TimeUnit.MINUTES.toMillis(TIMEOUT_MINUTES);
+    LOG.info("Race loop started. Timeout in {} minutes. "
+        + "Override with -Drepro.timeout.minutes=N", TIMEOUT_MINUTES);
+    while (System.currentTimeMillis() < deadlineMs) {
       Thread.sleep(PROGRESS_LOG_INTERVAL_MS);
       logProgress("running");
     }
+    logProgress("timeout reached — no SIGSEGV within "
+        + TIMEOUT_MINUTES + " minutes");
   }
+
+  // ========================================================================
+  //  Scenario 1: V3 Direct RemoveDB (original test)
+  // ========================================================================
+
+  /**
+   * <b>Scenario 1: V3 Direct RemoveDB.</b>
+   *
+   * <p>Calls {@code DatanodeStoreCache.removeDB()} directly for each unique
+   * V3 DB path while both scanners have active iterators.  This is the most
+   * general V3 crash scenario — every other V3 scenario ultimately calls
+   * {@code removeDB()}.
+   *
+   * <p><b>Expected: SIGSEGV.</b>
+   */
+  @Test
+  public void runV3DirectRemoveDB() throws Exception {
+    setUpCluster(false);
+    try {
+      List<HddsDatanodeService> datanodes = cluster.getHddsDatanodes();
+      startWorkers(2, datanodes, "v3-removedb");
+
+      for (HddsDatanodeService dn : datanodes) {
+        workers.submit(() -> runOnDemandScanLoop(dn));
+        workers.submit(() -> runV3RemoveDBLoop(dn));
+      }
+
+      runProgressLoop();
+    } finally {
+      tearDownCluster();
+    }
+  }
+
+  /**
+   * Backwards-compatible alias for {@link #runV3DirectRemoveDB()}.
+   */
+  @Test
+  public void runInfiniteRocksDBCloseDuringScan() throws Exception {
+    runV3DirectRemoveDB();
+  }
+
+  // ========================================================================
+  //  Scenario 2: V3 Volume Failure
+  // ========================================================================
+
+  /**
+   * <b>Scenario 2: V3 Volume Failure during scanning.</b>
+   *
+   * <p>Exercises the full production crash path:
+   * {@code StorageVolumeChecker} detects an I/O error (or periodic health
+   * check failure) → {@code HddsVolume.failVolume()} → {@code closeDbStore()}
+   * → {@code DatanodeStoreCache.removeDB(containerDBPath)}.
+   *
+   * <p>This is the most likely production trigger.  The customer environment
+   * has heavy I/O (many under-replicated EC containers, high write throughput,
+   * heavy import/export) which increases the probability of transient I/O
+   * errors triggering volume health check failures.  A single
+   * {@code failVolume()} call closes the shared V3 DB for ALL containers on
+   * that volume, killing every scanner iterator on every container on that
+   * volume simultaneously.
+   *
+   * <p><b>Expected: SIGSEGV.</b>
+   */
+  @Test
+  public void runV3VolumeFailureDuringScan() throws Exception {
+    setUpCluster(false);
+    try {
+      List<HddsDatanodeService> datanodes = cluster.getHddsDatanodes();
+      startWorkers(2, datanodes, "v3-volFail");
+
+      for (HddsDatanodeService dn : datanodes) {
+        workers.submit(() -> runOnDemandScanLoop(dn));
+        workers.submit(() -> runV3VolumeFailureLoop(dn));
+      }
+
+      runProgressLoop();
+    } finally {
+      tearDownCluster();
+    }
+  }
+
+  // ========================================================================
+  //  Scenario 3: V3 Shutdown Ordering
+  // ========================================================================
+
+  /**
+   * <b>Scenario 3: V3 Shutdown Ordering race.</b>
+   *
+   * <p>Simulates the shutdown ordering bug in {@code OzoneContainer.stop()}:
+   * <ol>
+   *   <li>Step 5: {@code handlers.forEach(Handler::stop)} →
+   *       {@code KeyValueHandler.stop()} → {@code BlockUtils.shutdownCache()}
+   *       → {@code DatanodeStoreCache.shutdownCache()} — closes ALL V3 DBs
+   *       </li>
+   *   <li>Step 8: {@code volumeSet.shutdown()} — closes V3 DBs again via
+   *       HddsVolume.shutdown()</li>
+   *   <li>Step 10: {@code blockDeletingService.shutdown()} — AFTER DBs are
+   *       already closed!</li>
+   * </ol>
+   *
+   * <p>In MiniOzoneCluster, {@code DatanodeStoreCache.shutdownCache()} skips
+   * clearing in miniClusterMode.  This test bypasses that guard to exercise
+   * the production code path.
+   *
+   * <p><b>Expected: SIGSEGV.</b>
+   */
+  @Test
+  public void runV3ShutdownCacheDuringScan() throws Exception {
+    setUpCluster(false);
+    try {
+      List<HddsDatanodeService> datanodes = cluster.getHddsDatanodes();
+      // Only need 1 shutdown thread globally (shutdownCache is static/global).
+      workers = Executors.newFixedThreadPool(datanodes.size() + 1,
+          new NamedDaemonFactory("v3-shutdown"));
+
+      for (HddsDatanodeService dn : datanodes) {
+        workers.submit(() -> runOnDemandScanLoop(dn));
+      }
+      // One thread to call shutdownCache() in a loop.
+      workers.submit(() -> runV3ShutdownCacheLoop(datanodes.get(0)));
+
+      runProgressLoop();
+    } finally {
+      tearDownCluster();
+    }
+  }
+
+  // ========================================================================
+  //  Scenario 5: V2 Export Race
+  // ========================================================================
+
+  /**
+   * <b>Scenario 5: V2 Export Race (Schema V2 only).</b>
+   *
+   * <p>Creates a Schema V2 cluster with RATIS THREE containers.
+   *
+   * <p>Concurrent export + scan on V2 containers.  Export calls
+   * {@code BlockUtils.removeDB()} → {@code ContainerCache.removeDB()} →
+   * {@code cleanup()}.  When the scanner holds refCount &gt; 0 (within its
+   * try-with-resources block in {@code KeyValueContainerCheck.scanData()}),
+   * {@code cleanup()} returns false and {@code Preconditions.checkArgument}
+   * throws {@code IllegalArgumentException}.
+   *
+   * <p>Watch the log for {@code v2ExportBlocked} incrementing — this proves
+   * the race window is being hit but the refCount check is preventing the
+   * DB from being closed.
+   *
+   * <p><b>Expected: No SIGSEGV.  IAE logged when refCount blocks the close.
+   * </b>
+   */
+  @Test
+  public void runV2ExportDuringScan() throws Exception {
+    setUpCluster(true);
+    try {
+      List<HddsDatanodeService> datanodes = cluster.getHddsDatanodes();
+      startWorkers(2, datanodes, "v2-export");
+
+      for (HddsDatanodeService dn : datanodes) {
+        workers.submit(() -> runOnDemandScanLoop(dn));
+        workers.submit(() -> runV2ExportLoop(dn));
+      }
+
+      runProgressLoop();
+    } finally {
+      tearDownCluster();
+    }
+  }
+
+  // ========================================================================
+  //  Scenario 6: V2 Deletion Race
+  // ========================================================================
+
+  /**
+   * <b>Scenario 6: V2 Deletion Race (Schema V2 only).</b>
+   *
+   * <p>Creates a Schema V2 cluster with RATIS THREE containers.
+   *
+   * <p>Concurrent deletion + scan on V2 containers.  Directly calls
+   * {@code BlockUtils.removeDB()} to exercise the V2 DB close path without
+   * actually deleting the container (which would remove it from the container
+   * set and prevent future scanning).
+   *
+   * <p>Same outcome as export: refCount &gt; 0 prevents the close.
+   *
+   * <p><b>Expected: No SIGSEGV.  IAE logged when refCount blocks the close.
+   * </b>
+   */
+  @Test
+  public void runV2DeletionDuringScan() throws Exception {
+    setUpCluster(true);
+    try {
+      List<HddsDatanodeService> datanodes = cluster.getHddsDatanodes();
+      startWorkers(2, datanodes, "v2-delete");
+
+      for (HddsDatanodeService dn : datanodes) {
+        workers.submit(() -> runOnDemandScanLoop(dn));
+        workers.submit(() -> runV2DeletionLoop(dn));
+      }
+
+      runProgressLoop();
+    } finally {
+      tearDownCluster();
+    }
+  }
+
+  // ========================================================================
+  //  Thread factory
+  // ========================================================================
 
   private static final class NamedDaemonFactory implements ThreadFactory {
     private final AtomicLong sequence = new AtomicLong();
