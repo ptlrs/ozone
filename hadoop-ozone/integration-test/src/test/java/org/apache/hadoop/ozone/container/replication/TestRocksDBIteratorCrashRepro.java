@@ -58,6 +58,7 @@ import org.apache.hadoop.ozone.client.io.OzoneOutputStream;
 import org.apache.hadoop.ozone.container.common.interfaces.Container;
 import org.apache.hadoop.ozone.container.common.statemachine.DatanodeConfiguration;
 import org.apache.hadoop.ozone.container.common.utils.DatanodeStoreCache;
+import org.apache.hadoop.ozone.container.common.utils.DiskCheckUtil;
 import org.apache.hadoop.ozone.container.common.volume.HddsVolume;
 import org.apache.hadoop.ozone.container.common.volume.MutableVolumeSet;
 import org.apache.hadoop.ozone.container.common.volume.StorageVolume;
@@ -106,15 +107,16 @@ import org.slf4j.LoggerFactory;
  *   <li><b>V3 Direct RemoveDB</b> ({@link #runV3DirectRemoveDB()}) —
  *       calls {@code DatanodeStoreCache.removeDB()} directly.
  *       <b>SIGSEGV expected.</b></li>
- *   <li><b>V3 Volume Failure (broken simulation)</b>
+ *   <li><b>V3 Volume Failure via health check injection</b>
  *       ({@link #runV3VolumeFailureDuringScan()}) —
- *       calls {@code HddsVolume.failVolume()} directly in a loop.
- *       <b>Does NOT reliably reproduce the crash</b> because after the
- *       first call {@code HddsVolume.dbLoaded} is set to {@code false};
- *       subsequent calls to {@code closeDbStore()} return immediately as a
- *       no-op.  The race can only fire once per volume.
- *       See {@link #runV3ActualVolumeFailureDuringScan()} for the correct
- *       version that exercises the full production code path.</li>
+ *       uses {@link DiskCheckUtil#setTestImpl(DiskCheckUtil.DiskChecks)} to
+ *       inject volume check failures, then calls
+ *       {@link MutableVolumeSet#checkAllVolumes()} to drive the real
+ *       production chain: {@code checkAllVolumes()} →
+ *       {@code handleVolumeFailures()} → {@code failVolume()} →
+ *       {@code closeDbStore()} → {@code removeDB()}.  DN is restarted
+ *       after each failure to reset {@code dbLoaded}.
+ *       <b>SIGSEGV expected.</b></li>
  *   <li><b>V3 Shutdown Ordering</b>
  *       ({@link #runV3ShutdownCacheDuringScan()}) — bypasses
  *       miniClusterMode and calls {@code DatanodeStoreCache.shutdownCache()},
@@ -164,6 +166,13 @@ import org.slf4j.LoggerFactory;
  *       {@code volumeSet.shutdown()} → {@code HddsVolume.shutdown()} →
  *       {@code closeDbStore()} → {@code DatanodeStoreCache.removeDB()}.
  *       <b>SIGSEGV expected.</b></li>
+ *   <li><b>V3 I/O Pressure Volume Failure</b>
+ *       ({@link #runV3IOPressureVolumeFailureDuringScan()}) — configures
+ *       aggressive disk health check settings and generates heavy I/O
+ *       pressure with concurrent writers and scanners.  The periodic
+ *       {@code StorageVolumeChecker} may naturally detect health check
+ *       failures under load → {@code failVolume()} → {@code removeDB()}.
+ *       <b>Best-effort: SIGSEGV if contention is sufficient.</b></li>
  * </ol>
  *
  * <p>Run individual scenarios:
@@ -214,6 +223,7 @@ public class TestRocksDBIteratorCrashRepro {
   private static final AtomicLong v2ExportRefCountBlocked = new AtomicLong();
   private static final AtomicLong v2DeleteAttempts = new AtomicLong();
   private static final AtomicLong v2DeleteRefCountBlocked = new AtomicLong();
+  private static final AtomicLong ioPressureWriteRounds = new AtomicLong();
   private static boolean v2Mode;
 
   private static MiniOzoneCluster cluster;
@@ -263,6 +273,14 @@ public class TestRocksDBIteratorCrashRepro {
     conf.set(ScmConfigKeys.OZONE_SCM_CONTAINER_SIZE, "32MB");
     conf.setStorageSize(OzoneConfigKeys.OZONE_SCM_BLOCK_SIZE, 4,
         StorageUnit.MB);
+
+    // Disable the ThrottledAsyncChecker throttling so that
+    // checkAllVolumes() always schedules volume checks immediately.
+    // Without this, the default gap of 10 minutes causes all manual
+    // checkAllVolumes() calls to be silently skipped by the
+    // ThrottledAsyncChecker.
+    conf.setTimeDuration(DatanodeConfiguration.DISK_CHECK_MIN_GAP_KEY,
+        0, TimeUnit.MILLISECONDS);
 
     if (v2) {
       // Disable Schema V3 to force per-container RocksDB (Schema V2).
@@ -341,6 +359,7 @@ public class TestRocksDBIteratorCrashRepro {
     v2ExportRefCountBlocked.set(0);
     v2DeleteAttempts.set(0);
     v2DeleteRefCountBlocked.set(0);
+    ioPressureWriteRounds.set(0);
     stopWorkers = false;
   }
 
@@ -480,21 +499,37 @@ public class TestRocksDBIteratorCrashRepro {
   }
 
   /**
-   * Continuously calls {@link HddsVolume#failVolume()} on every HDDS volume
-   * of the given datanode.  This exercises the full production path:
-   * {@code StorageVolumeChecker} detects I/O error →
-   * {@code HddsVolume.failVolume()} → {@code closeDbStore()} →
-   * {@code DatanodeStoreCache.removeDB()}.
+   * Continuously triggers the actual production volume-failure path using
+   * {@link DiskCheckUtil#setTestImpl(DiskCheckUtil.DiskChecks)} to inject
+   * volume check failures:
    *
-   * <p>After failing a volume, the DB is removed from the cache.  The next
-   * scanner iteration will call {@code BlockUtils.getDB()} which calls
-   * {@code DatanodeStoreCache.getDB()}, which re-opens the DB and adds it
-   * back to the cache.  This allows the loop to continue producing the race.
+   * <ol>
+   *   <li>Injects a {@code DiskChecks} that returns {@code false} for
+   *       {@code checkExistence()} — makes
+   *       {@code StorageVolume.check()} return {@code FAILED} immediately.
+   *       </li>
+   *   <li>Calls {@link MutableVolumeSet#checkAllVolumes()} which drives the
+   *       real production chain:
+   *       {@code StorageVolumeChecker} → {@code check()} →
+   *       {@code FAILED} → {@code handleVolumeFailures()} →
+   *       {@code MutableVolumeSet.failVolume()} →
+   *       {@code HddsVolume.failVolume()} → {@code closeDbStore()} →
+   *       {@code DatanodeStoreCache.removeDB()} → {@code store.stop()}.
+   *       </li>
+   *   <li>Clears the test impl via
+   *       {@link DiskCheckUtil#clearTestImpl()}.</li>
+   *   <li>Restarts the target DN to get fresh {@code HddsVolume} instances
+   *       with {@code dbLoaded == true}, so the next iteration is not a
+   *       no-op.</li>
+   * </ol>
+   *
+   * <p>This fixes the broken {@code runV3VolumeFailureLoop()} which called
+   * {@code HddsVolume.failVolume()} directly: after the first call
+   * {@code dbLoaded} was set to {@code false} and all subsequent calls
+   * were no-ops.
    */
-  private static void runV3VolumeFailureLoop(HddsDatanodeService dn) {
-    OzoneContainer ozoneContainer =
-        dn.getDatanodeStateMachine().getContainer();
-
+  private static void runV3HealthCheckFailureLoop(
+      int dnIndex, AtomicReference<HddsDatanodeService> targetRef) {
     try {
       Thread.sleep(CLOSE_THREAD_STARTUP_DELAY_MS);
     } catch (InterruptedException e) {
@@ -504,24 +539,59 @@ public class TestRocksDBIteratorCrashRepro {
 
     while (!stopWorkers) {
       try {
-        List<StorageVolume> volumes =
-            ozoneContainer.getVolumeSet().getVolumesList();
-        for (StorageVolume vol : volumes) {
-          if (vol instanceof HddsVolume) {
-            // failVolume() → closeDbStore() → removeDB() — the production
-            // crash path.  This closes the shared V3 DB for this volume.
-            ((HddsVolume) vol).failVolume();
+        HddsDatanodeService dn = targetRef.get();
+        if (dn == null) {
+          Thread.sleep(100);
+          continue;
+        }
+        OzoneContainer ozoneContainer =
+            dn.getDatanodeStateMachine().getContainer();
+        MutableVolumeSet volumeSet = ozoneContainer.getVolumeSet();
+
+        // Inject a DiskChecks implementation that fails existence checks.
+        // This makes StorageVolume.check() → VolumeCheckResult.FAILED
+        // without needing to modify file permissions.
+        DiskCheckUtil.setTestImpl(new DiskCheckUtil.DiskChecks() {
+          @Override
+          public boolean checkExistence(File storageDir) {
+            return false;
           }
+        });
+
+        try {
+          // Drive the actual production volume checker path:
+          //   StorageVolumeChecker.checkAllVolumes(volumes)
+          //   → StorageVolume.check() → checkExistence() returns false
+          //   → VolumeCheckResult.FAILED
+          //   → MutableVolumeSet.handleVolumeFailures()
+          //   → MutableVolumeSet.failVolume(volumeRoot)
+          //   → HddsVolume.failVolume() → closeDbStore()
+          //   → DatanodeStoreCache.removeDB() → store.stop()
+          // Any scan future executing RocksIterator.next0() at this moment
+          // dereferences the freed rocksdb::DB* → SIGSEGV.
+          volumeSet.checkAllVolumes();
+        } finally {
+          DiskCheckUtil.clearTestImpl();
         }
         closeRounds.incrementAndGet();
-        Thread.sleep(CLOSE_THREAD_SLEEP_MS);
+
+        // After failVolume() the volume is in failedVolumeMap; the next
+        // checkAllVolumes() would see an empty volumeMap and be a no-op.
+        // Restart the DN to get a fresh HddsVolume with dbLoaded == true.
+        targetRef.set(null);
+        cluster.restartHddsDatanode(dnIndex, false);
+        targetRef.set(cluster.getHddsDatanodes().get(dnIndex));
+
+        // Allow scan futures to re-saturate the new DN's executor before
+        // the next failure injection.
+        Thread.sleep(CLOSE_THREAD_SLEEP_MS * 20);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         return;
       } catch (Exception ex) {
         long failures = closeFailures.incrementAndGet();
-        if (failures % 100 == 0) {
-          LOG.warn("Volume failure loop failures so far: {}", failures, ex);
+        if (failures % 10 == 0) {
+          LOG.warn("Health check failure loop failures: {}", failures, ex);
         }
       }
     }
@@ -1173,50 +1243,83 @@ public class TestRocksDBIteratorCrashRepro {
   // ========================================================================
 
   /**
-   * <b>Scenario 2: V3 Volume Failure during scanning.</b>
+   * Continuously triggers volume failure using
+   * {@link MutableVolumeSet#failVolume(String)} — the exact same production
+   * API called by {@code handleVolumeFailures()} after a health check detects
+   * a failed volume.
    *
-   * <p><b>WHY THIS TEST DOES NOT RELIABLY REPRODUCE THE CRASH:</b>
+   * <p>The call chain is:
+   * {@code MutableVolumeSet.failVolume(volumeRoot)} →
+   * {@code HddsVolume.failVolume()} → {@code closeDbStore()} →
+   * {@code DatanodeStoreCache.removeDB()} → {@code store.stop()}.
    *
-   * <p>This test calls {@link HddsVolume#failVolume()} directly in a loop.
-   * The first call works: {@code HddsVolume.closeDbStore()} sees
-   * {@code dbLoaded.get() == true}, calls
-   * {@code DatanodeStoreCache.removeDB()}, then sets
-   * {@code dbLoaded.set(false)}.
+   * <p>After each volume failure, the DN is restarted to get fresh
+   * {@code HddsVolume} instances with {@code dbLoaded == true}.
    *
-   * <p>After the first call the scanner's {@code BlockUtils.getDB()} call
-   * re-opens the shared DB (via {@code DatanodeStoreCache.getDB()}), putting
-   * a fresh {@code RawDB} back in the cache.  However, {@code HddsVolume.dbLoaded}
-   * stays {@code false} — the volume object does not know the DB was
-   * reopened by the scanner.
-   *
-   * <p>Every subsequent loop iteration calls {@code failVolume()} again.
-   * {@code closeDbStore()} checks {@code dbLoaded.get()} first and returns
-   * immediately as a <b>no-op</b>.  The loop fires the race at most once per
-   * volume.  If that single window is missed (very common), the test runs
-   * forever without reproducing the crash.
-   *
-   * <p>See {@link #runV3ActualVolumeFailureDuringScan()} (Scenario 7) for
-   * the correct version that goes through the full
-   * {@code StorageVolumeChecker} production path and is reliably continuous.
-   *
-   * <p><b>Expected: SIGSEGV on first iteration only; subsequent iterations
-   * are no-ops.</b>
+   * <p>This approach bypasses the {@code StorageVolumeChecker} and
+   * {@code ThrottledAsyncChecker} layers (which can throttle/skip checks)
+   * and directly exercises the failure handling code that runs in production
+   * when a health check returns {@code FAILED}.
    */
-  @Test
-  public void runV3VolumeFailureDuringScan() throws Exception {
-    setUpCluster(false);
+  private static void runV3DirectVolumeFailLoop(
+      int dnIndex, AtomicReference<HddsDatanodeService> targetRef) {
     try {
-      List<HddsDatanodeService> datanodes = cluster.getHddsDatanodes();
-      startWorkers(2, datanodes, "v3-volFail");
+      Thread.sleep(CLOSE_THREAD_STARTUP_DELAY_MS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return;
+    }
 
-      for (HddsDatanodeService dn : datanodes) {
-        workers.submit(() -> runOnDemandScanLoop(dn));
-        workers.submit(() -> runV3VolumeFailureLoop(dn));
+    while (!stopWorkers) {
+      try {
+        HddsDatanodeService dn = targetRef.get();
+        if (dn == null) {
+          Thread.sleep(100);
+          continue;
+        }
+        OzoneContainer ozoneContainer =
+            dn.getDatanodeStateMachine().getContainer();
+        MutableVolumeSet volumeSet = ozoneContainer.getVolumeSet();
+
+        // Collect volume roots before failing them.
+        List<String> volumeRoots = new ArrayList<>();
+        for (StorageVolume vol : volumeSet.getVolumesList()) {
+          volumeRoots.add(vol.getStorageDir().getPath());
+        }
+
+        if (volumeRoots.isEmpty()) {
+          Thread.sleep(100);
+          continue;
+        }
+
+        // Call MutableVolumeSet.failVolume(volumeRoot) — the exact same
+        // method called by handleVolumeFailures() in production.
+        // This drives: HddsVolume.failVolume() → closeDbStore()
+        //   → DatanodeStoreCache.removeDB() → store.stop()
+        // Any scanner iterator active at this moment → SIGSEGV.
+        for (String volumeRoot : volumeRoots) {
+          volumeSet.failVolume(volumeRoot);
+        }
+        closeRounds.incrementAndGet();
+
+        // After failVolume() the volumes are in failedVolumeMap; subsequent
+        // calls would be no-ops.  Restart the DN to get fresh HddsVolume
+        // instances with dbLoaded == true.
+        targetRef.set(null);
+        cluster.restartHddsDatanode(dnIndex, false);
+        targetRef.set(cluster.getHddsDatanodes().get(dnIndex));
+
+        // Allow scan futures to re-saturate the new DN's executor.
+        Thread.sleep(CLOSE_THREAD_SLEEP_MS * 20);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return;
+      } catch (Exception ex) {
+        long failures = closeFailures.incrementAndGet();
+        if (failures % 10 == 0) {
+          LOG.warn("Direct volume fail loop failures: {}", failures, ex);
+        }
       }
-
-      runProgressLoop();
-    } finally {
-      tearDownCluster();
     }
   }
 
@@ -1344,6 +1447,277 @@ public class TestRocksDBIteratorCrashRepro {
       }
       workers.submit(() -> runOnDemandScanLoopRef(targetRef));
       workers.submit(() -> runRollingRestartLoop(0, targetRef));
+
+      runProgressLoop();
+    } finally {
+      tearDownCluster();
+    }
+  }
+
+  // ========================================================================
+  //  Scenario 9: V3 Direct Volume Fail via MutableVolumeSet.failVolume()
+  // ========================================================================
+
+  /**
+   * Continuously triggers the actual production
+   * {@link HddsVolume#checkDbHealth(File)} failure path by temporarily
+   * renaming the RocksDB {@code CURRENT} file during scanning:
+   *
+   * <ol>
+   *   <li>Renames the {@code CURRENT} file in the V3 RocksDB directory.
+   *       Active scanner iterators already hold open native file descriptors
+   *       and are unaffected — they continue running in JNI.</li>
+   *   <li>Calls {@link MutableVolumeSet#checkAllVolumes()} which drives:
+   *       {@code StorageVolumeChecker} → {@code HddsVolume.check()} →
+   *       {@code checkDbHealth()} → {@code ManagedRocksDB.openReadOnly()}
+   *       fails (missing CURRENT file) → failure count exceeds tolerance →
+   *       {@code VolumeCheckResult.FAILED} →
+   *       {@code handleVolumeFailures()} → {@code failVolume()} →
+   *       {@code closeDbStore()} → {@code removeDB()} →
+   *       {@code store.stop()}.</li>
+   *   <li>Restores the {@code CURRENT} file and restarts the DN.</li>
+   * </ol>
+   *
+   * <p>This exercises the ACTUAL {@code checkDbHealth()} path — the
+   * production health check that monitors RocksDB accessibility — with a
+   * realistic failure mode (corrupted/missing metadata file).
+   */
+  private static void runV3DbHealthCorruptionLoop(
+      int dnIndex, AtomicReference<HddsDatanodeService> targetRef) {
+    try {
+      Thread.sleep(CLOSE_THREAD_STARTUP_DELAY_MS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return;
+    }
+
+    while (!stopWorkers) {
+      try {
+        HddsDatanodeService dn = targetRef.get();
+        if (dn == null) {
+          Thread.sleep(100);
+          continue;
+        }
+        OzoneContainer ozoneContainer =
+            dn.getDatanodeStateMachine().getContainer();
+        MutableVolumeSet volumeSet = ozoneContainer.getVolumeSet();
+
+        // Collect V3 RocksDB CURRENT files for all HDDS volumes.
+        List<File> currentFiles = new ArrayList<>();
+        List<File> renamedFiles = new ArrayList<>();
+        for (StorageVolume vol : volumeSet.getVolumesList()) {
+          if (vol instanceof HddsVolume) {
+            HddsVolume hddsVol = (HddsVolume) vol;
+            File dbDir = new File(
+                hddsVol.getDbParentDir(), OzoneConsts.CONTAINER_DB_NAME);
+            File currentFile = new File(dbDir, "CURRENT");
+            if (currentFile.exists()) {
+              File renamed = new File(dbDir, "CURRENT.bak");
+              currentFiles.add(currentFile);
+              renamedFiles.add(renamed);
+            }
+          }
+        }
+        if (currentFiles.isEmpty()) {
+          Thread.sleep(100);
+          continue;
+        }
+
+        // Rename CURRENT → CURRENT.bak to make openReadOnly() fail.
+        // Active scanner iterators hold native file descriptors and
+        // are unaffected by the rename.
+        for (int i = 0; i < currentFiles.size(); i++) {
+          currentFiles.get(i).renameTo(renamedFiles.get(i));
+        }
+
+        try {
+          // Drive the actual production health check path:
+          //   StorageVolumeChecker.checkAllVolumes(volumes)
+          //   → HddsVolume.check() → checkDbHealth(dbFile)
+          //   → ManagedRocksDB.openReadOnly() → FAILS (no CURRENT file)
+          //   → volumeTestFailureCount exceeds tolerance
+          //   → VolumeCheckResult.FAILED
+          //   → handleVolumeFailures() → failVolume() → closeDbStore()
+          //   → DatanodeStoreCache.removeDB() → store.stop()
+          volumeSet.checkAllVolumes();
+        } finally {
+          // Restore CURRENT files.
+          for (int i = 0; i < renamedFiles.size(); i++) {
+            renamedFiles.get(i).renameTo(currentFiles.get(i));
+          }
+        }
+        closeRounds.incrementAndGet();
+
+        // Restart DN to get fresh HddsVolume with dbLoaded == true.
+        targetRef.set(null);
+        cluster.restartHddsDatanode(dnIndex, false);
+        targetRef.set(cluster.getHddsDatanodes().get(dnIndex));
+
+        Thread.sleep(CLOSE_THREAD_SLEEP_MS * 20);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return;
+      } catch (Exception ex) {
+        long failures = closeFailures.incrementAndGet();
+        if (failures % 10 == 0) {
+          LOG.warn("DB health corruption loop failures: {}", failures, ex);
+        }
+      }
+    }
+  }
+
+  /**
+   * <b>Scenario 2: V3 Volume Failure via health check injection.</b>
+   *
+   * <p>Uses {@link DiskCheckUtil#setTestImpl(DiskCheckUtil.DiskChecks)} to
+   * inject volume check failures, then calls
+   * {@link MutableVolumeSet#checkAllVolumes()} to drive the real production
+   * chain: {@code StorageVolumeChecker} → {@code check()} →
+   * {@code FAILED} → {@code handleVolumeFailures()} →
+   * {@code MutableVolumeSet.failVolume()} →
+   * {@code HddsVolume.failVolume()} → {@code closeDbStore()} →
+   * {@code DatanodeStoreCache.removeDB()}.
+   *
+   * <p>After each volume failure, the target DN is restarted to get fresh
+   * {@code HddsVolume} instances with {@code dbLoaded == true}, ensuring
+   * the loop is not a no-op.
+   *
+   * <p><b>Expected: SIGSEGV.</b>
+   */
+  @Test
+  public void runV3VolumeFailureDuringScan() throws Exception {
+    setUpCluster(false);
+    try {
+      List<HddsDatanodeService> datanodes = cluster.getHddsDatanodes();
+      // DN 0 is the restart target; all other DNs run scan loops continuously.
+      AtomicReference<HddsDatanodeService> targetRef =
+          new AtomicReference<>(datanodes.get(0));
+
+      // threadCount = 1 per non-target DN + 1 for the target DN scan + 1 for
+      // the health-check failure loop.
+      workers = Executors.newFixedThreadPool(datanodes.size() + 1,
+          new NamedDaemonFactory("v3-volFail"));
+
+      for (int i = 1; i < datanodes.size(); i++) {
+        final HddsDatanodeService dn = datanodes.get(i);
+        workers.submit(() -> runOnDemandScanLoop(dn));
+      }
+      workers.submit(() -> runOnDemandScanLoopRef(targetRef));
+      workers.submit(() -> runV3HealthCheckFailureLoop(0, targetRef));
+
+      runProgressLoop();
+    } finally {
+      tearDownCluster();
+    }
+  }
+
+  /**
+   * <b>Scenario 9: V3 Direct Volume Fail via
+   * {@code MutableVolumeSet.failVolume()} — production API.</b>
+   *
+   * <p>Calls {@link MutableVolumeSet#failVolume(String)} directly — the
+   * exact method that {@code handleVolumeFailures()} invokes when a volume
+   * health check returns {@code FAILED}.  This exercises the full production
+   * code path without relying on the {@code StorageVolumeChecker} or
+   * {@code ThrottledAsyncChecker} layers:
+   *
+   * <pre>
+   *   MutableVolumeSet.failVolume(volumeRoot)
+   *   → HddsVolume.failVolume()
+   *   → closeDbStore()
+   *   → DatanodeStoreCache.removeDB()
+   *   → store.stop()          ← frees rocksdb::DB*
+   * </pre>
+   *
+   * <p>The on-demand scanner continuously fires scan futures against the
+   * target DN.  When {@code failVolume()} frees the native
+   * {@code rocksdb::DB*}, any in-flight iterator in
+   * {@code RocksIterator.next0()} dereferences freed memory → SIGSEGV.
+   *
+   * <p>After each volume failure, DN 0 is restarted to get fresh
+   * {@code HddsVolume} instances with {@code dbLoaded == true}, allowing
+   * the loop to repeat.
+   *
+   * <p><b>Expected: SIGSEGV.</b>
+   */
+  @Test
+  public void runV3DirectVolumeFailDuringScan() throws Exception {
+    setUpCluster(false);
+    try {
+      List<HddsDatanodeService> datanodes = cluster.getHddsDatanodes();
+      AtomicReference<HddsDatanodeService> targetRef =
+          new AtomicReference<>(datanodes.get(0));
+
+      workers = Executors.newFixedThreadPool(datanodes.size() + 1,
+          new NamedDaemonFactory("v3-directVolFail"));
+
+      for (int i = 1; i < datanodes.size(); i++) {
+        final HddsDatanodeService dn = datanodes.get(i);
+        workers.submit(() -> runOnDemandScanLoop(dn));
+      }
+      workers.submit(() -> runOnDemandScanLoopRef(targetRef));
+      workers.submit(() -> runV3DirectVolumeFailLoop(0, targetRef));
+
+      runProgressLoop();
+    } finally {
+      tearDownCluster();
+    }
+  }
+
+  // ========================================================================
+  //  Scenario 10: V3 checkDbHealth Failure via CURRENT File Corruption
+  // ========================================================================
+
+  /**
+   * Backwards-compatible alias for {@link #runV3DirectVolumeFailDuringScan()}.
+   * The original I/O pressure approach was unreliable because
+   * {@code ManagedRocksDB.openReadOnly()} almost never fails under I/O
+   * pressure alone on a healthy filesystem.
+   */
+  @Test
+  public void runV3IOPressureVolumeFailureDuringScan() throws Exception {
+    runV3DirectVolumeFailDuringScan();
+  }
+
+  /**
+   * <b>Scenario 10: V3 checkDbHealth Failure — CURRENT file corruption.</b>
+   *
+   * <p>This is the most realistic reproduction of the production crash
+   * scenario.  It exercises the entire health check chain WITHOUT calling
+   * any internal API directly:
+   *
+   * <ol>
+   *   <li>The RocksDB {@code CURRENT} file is temporarily renamed, simulating
+   *       the kind of filesystem corruption or I/O error that triggers
+   *       health check failures in production.</li>
+   *   <li>{@code checkAllVolumes()} drives the full production path:
+   *       {@code StorageVolumeChecker} → {@code HddsVolume.check()} →
+   *       {@code checkDbHealth()} → {@code openReadOnly()} fails →
+   *       {@code failVolume()} → {@code closeDbStore()} →
+   *       {@code removeDB()}</li>
+   *   <li>Active scanner iterators in JNI dereference the freed
+   *       {@code rocksdb::DB*} → SIGSEGV.</li>
+   * </ol>
+   *
+   * <p><b>Expected: SIGSEGV.</b>
+   */
+  @Test
+  public void runV3DbHealthCorruptionDuringScan() throws Exception {
+    setUpCluster(false);
+    try {
+      List<HddsDatanodeService> datanodes = cluster.getHddsDatanodes();
+      AtomicReference<HddsDatanodeService> targetRef =
+          new AtomicReference<>(datanodes.get(0));
+
+      workers = Executors.newFixedThreadPool(datanodes.size() + 1,
+          new NamedDaemonFactory("v3-dbHealthCorrupt"));
+
+      for (int i = 1; i < datanodes.size(); i++) {
+        final HddsDatanodeService dn = datanodes.get(i);
+        workers.submit(() -> runOnDemandScanLoop(dn));
+      }
+      workers.submit(() -> runOnDemandScanLoopRef(targetRef));
+      workers.submit(() -> runV3DbHealthCorruptionLoop(0, targetRef));
 
       runProgressLoop();
     } finally {
