@@ -2,7 +2,7 @@
 
 ## NVIDIA cuObject SDK Integration — Datanode-Direct GPU Memory Transfers
 
-**Version:** 1.1
+**Version:** 2.0
 **Date:** 2026-04-03
 **Status:** Draft
 **Target Branch:** `master` (Apache Ozone `2.2.0-SNAPSHOT`)
@@ -25,6 +25,17 @@ environment. The recommended reading order:
 9. **Section 9 (Configuration Reference)** — All config keys in one place
 10. **Section 10 (References)** — All source links
 
+### API Documentation Convention
+
+Every cuObject API referenced in this spec is traced to its NVIDIA documentation source. Where the public documentation
+provides a function name but not the full signature, this is noted with **[partial signature]**. Where a parameter or
+behavior is inferred from the API shape or RDMA fundamentals (not explicitly documented), it is marked **[inferred]**.
+
+The cuObject SDK is v1.0.0 (released January 2026) with sparse public documentation. The actual header files
+(`cuobjserver.h`, `cuobjclient.h`) from the CUDA Toolkit 13.1.1+ and the cuObject Server package are **required** for
+implementation. Code in this spec that calls cuObject APIs uses the documented function names but may need parameter
+adjustments once the real headers are available. All such code is marked with `// ADAPT: verify against cuobjserver.h`.
+
 ---
 
 ## Table of Contents
@@ -35,6 +46,7 @@ environment. The recommended reading order:
   - [1.3 Data Flow: S3 PUT (Write Path)](#13-data-flow-s3-put-write-path)
   - [1.4 Fallback Path](#14-fallback-path)
   - [1.5 Component Interaction Map](#15-component-interaction-map)
+  - [1.6 Request Dispatch Model](#16-request-dispatch-model)
 - [2. GPU Memory Semantics and Data Consumption Model](#2-gpu-memory-semantics-and-data-consumption-model)
   - [2.1 Transfer Model: Complete vs Streaming](#21-transfer-model-complete-vs-streaming)
   - [2.2 Synchronous vs Asynchronous API Behavior](#22-synchronous-vs-asynchronous-api-behavior)
@@ -57,17 +69,21 @@ environment. The recommended reading order:
   - [4.1 Protocol Buffer Changes](#41-protocol-buffer-changes)
   - [4.2 DatanodeDetails Port Type](#42-datanodedetails-port-type)
   - [4.3 New Maven Module: container-service-native](#43-new-maven-module-container-service-native)
-  - [4.4 JNI Bridge: CuObjServerBridge.java](#44-jni-bridge-cuobjserverbridgejava)
-  - [4.5 Native C++ Implementation](#45-native-c-implementation)
-  - [4.6 CMakeLists.txt for Native Build](#46-cmakeliststxt-for-native-build)
-  - [4.7 XceiverServerRdma.java](#47-xceiverserverrdmajava)
-  - [4.8 OzoneContainer.java Modifications](#48-ozonecontainerjava-modifications)
-  - [4.9 HddsDispatcher Modifications](#49-hddsdispatcher-modifications)
-  - [4.10 KeyValueHandler Modifications](#410-keyvaluehandler-modifications)
-  - [4.11 S3 Gateway: ObjectEndpoint Modifications](#411-s3-gateway-objectendpoint-modifications)
-  - [4.12 S3 Gateway: RdmaRequestFilter](#412-s3-gateway-rdmarequestfilter)
+  - [4.4 RdmaTransferService Interface](#44-rdmatransferservice-interface)
+  - [4.5 JNI Bridge: CuObjServerBridge.java](#45-jni-bridge-cuobjserverbridgejava)
+  - [4.6 Native C++ Implementation](#46-native-c-implementation)
+  - [4.7 CMakeLists.txt for Native Build](#47-cmakeliststxt-for-native-build)
+  - [4.8 CuObjRdmaTransferService.java](#48-cuobjrdmatransferservicejava)
+  - [4.9 MockRdmaTransferService.java](#49-mockrdmatransferservicejava)
+  - [4.10 RdmaBuffer.java and RdmaBufferPool.java](#410-rdmabufferjava-and-rdmabufferpooljava)
+  - [4.11 XceiverServerRdma.java](#411-xceiverserverrdmajava)
+  - [4.12 OzoneContainer.java Modifications](#412-ozonecontainerjava-modifications)
+  - [4.13 HddsDispatcher Modifications](#413-hddsdispatcher-modifications)
+  - [4.14 KeyValueHandler Modifications](#414-keyvaluehandler-modifications)
+  - [4.15 S3 Gateway: ObjectEndpoint Modifications](#415-s3-gateway-objectendpoint-modifications)
+  - [4.16 S3 Gateway: RdmaRequestFilter](#416-s3-gateway-rdmarequestfilter)
 - [5. C/C++ Integration Architecture](#5-cc-integration-architecture)
-  - [5.1 Why CuObjServerBridge Exists](#51-why-cuobjserverbridge-exists)
+  - [5.1 cuObject SDK API Surface](#51-cuobject-sdk-api-surface)
   - [5.2 JNI Architecture](#52-jni-architecture)
   - [5.3 Native Library Lifecycle](#53-native-library-lifecycle)
   - [5.4 RDMA Buffer Management: Whose Memory and Why](#54-rdma-buffer-management-whose-memory-and-why)
@@ -85,26 +101,17 @@ environment. The recommended reading order:
   - [7.1 Unit Tests](#71-unit-tests)
   - [7.2 Integration Tests with MiniOzoneCluster](#72-integration-tests-with-miniozonecluster)
   - [7.3 Integration Tests with Docker Cluster](#73-integration-tests-with-docker-cluster)
-  - [7.4 End-to-End RDMA Tests (Requires Hardware)](#74-end-to-end-rdma-tests-requires-hardware)
-  - [7.5 MiniOzone RDMA Integration Test Pattern](#75-miniozone-rdma-integration-test-pattern)
-- [8. Performance Benchmarking and Verification](#8-performance-benchmarking-and-verification)
-  - [8.1 Benchmark Architecture](#81-benchmark-architecture)
-  - [8.2 Benchmark Tool: ozone-rdma-bench](#82-benchmark-tool-ozone-rdma-bench)
-  - [8.3 Expected Results](#83-expected-results)
-  - [8.4 Complete Benchmark Script](#84-complete-benchmark-script-run-benchmarksh)
-  - [8.5 Regression Test Script](#85-regression-test-script-ci-rdma-testsh)
+  - [7.4 End-to-End Tests with Real GPU Hardware](#74-end-to-end-tests-with-real-gpu-hardware)
+  - [7.5 Test Matrix](#75-test-matrix)
+- [8. Benchmarking](#8-benchmarking)
+  - [8.1 Benchmark Tool](#81-benchmark-tool)
+  - [8.2 Expected Performance Targets](#82-expected-performance-targets)
+  - [8.3 Metrics to Collect](#83-metrics-to-collect)
 - [9. Configuration Reference](#9-configuration-reference)
-- [10. CUDA Toolkit and cuObject SDK Versions](#10-cuda-toolkit-and-cuobject-sdk-versions)
-- [11. Future Implementation (Phase 2)](#11-future-implementation-phase-2)
-  - [11.1 Scatter-Gather Support](#111-scatter-gather-support)
-  - [11.2 Asynchronous Server-Side Transfers](#112-asynchronous-server-side-transfers)
-  - [11.3 GPU-Side Decryption for TDE Buckets](#113-gpu-side-decryption-for-tde-buckets)
-  - [11.4 Multi-GPU-Aware Request Routing](#114-multi-gpu-aware-request-routing)
-  - [11.5 Large Transfer Pipelining](#115-large-transfer-pipelining)
-  - [11.6 Multipart Upload via RDMA](#116-multipart-upload-via-rdma)
-  - [11.7 Erasure Coded Data RDMA](#117-erasure-coded-data-rdma)
-- [12. References Appendix](#12-references-appendix)
-- [Appendix A: Unverified Claims Tracked](#appendix-a-unverified-claims-tracked)
+- [10. References](#10-references)
+- [Appendix A: Unverified Claims and Known Unknowns](#appendix-a-unverified-claims-and-known-unknowns)
+- [Appendix B: Phase 2 Deferred Items](#appendix-b-phase-2-deferred-items)
+- [Appendix C: Observability (Phase 2 Design Notes)](#appendix-c-observability-phase-2-design-notes)
 
 ---
 
@@ -140,14 +147,15 @@ flowchart TB
     subgraph DN1["Datanode 1"]
       GRPC1["XceiverServerGrpc<br/>(existing, unchanged)"]
       RATIS1["XceiverServerRatis<br/>(existing, unchanged)"]
-      RDMA1["XceiverServerRdma<br/>(NEW)"]
+      RDMA1["XceiverServerRdma<br/>(NEW — RDMA engine)"]
       JNI1["CuObjServerBridge<br/>(JNI)"]
       cuObjS1["cuObjServer<br/>(native library)"]
       CM1["ChunkManager<br/>(unchanged)"]
       NVMe1[("NVMe Storage")]
+      GRPC1 -->|" RdmaReadBlock/<br/>RdmaWriteBlock "| CM1
+      GRPC1 -->|" RDMA transfer "| RDMA1
       RDMA1 --> JNI1 --> cuObjS1
-      RDMA1 --> CM1 --> NVMe1
-      GRPC1 --> CM1
+      GRPC1 --> CM1 --> NVMe1
       RATIS1 --> CM1
       NIC_DN1["RDMA NIC"]
       cuObjS1 --- NIC_DN1
@@ -221,18 +229,18 @@ flowchart TB
 ```mermaid
 flowchart TB
   subgraph GPU_Rack["GPU Rack"]
-    GPU_Node1["GPU Node 1<br/>8× H100, cuObjClient"]
-    GPU_Node2["GPU Node 2<br/>8× H100, cuObjClient"]
+    GPU_Node1["GPU Node 1<br/>8x H100, cuObjClient"]
+    GPU_Node2["GPU Node 2<br/>8x H100, cuObjClient"]
     GPU_NodeN["GPU Node N"]
   end
 
   subgraph Storage_Rack["Storage Rack"]
-    GW_Node["S3 Gateway × 2<br/>(Active-Active, LB)"]
-    OM_Node["Ozone Manager × 3<br/>(HA Raft)"]
-    SCM_Node["SCM × 3<br/>(HA Raft)"]
-    DN_Node1["Datanode 1<br/>24× NVMe, cuObjServer"]
-    DN_Node2["Datanode 2<br/>24× NVMe, cuObjServer"]
-    DN_NodeN["Datanode N<br/>24× NVMe, cuObjServer"]
+    GW_Node["S3 Gateway x 2<br/>(Active-Active, LB)"]
+    OM_Node["Ozone Manager x 3<br/>(HA Raft)"]
+    SCM_Node["SCM x 3<br/>(HA Raft)"]
+    DN_Node1["Datanode 1<br/>24x NVMe, cuObjServer"]
+    DN_Node2["Datanode 2<br/>24x NVMe, cuObjServer"]
+    DN_NodeN["Datanode N<br/>24x NVMe, cuObjServer"]
   end
 
   subgraph Network["Network Fabric"]
@@ -254,30 +262,30 @@ sequenceDiagram
   participant cuObj as cuObjClient<br/>(GPU Node)
   participant GW as S3 Gateway<br/>(Control Plane Only)
   participant OM as Ozone Manager
-  participant DN1 as Datanode 1<br/>(XceiverServerRdma)
-  participant DN2 as Datanode 2<br/>(XceiverServerRdma)
+  participant DN1 as Datanode 1<br/>(XceiverServerGrpc +<br/>XceiverServerRdma)
+  participant DN2 as Datanode 2
   participant Disk1 as NVMe (DN1)
   participant Disk2 as NVMe (DN2)
   App ->> cuObj: get("s3://bucket/key", gpuBuffer, size)
-  Note over cuObj: 1. Allocate GPU memory (cudaMalloc)<br/>2. Register buffer for RDMA<br/>3. Generate x-amz-rdma-token<br/>(contains: GPU addr, rkey, size, QP info)
+  Note over cuObj: 1. Allocate GPU memory (cudaMalloc)<br/>2. Register buffer: cuMemObjGetDescriptor()<br/>3. Generate x-amz-rdma-token<br/>(contains: GPU addr, rkey, size, QP info)
   cuObj ->> GW: HTTP GET /bucket/key<br/>Headers:<br/> x-amz-rdma-token: <base64-encoded token><br/> Host: s3.ozone.example.com
   GW ->> OM: getS3KeyDetails(bucket, key)
-  OM -->> GW: OmKeyInfo:<br/> dataSize=256MB<br/> keyLocationVersions:<br/> Block 0 (128MB) → Pipeline{DN1:9890, DN2, DN3}<br/> Block 1 (128MB) → Pipeline{DN2:9891, DN1, DN3}
-  Note over GW: Gateway resolves block locations.<br/>Checks: bucket not TDE-encrypted,<br/>object size >= rdma.min.object.size.<br/>Sends RdmaReadBlock to each block's<br/>closest datanode with RDMA port.
+  OM -->> GW: OmKeyInfo:<br/> dataSize=256MB<br/> keyLocationVersions:<br/> Block 0 (128MB) -> Pipeline{DN1:9890, DN2, DN3}<br/> Block 1 (128MB) -> Pipeline{DN2:9891, DN1, DN3}
+  Note over GW: Gateway resolves block locations.<br/>Checks: bucket not TDE-encrypted,<br/>object size >= rdma.min.object.size.<br/>Sends RdmaReadBlock to each block's<br/>closest datanode with RDMA port<br/>via existing gRPC channel.
 
   par Parallel RDMA from both datanodes
     GW ->> DN1: gRPC RdmaReadBlock:<br/> containerID, blockID=0<br/> rdmaToken=<token bytes><br/> destOffset=0, length=128MB<br/> encodedToken=<block token>
-    Note over DN1: 1. Validate block token<br/>2. Locate block file on NVMe
-    DN1 ->> Disk1: FileChannel.read(blockFile)<br/>→ RDMA-registered ByteBuffer
-    Disk1 -->> DN1: 128MB in ByteBuffer
-    DN1 -->> cuObj: RDMA WRITE: 128MB → GPU memory[0..128MB]<br/>(cuObjServer_rdmaWrite via DC transport)
-    Note over DN1, cuObj: Data flows:<br/>DN1 NVMe → DN1 host memory →<br/>DN1 RDMA NIC → fabric →<br/>GPU Node RDMA NIC → GPU memory<br/>(bypasses S3 Gateway entirely)
+    Note over DN1: HddsDispatcher -> KeyValueHandler:<br/>1. Validate block token<br/>2. Open block file (FileChannel)<br/>3. Read 4MB chunk into RDMA buffer<br/>4. RDMA WRITE chunk to GPU<br/>5. Repeat for all chunks
+    DN1 ->> Disk1: FileChannel.read(blockFile)<br/>-> RDMA-registered ByteBuffer (4MB)
+    Disk1 -->> DN1: 4MB in ByteBuffer
+    DN1 -->> cuObj: RDMA WRITE: 4MB -> GPU memory[offset]<br/>(handleGetObject via DC transport)
+    Note over DN1: Loop: read next 4MB, RDMA WRITE,<br/>until 128MB fully transferred.
     DN1 -->> GW: RdmaReadBlockResponse:<br/> bytesTransferred=134217728<br/> status=OK
   and
     GW ->> DN2: gRPC RdmaReadBlock:<br/> containerID, blockID=1<br/> rdmaToken=<token bytes><br/> destOffset=134217728, length=128MB<br/> encodedToken=<block token>
     DN2 ->> Disk2: FileChannel.read(blockFile)
-    Disk2 -->> DN2: 128MB
-    DN2 -->> cuObj: RDMA WRITE: 128MB → GPU memory[128MB..256MB]
+    Disk2 -->> DN2: 4MB chunks
+    DN2 -->> cuObj: RDMA WRITE: chunks -> GPU memory[128MB..256MB]
     DN2 -->> GW: RdmaReadBlockResponse: OK
   end
 
@@ -294,22 +302,21 @@ sequenceDiagram
   participant GW as S3 Gateway<br/>(Control Plane Only)
   participant OM as Ozone Manager
   participant SCM as SCM
-  participant DN1 as Primary Datanode<br/>(XceiverServerRdma)
+  participant DN1 as Primary Datanode<br/>(XceiverServerGrpc +<br/>XceiverServerRdma)
   participant DN2 as Replica DN 2
   participant DN3 as Replica DN 3
   participant Disk1 as NVMe (DN1)
   App ->> cuObj: put("s3://bucket/key", gpuBuffer, 256MB)
-  Note over cuObj: 1. GPU buffer already allocated<br/>2. Register for RDMA<br/>3. Generate x-amz-rdma-token
+  Note over cuObj: 1. GPU buffer already allocated<br/>2. Register: cuMemObjPutDescriptor()<br/>3. Generate x-amz-rdma-token
   cuObj ->> GW: HTTP PUT /bucket/key<br/>Headers:<br/> x-amz-rdma-token: <token><br/> Content-Length: 268435456
   GW ->> OM: createKey(volume, bucket, key, size=256MB, replication=RATIS/THREE)
   OM ->> SCM: allocateBlock(size=256MB)
   SCM -->> OM: Pipeline{DN1(primary):9890, DN2, DN3}<br/>BlockID, ContainerID
-  OM -->> GW: OmKeyInfo with allocated blocks:<br/> Block 0 (256MB) → Pipeline{DN1, DN2, DN3}
+  OM -->> GW: OmKeyInfo with allocated blocks:<br/> Block 0 (256MB) -> Pipeline{DN1, DN2, DN3}
   Note over GW: Gateway sends RdmaWriteBlock to<br/>the PRIMARY datanode in the pipeline.<br/>Primary handles Ratis replication.
   GW ->> DN1: gRPC RdmaWriteBlock:<br/> containerID, blockID<br/> pipelineID, rdmaToken=<token><br/> srcOffset=0, length=256MB<br/> encodedToken=<block token>
-  Note over DN1: 1. Validate block token<br/>2. Allocate RDMA-registered buffer
-  DN1 -->> cuObj: RDMA READ: GPU memory[0..256MB] → DN1 buffer<br/>(cuObjServer_rdmaRead via DC transport)
-  Note over DN1, cuObj: Data flows:<br/>GPU memory → GPU Node RDMA NIC →<br/>fabric → DN1 RDMA NIC → DN1 host memory<br/>(bypasses S3 Gateway entirely)
+  Note over DN1: HddsDispatcher -> KeyValueHandler:<br/>1. Validate block token<br/>2. Allocate RDMA buffer (4MB)<br/>3. Loop: RDMA READ 4MB from GPU,<br/> write chunk to disk via ChunkManager,<br/> replicate chunk via Ratis
+  DN1 -->> cuObj: RDMA READ: GPU memory[0..4MB] -> DN1 buffer<br/>(handlePutObject via DC transport)
   DN1 ->> Disk1: ChunkManager.writeChunk(buffer)<br/>(existing write path, unchanged)
   Disk1 -->> DN1: Write complete
   Note over DN1: Ratis replication to DN2, DN3<br/>(existing path, unchanged —<br/>DN1 sends chunks to followers<br/>via Ratis gRPC pipeline)
@@ -317,6 +324,7 @@ sequenceDiagram
   DN1 ->> DN3: Ratis AppendEntries (WriteChunk)
   DN2 -->> DN1: Ratis ACK
   DN3 -->> DN1: Ratis ACK
+  Note over DN1: Repeat for all 4MB chunks<br/>until 256MB fully transferred.
   DN1 -->> GW: RdmaWriteBlockResponse:<br/> bytesTransferred=268435456<br/> status=OK
   GW ->> OM: commitKey(keyArgs, locationInfoList)
   OM -->> GW: Committed
@@ -331,7 +339,7 @@ flowchart TD
   Start["S3 Request Arrives at Gateway"]
   CheckToken{"Request has<br/>x-amz-rdma-token<br/>header?"}
   Start --> CheckToken
-  CheckToken -->|No| TCPPath["Standard TCP Path<br/>(existing code, zero changes)<br/>BlockInputStream → gRPC → Datanode"]
+  CheckToken -->|No| TCPPath["Standard TCP Path<br/>(existing code, zero changes)<br/>BlockInputStream -> gRPC -> Datanode"]
   CheckToken -->|Yes| CheckTDE{"Bucket has TDE<br/>encryption enabled?"}
   CheckTDE -->|Yes| CheckAllowEncrypted{"Config:<br/>rdma.allow.encrypted<br/>.buckets = true?"}
   CheckAllowEncrypted -->|No| TCPFallbackTDE["TCP Fallback<br/>Log WARNING: RDMA incompatible<br/>with TDE-encrypted bucket"]
@@ -340,7 +348,7 @@ flowchart TD
   CheckSize -->|No| TCPFallbackSmall["TCP Fallback<br/>Log INFO: Object too small for RDMA"]
   CheckSize -->|Yes| CheckDN{"Target datanode(s)<br/>have RDMA port<br/>registered?"}
   CheckDN -->|No| TCPFallbackNoDN["TCP Fallback<br/>Log WARN: Datanode lacks RDMA support"]
-  CheckDN -->|Yes| RDMAPath["RDMA Path<br/>Send RdmaReadBlock/RdmaWriteBlock<br/>to datanodes"]
+  CheckDN -->|Yes| RDMAPath["RDMA Path<br/>Send RdmaReadBlock/RdmaWriteBlock<br/>to datanodes via existing gRPC"]
   RDMAPath --> RDMAResult{"RDMA transfer<br/>succeeded?"}
   RDMAResult -->|Yes| Success["Return HTTP 200<br/>(metadata only, data via RDMA)"]
   RDMAResult -->|No| RetryReplica{"Other replicas<br/>with RDMA?"}
@@ -365,7 +373,6 @@ flowchart TB
     SCM["Storage Container Manager<br/>Pipeline management, container allocation"]
     Ratis["Ratis Replication<br/>Write pipeline consensus"]
     CM["ChunkManager / FilePerBlockStrategy<br/>NVMe disk I/O"]
-    GrpcXceiver["XceiverServerGrpc<br/>Existing read channel"]
     RatisXceiver["XceiverServerRatis<br/>Existing write channel"]
     BlockInputStream["BlockInputStream<br/>Client-side block reading"]
     KeyOutputStream["KeyOutputStream<br/>Client-side block writing"]
@@ -374,33 +381,84 @@ flowchart TB
   subgraph Modified["MODIFIED Components"]
     style Modified fill: #fff3e0
     ObjectEndpoint["ObjectEndpoint.java<br/>+ RDMA token detection<br/>+ RDMA orchestration logic<br/>+ Parallel RdmaReadBlock dispatch"]
-    OzoneContainer["OzoneContainer.java<br/>+ rdmaChannel field<br/>+ XceiverServerRdma lifecycle"]
+    OzoneContainer["OzoneContainer.java<br/>+ rdmaServer field<br/>+ XceiverServerRdma lifecycle"]
     HddsDispatcher["HddsDispatcher.java<br/>+ RdmaReadBlock/RdmaWriteBlock routing"]
-    KVHandler["KeyValueHandler.java<br/>+ handleRdmaReadBlock()<br/>+ handleRdmaWriteBlock()"]
+    KVHandler["KeyValueHandler.java<br/>+ handleRdmaReadBlock()<br/>+ handleRdmaWriteBlock()<br/>(disk I/O + RDMA transfer)"]
+    GrpcXceiver["XceiverServerGrpc<br/>+ receives RDMA commands via gRPC<br/>(existing channel, new command types)"]
     DatanodeDetails["DatanodeDetails.java<br/>+ Port.Name.RDMA enum value"]
     Proto["DatanodeClientProtocol.proto<br/>+ RdmaReadBlock/RdmaWriteBlock types"]
   end
 
   subgraph New["NEW Components"]
     style New fill: #e3f2fd
-    XceiverRdma["XceiverServerRdma.java<br/>New XceiverServerSpi impl"]
+    XceiverRdma["XceiverServerRdma.java<br/>RDMA engine: buffer pool +<br/>cuObjServer transfer calls"]
+    RdmaService["RdmaTransferService.java<br/>Interface for mock/real switching"]
     JNIBridge["CuObjServerBridge.java<br/>JNI native method declarations"]
     NativeLib["libgds_jni.so (C++)<br/>cuObjServer JNI implementation"]
     RdmaFilter["RdmaRequestFilter.java<br/>RDMA token extraction"]
     NativeModule["container-service-native/<br/>New Maven module"]
   end
 
-  ObjectEndpoint -->|" gRPC RdmaReadBlock/<br/>RdmaWriteBlock "| HddsDispatcher
+  ObjectEndpoint -->|" gRPC RdmaReadBlock/<br/>RdmaWriteBlock<br/>(existing gRPC channel) "| GrpcXceiver
+  GrpcXceiver -->|" dispatch "| HddsDispatcher
   HddsDispatcher --> KVHandler
-  KVHandler -->|" disk I/O "| CM
-  KVHandler -->|" RDMA transfer "| XceiverRdma
-  XceiverRdma --> JNIBridge --> NativeLib
+  KVHandler -->|" disk I/O<br/>(FileChannel.read/write) "| CM
+  KVHandler -->|" RDMA transfer<br/>(rdmaWriteToRemote/<br/>rdmaReadFromRemote) "| XceiverRdma
+  XceiverRdma --> RdmaService --> JNIBridge --> NativeLib
   OzoneContainer -->|" starts "| XceiverRdma
   OzoneContainer -->|" starts "| GrpcXceiver
   OzoneContainer -->|" starts "| RatisXceiver
   RdmaFilter -->|" extracts token "| ObjectEndpoint
   DatanodeDetails -->|" RDMA port "| ObjectEndpoint
 ```
+
+### 1.6 Request Dispatch Model
+
+**There is exactly one dispatch path for RDMA commands.** This section resolves any ambiguity.
+
+RDMA commands (`RdmaReadBlock`, `RdmaWriteBlock`) travel via the **existing gRPC channel** (`XceiverServerGrpc`) to the
+datanode. They are dispatched through the **existing `HddsDispatcher`** to `KeyValueHandler`, which performs **both**
+disk
+I/O and RDMA transfers. `XceiverServerRdma` is **not** a separate gRPC service — it is an RDMA engine (buffer pool +
+cuObjServer wrapper) used by `KeyValueHandler`.
+
+```mermaid
+sequenceDiagram
+  participant GW as S3 Gateway
+  participant GRPC as XceiverServerGrpc<br/>(existing gRPC service)
+  participant Disp as HddsDispatcher
+  participant KVH as KeyValueHandler
+  participant RDMA as XceiverServerRdma<br/>(RDMA engine, NOT a gRPC service)
+  participant Disk as ChunkManager / FileChannel
+  participant NIC as RDMA NIC -> GPU
+  GW ->> GRPC: gRPC ContainerCommandRequest<br/>(cmdType = RdmaReadBlock)
+  GRPC ->> Disp: dispatch(request, context)
+  Disp ->> Disp: validateToken(request)
+  Disp ->> KVH: handle(request, container, context)
+  KVH ->> RDMA: borrowBuffer()
+  RDMA -->> KVH: RdmaBuffer (4MB, pre-registered)
+
+  loop For each 4MB chunk of block
+    KVH ->> Disk: FileChannel.read(blockFile, offset) -> rdmaBuffer
+    Disk -->> KVH: 4MB in rdmaBuffer
+    KVH ->> RDMA: rdmaWriteToRemote(rdmaBuffer, token, destOffset, length)
+    RDMA ->> NIC: handleGetObject(...) via JNI
+    NIC -->> RDMA: transfer complete
+  end
+
+  KVH ->> RDMA: returnBuffer(rdmaBuffer)
+  KVH -->> Disp: RdmaReadBlockResponse(bytesTransferred)
+  Disp -->> GRPC: ContainerCommandResponse
+  GRPC -->> GW: gRPC response
+```
+
+**Why this model:**
+
+| Alternative                                 | Why Rejected                                                                                                         |
+|---------------------------------------------|----------------------------------------------------------------------------------------------------------------------|
+| Separate gRPC service on XceiverServerRdma  | Adds a new network port, new service definition, new connection management. Unnecessary complexity.                  |
+| Gateway sends directly to XceiverServerRdma | Bypasses HddsDispatcher's token validation, container state checks, and metrics. Duplicates security logic.          |
+| KeyValueHandler stubs that delegate to RDMA | Creates confusion about where disk I/O vs RDMA happens. KeyValueHandler should own the full operation (disk + RDMA). |
 
 ---
 
@@ -423,8 +481,8 @@ sequenceDiagram
   participant cuObj as cuObjClient
   participant GW as S3 Gateway
   participant DN as Datanode
-  App ->> cuObj: get("s3://bucket/large-file.bin")
-  Note over cuObj: Allocates GPU buffer<br/>Registers for RDMA
+  App ->> cuObj: cuObjGet(ctx, gpu_buf, size, offset)
+  Note over cuObj: Allocates GPU buffer<br/>Registers for RDMA via<br/>cuMemObjGetDescriptor()
   cuObj ->> GW: HTTP GET with RDMA token
   Note over cuObj: cuObjClient BLOCKS here.<br/>Application cannot proceed<br/>until all data arrives.
   GW ->> DN: RdmaReadBlock (block 0)
@@ -433,7 +491,7 @@ sequenceDiagram
   DN -->> cuObj: RDMA WRITE block 1 to GPU
   Note over DN, cuObj: All RDMA writes complete.<br/>Completion signaled via CQ.
   DN -->> GW: All blocks done
-  GW -->> cuObj: HTTP 200 (metadata)
+  GW -->> cuObj: HTTP 200 (metadata)<br/>+ x-amz-rdma-reply header
   Note over cuObj: NOW the GET call returns.<br/>GPU buffer is fully populated.
   cuObj -->> App: Returns buffer pointer
   Note over App: Application can now safely<br/>launch CUDA kernels on this buffer.
@@ -465,12 +523,12 @@ sequenceDiagram
   participant BufB as GPU Buffer B
   participant GPU as GPU Compute
   Note over Thread_IO, GPU: Double-buffering: overlap fetch and compute
-  Thread_IO ->> BufA: cuObjClient.get(batch_0) → Buffer A
+  Thread_IO ->> BufA: cuObjGet(batch_0) -> Buffer A
   Note over Thread_IO: Blocks until complete
   Thread_IO -->> Thread_Compute: Signal: Buffer A ready
 
   par Overlap I/O and Compute
-    Thread_IO ->> BufB: cuObjClient.get(batch_1) → Buffer B
+    Thread_IO ->> BufB: cuObjGet(batch_1) -> Buffer B
     Note over Thread_IO: Blocks until complete
   and
     Thread_Compute ->> GPU: Launch kernel on Buffer A
@@ -481,7 +539,7 @@ sequenceDiagram
   Thread_IO -->> Thread_Compute: Signal: Buffer B ready
 
   par
-    Thread_IO ->> BufA: cuObjClient.get(batch_2) → Buffer A
+    Thread_IO ->> BufA: cuObjGet(batch_2) -> Buffer A
   and
     Thread_Compute ->> GPU: Launch kernel on Buffer B
   end
@@ -494,58 +552,51 @@ this is critical because it determines how our datanode and gateway code must be
 
 #### Client-Side (cuObjClient)
 
-| API          | Behavior                          | Evidence                                                                                                                                                                                                                                                                                                                                                           | Confidence                                                                                                                               |
-|--------------|-----------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
-| `cuObjGet()` | **Likely synchronous (blocking)** | The function signature (`void *ctx, void *ptr, size_t size, loff_t offset`) matches a `pread`-style synchronous call. There is no CUDA stream parameter, no future/promise return, and no async completion callback for the data plane. The `CUObjOps_t` callback mechanism is for the HTTP control path (sending the S3 request), not for signaling data arrival. | Medium-high (inferred from API shape; not explicitly stated in [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html)) |
-| `cuObjPut()` | **Likely synchronous (blocking)** | Same reasoning as GET. No async primitives in the signature.                                                                                                                                                                                                                                                                                                       | Medium-high                                                                                                                              |
+| API                                                                                                                                   | Behavior                          | Evidence                                                                                                                                                                                                                                                                                                      | Confidence                                                                                                                               |
+|---------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
+| `cuObjGet(void *ctx, void *ptr, size_t size, loff_t offset)` [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html) | **Likely synchronous (blocking)** | The function signature matches a `pread`-style synchronous call. There is no CUDA stream parameter, no future/promise return, and no async completion callback for the data plane. The `CUObjOps_t` callback mechanism is for the HTTP control path (sending the S3 request), not for signaling data arrival. | Medium-high (inferred from API shape; not explicitly stated in [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html)) |
+| `cuObjPut(void *ctx, void *ptr, size_t size, loff_t offset)` [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html) | **Likely synchronous (blocking)** | Same reasoning as GET. No async primitives in the signature.                                                                                                                                                                                                                                                  | Medium-high                                                                                                                              |
 
 **Why the client is likely blocking**: RDMA WRITE is a one-sided operation — the server writes directly to client GPU
 memory without CPU involvement on the client side. The client has no way to observe partial completion. The only
-reliable way to know all data has arrived is to wait for the HTTP response (which includes `x-amz-rdma-reply`), which
-means the call must block until the server confirms all RDMA writes are complete.
+reliable way to know all data has arrived is to wait for the HTTP response (which includes `x-amz-rdma-reply`
+[[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html)), which means the call must block until the
+server confirms all RDMA writes are complete.
 
 **What this means for applications**: The thread calling `cuObjGet()` blocks until the entire object (or range) is in
 GPU memory. Applications overlap I/O and compute using **double-buffering**: one thread fetches into buffer A while
 another thread computes on buffer B (see the double-buffering diagram in Section 2.1).
 
 > **Verification needed**: The cuObject public
-> documentation [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html) does not explicitly state whether
-`cuObjGet()` is synchronous. This should be confirmed by examining the actual `cuobject.h` header from CUDA Toolkit
+> documentation [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html) does not explicitly state
+> whether
+`cuObjGet()` is synchronous. This should be confirmed by examining the actual `cuobjclient.h` header from CUDA Toolkit
 > 13.2.0 or by testing.
 
 #### Server-Side (cuObjServer)
 
-| API                      | Behavior                          | Evidence                                                                                                                                 | Source                                                                                              |
-|--------------------------|-----------------------------------|------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------|
-| `handleGetObject()`      | **Both sync and async supported** | The cuObject server documentation states it can "synchronously or asynchronously perform IO using the local buffer and remote RDMA tag." | [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf) |
-| `handlePutObject()`      | **Both sync and async supported** | Same.                                                                                                                                    | [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf) |
-| Async completion polling | **Supported**                     | Listed as a v1.0.0 feature in the server release notes.                                                                                  | [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf) |
-
-**Why does the server support both sync and async when the client is (likely) blocking?**
-
-The client and server have fundamentally different roles:
-
-- **Client**: Waits for the complete transfer — it has nothing useful to do with partially-arrived data. Blocking is
-  natural.
-- **Server**: Must (1) read data from disk, then (2) RDMA transfer it. In synchronous mode, these happen sequentially.
-  In async mode, the server can **pipeline**: while RDMA transfers chunk N, it reads chunk N+1 from disk. This is a
-  server-internal performance optimization that is invisible to the client.
+| API                                                                                                                          | Behavior                          | Evidence                                                                                                                                 | Source                                                                                              |
+|------------------------------------------------------------------------------------------------------------------------------|-----------------------------------|------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------|
+| `handleGetObject()` [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf)      | **Both sync and async supported** | The cuObject server documentation states it can "synchronously or asynchronously perform IO using the local buffer and remote RDMA tag." | [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf) |
+| `handlePutObject()` [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf)      | **Both sync and async supported** | Same.                                                                                                                                    | [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf) |
+| Async completion polling [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf) | **Supported**                     | Listed as a v1.0.0 feature in the server release notes.                                                                                  | [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf) |
 
 **Phase 1 decision**: We use **synchronous** server-side transfers. The flow is:
 
-1. Read block from NVMe into RDMA-registered buffer (blocking disk I/O)
+1. Read block chunk from NVMe into RDMA-registered buffer (blocking disk I/O)
 2. Call `handleGetObject()` synchronously (blocking RDMA transfer)
-3. Return completion to S3 Gateway
+3. Repeat for all chunks in the block
+4. Return completion to S3 Gateway
 
 Async pipelining is deferred to Phase 2 (see [Section 11.2](#112-asynchronous-server-side-transfers)).
 
 #### Per-Operation Limits
 
-| Limit                              | Value                | Source                                                                                                                                                                                       | Implication                                                                                                                                                                                                                                     |
-|------------------------------------|----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Max per server RDMA operation**  | **1 GiB**            | [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf)                                                                                          | Each `handleGetObject()` / `handlePutObject()` call can transfer at most 1 GiB. For Ozone blocks larger than 1 GiB, the datanode must break the transfer into multiple operations. Default Ozone block size is 256 MB, so this rarely applies.  |
-| **Max scatter-gather entries**     | **10** per operation | [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf)                                                                                          | See [Section 2.9](#29-scatter-gather-support)                                                                                                                                                                                                   |
-| **Client-side registration limit** | **Not documented**   | Not found in [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html) or [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf) | The practical limit is GPU physical memory. A previous version of this spec incorrectly claimed a "4 GiB per-call limit via `cuMemObjGetDescriptor()`" — that function does not exist. See [Appendix A](#appendix-a-unverified-claims-tracked). |
+| Limit                              | Value                | Source                                                                                                                                                   | Implication                                                                                                                                                                                                                                    |
+|------------------------------------|----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Max per server RDMA operation**  | **1 GiB**            | [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf)                                                      | Each `handleGetObject()` / `handlePutObject()` call can transfer at most 1 GiB. For Ozone blocks larger than 1 GiB, the datanode must break the transfer into multiple operations. Default Ozone block size is 256 MB, so this rarely applies. |
+| **Max scatter-gather entries**     | **10** per operation | [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf)                                                      | See [Section 2.9](#29-scatter-gather-support)                                                                                                                                                                                                  |
+| **Client-side registration limit** | **4 GiB per call**   | [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html) — `cuMemObjGetDescriptor()` / `cuMemObjPutDescriptor()` each have a 4 GiB limit | For objects larger than 4 GiB, the client must issue multiple registrations or use Range GET with chunked buffers. See [Section 2.4](#24-files-larger-than-gpu-memory).                                                                        |
 
 ### 2.3 Small Files (< 1 MB)
 
@@ -553,23 +604,23 @@ RDMA has per-transfer overhead that dominates for small objects:
 
 | Overhead Source                             | Typical Duration | Notes                                                                                                                   |
 |---------------------------------------------|------------------|-------------------------------------------------------------------------------------------------------------------------|
-| GPU memory registration (RDMA buffer setup) | 10µs–1ms         | One-time per buffer if reused [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html)                  |
-| DC connection setup                         | 5–50µs           | Dynamic Connected transport reduces this vs RC [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html) |
-| Completion polling                          | 1–10µs           | CQ notification                                                                                                         |
-| HTTP round-trip (control plane)             | 500µs–5ms        | S3 Gateway → OM → Datanode orchestration                                                                                |
-| RDMA data transfer                          | varies           | ~1µs for 4KB at 200Gbps, ~500µs for 100MB                                                                               |
+| GPU memory registration (RDMA buffer setup) | 10us-1ms         | One-time per buffer if reused [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html)                  |
+| DC connection setup                         | 5-50us           | Dynamic Connected transport reduces this vs RC [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html) |
+| Completion polling                          | 1-10us           | CQ notification                                                                                                         |
+| HTTP round-trip (control plane)             | 500us-5ms        | S3 Gateway -> OM -> Datanode orchestration                                                                              |
+| RDMA data transfer                          | varies           | ~1us for 4KB at 200Gbps, ~500us for 100MB                                                                               |
 
 **Performance crossover characteristics:**
 
 - Below ~64KB: RDMA overhead dominates. TCP is faster because the data fits in a few TCP packets and the kernel network
   stack is highly optimized for small transfers.
-- 64KB–256KB: Transitional zone. RDMA and TCP are roughly equivalent.
-- 256KB–1MB: RDMA begins to show advantage as NIC-offloaded transfer outpaces TCP's per-packet CPU overhead.
+- 64KB-256KB: Transitional zone. RDMA and TCP are roughly equivalent.
+- 256KB-1MB: RDMA begins to show advantage as NIC-offloaded transfer outpaces TCP's per-packet CPU overhead.
 - Above 1MB: RDMA is clearly faster, with advantage growing with object size.
-- Above 100MB: RDMA can deliver 2–8× the throughput of
+- Above 100MB: RDMA can deliver 2-8x the throughput of
   TCP [[ref-10]](https://www.min.io/blog/minio-aistor-with-nvidia-gpudirect-r-rdma-for-s3-compatible-storage-unlocking-performance-for-ai-factory-workloads).
 
-**Implementation recommendation:**
+**Implementation:**
 
 ```text
 Config key: ozone.s3g.rdma.min.object.size
@@ -589,11 +640,12 @@ which it handles as a fallback.
 this?
 
 **The solution**: The application reads the object in chunks that fit in available GPU memory using **Range GET** (S3
-`Range` header). The `cuObjGet()` function includes an `loff_t offset` parameter, and `RANGE_GET` is a documented
-cuObject V1 operation [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html). The client-side limit on
-how much can be registered per call is bounded by available GPU physical memory — no artificial cap is imposed by the
-cuObject API (see [Appendix A](#appendix-a-unverified-claims-tracked) for a correction on a previously-claimed 4 GiB
-limit).
+`Range` header). The `cuObjGet()` function includes an `loff_t offset` parameter
+[[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html), and `RANGE_GET` is a documented
+cuObject V1 operation [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html). The client-side
+memory registration via `cuMemObjGetDescriptor()`
+[[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html) has a **4 GiB per-call limit**. For
+buffers larger than 4 GiB, the client must issue multiple registration calls or use Range GET with smaller buffers.
 
 The server-side has a confirmed **1 GiB per-operation limit
 ** [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf). For a single
@@ -611,7 +663,7 @@ sequenceDiagram
     App ->> App: Allocate or reuse 4 GB GPU buffer
     App ->> cuObj: cuObjGet(ctx, gpu_buf, 4GB, offset)
     cuObj ->> GW: HTTP GET /bucket/key<br/>Range: bytes=offset-(offset+4GB-1)<br/>x-amz-rdma-token: <token>
-    Note over GW: Gateway maps range to blocks.<br/>Only transfers blocks overlapping range.<br/>Server breaks into ≤1 GiB RDMA ops.
+    Note over GW: Gateway maps range to blocks.<br/>Only transfers blocks overlapping range.<br/>Server breaks into <=1 GiB RDMA ops.
     GW ->> DN: RdmaReadBlock(s) for blocks in range
     DN -->> cuObj: RDMA WRITE chunks to GPU memory<br/>(up to 1 GiB per RDMA op)
     GW -->> cuObj: HTTP 206 Partial Content
@@ -623,8 +675,8 @@ sequenceDiagram
 
 **Range handling in the RDMA path:**
 
-The S3 Gateway already supports Range headers via `RangeHeaderParserUtil` in `ObjectEndpoint.handleGetRequest()` (line
-456). For the RDMA path:
+The S3 Gateway already supports Range headers via `RangeHeaderParserUtil` in `ObjectEndpoint.handleGetRequest()`.
+For the RDMA path:
 
 1. Gateway parses `Range: bytes=START-END` from the HTTP request
 2. Gateway maps the byte range to specific blocks using `OmKeyLocationInfo` list
@@ -643,9 +695,9 @@ The question "can the GPU even process partial data?" depends on the file format
 **Parquet files** — **Yes, designed for partial reads.** The file footer (last few KB) contains metadata about row
 groups and column chunks, including their byte offsets. A GPU application can:
 
-1. Range GET the footer (last N bytes) → parse metadata on GPU
+1. Range GET the footer (last N bytes) -> parse metadata on GPU
 2. Identify which row groups/columns are needed for the query
-3. Range GET only those specific byte ranges → GPU memory
+3. Range GET only those specific byte ranges -> GPU memory
 4. Process with cuDF or a custom CUDA kernel
 
 This is exactly how cuDF + KvikIO already works with S3 [[ref-14]](https://github.com/rapidsai/kvikio). The parquet
@@ -668,9 +720,10 @@ changes.
 **Multiple threads on one GPU:**
 
 cuObjClient supports concurrent GET/PUT operations on **different** GPU buffers from multiple threads. It does NOT
-support concurrent operations on the same buffer — this would cause data corruption. The cuObjServer side is fully
+support concurrent operations on the same buffer — this would cause data corruption
+[[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html). The cuObjServer side is fully
 multi-threaded and handles concurrent RDMA operations from multiple
-clients [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html).
+clients [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf).
 
 **Multiple applications on one GPU:**
 
@@ -714,18 +767,19 @@ flowchart TB
   P2_cuObj -->|" HTTP GET batch-043.parquet "| GW
   GW -->|" RdmaReadBlock "| DN1
   GW -->|" RdmaReadBlock "| DN2
-  DN1 -.->|" RDMA WRITE → GPU 0 "| P1_GPU
-  DN2 -.->|" RDMA WRITE → GPU 1 "| P2_GPU
+  DN1 -.->|" RDMA WRITE -> GPU 0 "| P1_GPU
+  DN2 -.->|" RDMA WRITE -> GPU 1 "| P2_GPU
 ```
 
 **Datanode-side concurrency:**
 
-`XceiverServerRdma` must be thread-safe. Follow the existing pattern from `XceiverServerGrpc`:
+`XceiverServerRdma` must be thread-safe. The RDMA buffer pool and concurrency controls follow the existing pattern from
+`XceiverServerGrpc` (which uses `threadCountPerDisk * numberOfDisks` threads):
 
-- Use a thread pool with configurable size (from `XceiverServerGrpc`: `poolSize = threadCountPerDisk * numberOfDisks`)
-- Each `RdmaReadBlock` / `RdmaWriteBlock` request is handled in a separate thread
-- cuObjServer is thread-safe internally — multiple threads can call `cuObjServer_rdmaWrite()` concurrently
-- RDMA buffer pool uses thread-safe allocation (e.g., `ConcurrentLinkedQueue` or synchronized pool)
+- Each `RdmaReadBlock` / `RdmaWriteBlock` request is handled in a separate gRPC thread (from `XceiverServerGrpc`'s pool)
+- cuObjServer's `handleGetObject()` / `handlePutObject()` are thread-safe internally
+  [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf)
+- RDMA buffer pool uses `ArrayBlockingQueue` for thread-safe borrow/return
 
 **Rate limiting:**
 
@@ -746,7 +800,7 @@ different nodes.
 
 #### Multiple GPUs on the Same Node
 
-A common GPU server configuration is 4–8 GPUs per node (e.g., 8× H100 SXM in a DGX H100). Each GPU has its own physical
+A common GPU server configuration is 4-8 GPUs per node (e.g., 8x H100 SXM in a DGX H100). Each GPU has its own physical
 memory address space. RDMA memory registration is per-physical-address-space, and CUDA allocations are device-bound.
 
 **Each GPU requires its own cuObjClient instance** (or at minimum, separate buffer registrations and RDMA tokens per
@@ -755,41 +809,6 @@ physical memory address and NIC routing info specific to that GPU's PCIe path. T
 in [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html) but follows directly from CUDA and RDMA
 fundamentals: `cudaMalloc` on device 0 returns an address in device 0's address space, and `ibv_reg_mr()` pins the
 physical pages backing that virtual address [[ref-6]](https://docs.nvidia.com/cuda/gpudirect-rdma/).
-
-```mermaid
-flowchart TB
-  subgraph Node["8-GPU Training Node"]
-    subgraph Proc0["Process 0 (DDP Rank 0)"]
-      cuObj0["cuObjClient instance 0"]
-      GPU0["GPU 0 Memory<br/>(RDMA-registered)"]
-      cuObj0 --> GPU0
-    end
-
-    subgraph Proc1["Process 1 (DDP Rank 1)"]
-      cuObj1["cuObjClient instance 1"]
-      GPU1["GPU 1 Memory<br/>(RDMA-registered)"]
-      cuObj1 --> GPU1
-    end
-
-    subgraph ProcN["Process N (DDP Rank N)"]
-      cuObjN["cuObjClient instance N"]
-      GPUN["GPU N Memory<br/>(RDMA-registered)"]
-      cuObjN --> GPUN
-    end
-
-    NIC["RDMA NIC(s)<br/>(ConnectX-7)"]
-    GPU0 & GPU1 & GPUN --- NIC
-  end
-
-  subgraph Ozone["Ozone Cluster"]
-    GW["S3 Gateway"]
-    DN1["Datanode 1"]
-    DN2["Datanode 2"]
-  end
-
-  NIC <-->|" RDMA Data Plane<br/>(N concurrent transfers,<br/>one per GPU) "| DN1 & DN2
-  cuObj0 & cuObj1 & cuObjN -->|" HTTP Control Plane "| GW
-```
 
 **NIC topology**: In multi-GPU nodes with multiple NICs (e.g., 8 GPUs + 8 ConnectX-7 NICs on DGX H100), each GPU uses
 its nearest NIC for optimal PCIe bandwidth. NVIDIA's GPUDirect RDMA routing policy handles this
@@ -802,14 +821,14 @@ token as-is. No Ozone-side changes are needed.
 #### GPUs Across Different Nodes
 
 This is cuObject's primary design target. The DC (Dynamically Connected) transport is specifically chosen to handle the
-N-client × M-server scaling problem without pre-established
+N-client x M-server scaling problem without pre-established
 connections [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html).
 
 Each GPU node runs cuObjClient independently. RDMA tokens are self-contained — they encode the client's memory address,
 rkey, and NIC addressing. A datanode receiving a token from Node A's GPU 3 vs Node B's GPU 7 handles them identically:
 parse token, perform RDMA transfer.
 
-**Scaling**: With DC transport, the number of active RDMA connections scales as O(active_transfers), not O(clients ×
+**Scaling**: With DC transport, the number of active RDMA connections scales as O(active_transfers), not O(clients x
 servers). A GPU node only maintains connections to the datanodes it is currently transferring data from/to.
 
 #### Implications for Our Architecture, Implementation, and Testing
@@ -822,55 +841,9 @@ servers). A GPU node only maintains connections to the datanodes it is currently
 | Concurrent requests from N GPUs | S3 Gateway and datanodes must handle N concurrent RDMA transfers                  | Config: `ozone.datanode.rdma.max.concurrent.transfers` should account for multi-GPU clients (e.g., set to 64+ for an 8-GPU node) |
 | GPU memory isolation            | Each GPU's memory is separate; RDMA tokens are GPU-specific                       | None — hardware-guaranteed                                                                                                       |
 
-**Testing multi-GPU** (required for validation):
-
-1. Two cuObjClient instances on different GPUs of the **same node**, making concurrent GETs to the same Ozone object —
-   verify data lands in correct GPU memory
-2. Two cuObjClient instances on **different nodes**, making concurrent GETs — verify correct data and no
-   cross-contamination
-3. Verify aggregate throughput scales with the number of concurrent GPU transfers (should approach NIC line rate)
-4. Verify `nvidia-smi` shows memory usage increase on the correct GPU during transfer
-
 ### 2.7 GPU Application Consumption Pattern
 
 #### Example 1: PyTorch Training Data Loading
-
-```mermaid
-sequenceDiagram
-  participant DL as DataLoader Thread
-  participant cuObj as cuObjClient
-  participant Train as Training Thread
-  participant BufA as GPU Buffer A
-  participant BufB as GPU Buffer B
-  participant Model as Model (GPU)
-  Note over DL, Model: PyTorch DataLoader with<br/>cuObjClient backend and<br/>double-buffering
-  DL ->> cuObj: get("s3://data/batch-000.parquet")
-  cuObj -->> BufA: RDMA → 512MB parquet data
-  DL -->> Train: yield BufA
-
-  par Prefetch next + Train current
-    DL ->> cuObj: get("s3://data/batch-001.parquet")
-    cuObj -->> BufB: RDMA → 512MB
-  and
-    Train ->> BufA: cuDF.read_parquet(BufA)
-    Train ->> Model: model.forward(tensor)
-    Model -->> Train: loss
-    Train ->> Model: loss.backward()
-    Train ->> Model: optimizer.step()
-  end
-
-  DL -->> Train: yield BufB
-
-  par Prefetch + Train
-    DL ->> cuObj: get("s3://data/batch-002.parquet")
-    cuObj -->> BufA: RDMA → 512MB (reuse BufA)
-  and
-    Train ->> BufB: cuDF.read_parquet(BufB)
-    Train ->> Model: model.forward(tensor)
-  end
-```
-
-**PyTorch integration code pattern:**
 
 ```python
 # PyTorch DataLoader with cuObjClient backend
@@ -883,8 +856,9 @@ class GDSDataset(torch.utils.data.IterableDataset):
 
     def __iter__(self):
         for key in self._list_objects():
-            # cuObjClient handles: GPU buffer alloc, RDMA registration,
-            # token generation, HTTP request, RDMA transfer
+            # cuObjClient handles: GPU buffer alloc, RDMA registration
+            # (via cuMemObjGetDescriptor), token generation, HTTP request,
+            # RDMA transfer
             gpu_buffer = self.cuobj.get(
                 f"s3://{self.bucket}/{key}",
                 device=self.gpu_id
@@ -900,7 +874,7 @@ class GDSDataset(torch.utils.data.IterableDataset):
 ```python
 import cudf
 
-# KvikIO → cuObjClient integration [[ref-14]](https://github.com/rapidsai/kvikio)
+# KvikIO -> cuObjClient integration [[ref-14]](https://github.com/rapidsai/kvikio)
 # cuDF internally uses KvikIO for S3 reads
 # KvikIO detects cuObjClient availability and uses RDMA when possible
 df = cudf.read_parquet("s3://datalake/table.parquet",
@@ -910,41 +884,12 @@ df = cudf.read_parquet("s3://datalake/table.parquet",
 result = df.groupby("col").agg({"val": "sum"}).compute()
 ```
 
-Under the hood:
-
-1. cuDF calls KvikIO's S3 file reader
-2. KvikIO detects cuObjClient is available
-3. cuObjClient allocates GPU buffer, generates RDMA token, sends HTTP GET
-4. S3 Gateway orchestrates RDMA from datanodes to GPU
-5. cuDF receives a GPU buffer pointer and parses the parquet file on GPU
-
-#### Example 3: Checkpoint Save (PUT)
-
-```python
-# Model checkpoint save via RDMA
-def save_checkpoint(model, epoch, bucket="checkpoints"):
-    # Serialize model state to GPU buffer
-    state_dict = model.state_dict()  # Already on GPU
-
-    # Flatten all tensors into a single contiguous GPU buffer
-    gpu_buffer = torch.cat([t.flatten() for t in state_dict.values()])
-
-    # cuObjClient PUT: RDMA from GPU → Datanode NVMe
-    cuobj = cuobjclient.Client(endpoint="http://s3gw:9878")
-    cuobj.put(
-        f"s3://{bucket}/epoch-{epoch}.pt",
-        gpu_buffer.data_ptr(),
-        gpu_buffer.nbytes
-    )
-    # Datanode RDMA-reads from GPU memory → writes to NVMe
-    # Ratis replicates to other datanodes (unchanged)
-```
-
 ### 2.8 What Happens If Application Reads Before Transfer Completes?
 
-cuObjClient GET is a **blocking call**. The function does not return until all RDMA writes from all datanodes are
-complete and a completion event has been received on the Completion Queue (CQ). The application physically cannot read
-the buffer before the call returns because the function call hasn't returned yet.
+cuObjClient GET is a **blocking call** **[inferred]**. The function does not return until all RDMA writes from all
+datanodes are complete and the HTTP response (including `x-amz-rdma-reply`
+[[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html)) has been received. The application
+physically cannot read the buffer before the call returns because the function call hasn't returned yet.
 
 If an application somehow circumvents this (e.g., another thread reads the GPU memory address before GET returns), the
 result is **undefined behavior**:
@@ -953,9 +898,6 @@ result is **undefined behavior**:
 - The memory may contain zeros (freshly allocated via `cudaMalloc`)
 - The memory may contain stale data from a previous use of the buffer
 
-This is analogous to reading a file while it's being written — there is no coherence guarantee for in-flight DMA
-operations.
-
 **No special handling needed in our Ozone implementation.** cuObjClient manages all synchronization on the client side.
 The S3 Gateway returns HTTP 200 only after all datanodes report completion, and cuObjClient waits for both the RDMA
 completions and the HTTP response before returning.
@@ -963,17 +905,9 @@ completions and the HTTP response before returning.
 ### 2.9 Scatter-Gather Support
 
 cuObjServer supports scatter-gather I/O via `getRDMABufferFromSgList()`, with up to 10 entries per
-operation [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf). This
+operation (configurable via `max_sge`)
+[[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf). This
 allows a single RDMA operation to write to non-contiguous GPU memory regions (or read from non-contiguous regions).
-
-**What scatter-gather means**: Instead of one `(address, length)` pair per RDMA operation, you provide a list of up to
-10 `(address, length)` pairs (a scatter-gather list). The NIC processes them as a single operation.
-
-**Use cases:**
-
-- Writing a block's data into non-contiguous regions of a pre-allocated GPU tensor (e.g., strided columns)
-- Filling multiple small GPU buffers from a single block
-- Assembling columnar data from row-oriented storage
 
 **Phase 1: contiguous buffers only.** Scatter-gather is deferred to Phase 2.
 See [Section 11.1](#111-scatter-gather-support) for the full rationale on why it is deferred and what is needed to
@@ -989,15 +923,15 @@ implement it.
 flowchart LR
   subgraph Layers["Ozone Security Layers"]
     direction TB
-    L1["Layer 1: Kerberos Authentication<br/>Config: ozone.security.enabled<br/>Default: false<br/>Scope: Client → OM/SCM/S3GW"]
+    L1["Layer 1: Kerberos Authentication<br/>Config: ozone.security.enabled<br/>Default: false<br/>Scope: Client -> OM/SCM/S3GW"]
     L2["Layer 2: Block Tokens<br/>Config: hdds.block.token.enabled<br/>Default: false<br/>Scope: Per-block access authorization"]
-    L3["Layer 3: gRPC TLS<br/>Config: hdds.grpc.tls.enabled<br/>Default: false<br/>Scope: Gateway ↔ Datanode gRPC"]
+    L3["Layer 3: gRPC TLS<br/>Config: hdds.grpc.tls.enabled<br/>Default: false<br/>Scope: Gateway <-> Datanode gRPC"]
     L4["Layer 4: TDE (Transparent Data Encryption)<br/>Config: Per-bucket encryption key<br/>Default: disabled<br/>Scope: Data at rest"]
   end
 
   subgraph Impact["RDMA Impact"]
     I1["No RDMA impact<br/>(control plane only)"]
-    I2["Token validated in<br/>XceiverServerRdma<br/>(~0.1ms CPU overhead)"]
+    I2["Token validated in<br/>HddsDispatcher<br/>(~0.1ms CPU overhead)"]
     I3["Only affects gRPC control channel<br/>NOT the RDMA data plane"]
     I4["CRITICAL: TDE-encrypted data<br/>on RDMA = encrypted bytes in GPU<br/>(see Section 3.3)"]
   end
@@ -1010,9 +944,9 @@ flowchart LR
 
 | Layer            | What It Does                              | Default          | Config Key                 | RDMA Impact                                                     |
 |------------------|-------------------------------------------|------------------|----------------------------|-----------------------------------------------------------------|
-| **Kerberos**     | Client→OM/SCM/S3GW authentication         | OFF              | `ozone.security.enabled`   | Control plane only — no RDMA impact                             |
-| **Block Tokens** | Short-lived JWTs authorizing block access | OFF              | `hdds.block.token.enabled` | Validated in `XceiverServerRdma` before RDMA op (~0.1ms CPU)    |
-| **gRPC TLS**     | Encrypts gRPC between gateway↔datanode    | OFF              | `hdds.grpc.tls.enabled`    | Only affects gRPC control channel. RDMA data plane is separate. |
+| **Kerberos**     | Client->OM/SCM/S3GW authentication        | OFF              | `ozone.security.enabled`   | Control plane only — no RDMA impact                             |
+| **Block Tokens** | Short-lived JWTs authorizing block access | OFF              | `hdds.block.token.enabled` | Validated in `HddsDispatcher` before RDMA op (~0.1ms CPU)       |
+| **gRPC TLS**     | Encrypts gRPC between gateway<->datanode  | OFF              | `hdds.grpc.tls.enabled`    | Only affects gRPC control channel. RDMA data plane is separate. |
 | **TDE**          | AES-CTR encryption at rest                | OFF (per-bucket) | Bucket creation flag       | **Critical** — see 3.3                                          |
 
 **Key insight:** By default, ALL security layers are OFF. For development and benchmarking, no security configuration is
@@ -1036,7 +970,7 @@ sequenceDiagram
   OM -->> GW: OmKeyInfo + block tokens<br/>(signed JWTs: containerID, blockID,<br/>expiry, READ permission)
   GW ->> DN: gRPC RdmaReadBlock (over TLS)<br/> blockID, rdmaToken<br/> encodedToken=<block token JWT>
   Note over GW, DN: gRPC channel encrypted by TLS<br/>(block token and RDMA token<br/>travel encrypted in the gRPC message)
-  DN ->> DN: TokenVerifier.verify(blockToken)<br/>(~0.1ms: signature check + expiry)
+  DN ->> DN: HddsDispatcher.validateToken()<br/>(~0.1ms: signature check + expiry)
   DN ->> DN: Read block from NVMe
   DN -->> cuObj: RDMA WRITE to GPU memory<br/>(NOT encrypted — plaintext RDMA)
   Note over DN, cuObj: RDMA data plane is PLAINTEXT<br/>RDMA bypasses kernel network stack<br/>and gRPC entirely. No TLS here.
@@ -1054,12 +988,10 @@ memory bounce, defeating zero-copy [[ref-6]](https://docs.nvidia.com/cuda/gpudir
 
 TDE is enabled per-bucket by associating a KMS encryption key at bucket creation. The encryption/decryption pipeline:
 
-- **Write path:** S3 Gateway wraps `OzoneOutputStream` with `CipherOutputStreamOzone` (see
-  `hadoop-ozone/client/src/main/java/org/apache/hadoop/ozone/client/io/CipherOutputStreamOzone.java`). Data is encrypted
+- **Write path:** S3 Gateway wraps `OzoneOutputStream` with `CipherOutputStreamOzone`. Data is encrypted
   with AES-CTR **before** it reaches the datanode. Datanodes store already-encrypted bytes.
-- **Read path:** S3 Gateway wraps the read stream with `OzoneCryptoInputStream` (see
-  `hadoop-ozone/client/src/main/java/org/apache/hadoop/ozone/client/io/OzoneCryptoInputStream.java`) which decrypts
-  using `javax.crypto`. The client receives plaintext.
+- **Read path:** S3 Gateway wraps the read stream with `OzoneCryptoInputStream` which decrypts using `javax.crypto`.
+  The client receives plaintext.
 
 **TDE and RDMA — the conflict:**
 
@@ -1083,14 +1015,6 @@ flowchart TB
   end
 ```
 
-**Options for TDE + RDMA:**
-
-| Option                      | Description                                       | Performance               | Complexity             | Recommendation                   |
-|-----------------------------|---------------------------------------------------|---------------------------|------------------------|----------------------------------|
-| **Don't use TDE with RDMA** | Disable TDE for buckets used by GPU workloads     | Maximum                   | None                   | **Recommended** for initial impl |
-| **Decrypt at gateway**      | Gateway reads via TCP, decrypts, then RDMA-writes | Defeats RDMA purpose      | Low                    | Not recommended                  |
-| **Decrypt on GPU**          | CUDA AES-CTR kernel                               | Good (GPU is fast at AES) | High (key mgmt on GPU) | Future work                      |
-
 **Implementation:**
 
 When S3 Gateway detects an RDMA token AND the bucket has TDE enabled:
@@ -1110,7 +1034,22 @@ When S3 Gateway detects an RDMA token AND the bucket has TDE enabled:
 
 ### 3.4 Block Token Validation in XceiverServerRdma
 
-The existing pattern in `HddsDispatcher` (line ~527-533 in `HddsDispatcher.java`):
+Block token validation for RDMA commands uses the **existing** `HddsDispatcher.validateToken()` path — no new
+validation logic is needed. RDMA commands are dispatched through `HddsDispatcher` just like existing commands (see
+[Section 1.6](#16-request-dispatch-model)), so they automatically inherit token validation.
+
+The existing pattern in `HddsDispatcher` (line ~244-252 in `HddsDispatcher.java`):
+
+```java
+if(DispatcherContext.op(dispatcherContext).
+
+validateToken()){
+
+validateToken(msg);
+}
+```
+
+Where `validateToken()` calls:
 
 ```java
 private void validateToken(ContainerCommandRequestProto msg) throws IOException {
@@ -1118,28 +1057,12 @@ private void validateToken(ContainerCommandRequestProto msg) throws IOException 
 }
 ```
 
-The `TokenVerifier` is created in `OzoneContainer` constructor (line 228):
+The `TokenVerifier` is created in `OzoneContainer` constructor (line ~228) via
+`TokenVerifier.create(secConf, secretKeyClient)`, which returns `NoopTokenVerifier` when security is disabled (zero
+overhead) or `CompositeTokenVerifier(BlockTokenVerifier, ContainerTokenVerifier)` when enabled.
 
-```java
-TokenVerifier.create(secConf, secretKeyClient)
-```
-
-This factory returns:
-
-- `NoopTokenVerifier` when both `hdds.block.token.enabled=false` AND `hdds.container.token.enabled=false`
-- `CompositeTokenVerifier(BlockTokenVerifier, ContainerTokenVerifier)` otherwise
-
-**For `XceiverServerRdma`:**
-
-1. Accept `encodedToken` field in `RdmaReadBlockRequestProto` and `RdmaWriteBlockRequestProto`
-2. Before performing RDMA, call `tokenVerifier.verify(request, encodedToken)`
-3. The same `TokenVerifier` instance used by `HddsDispatcher` should be shared (passed to `XceiverServerRdma` via
-   constructor)
-4. When security is disabled, `NoopTokenVerifier.verify()` is a no-op — zero overhead
-
-**Performance impact:** Token verification involves HMAC signature check (~0.1ms CPU time). For large RDMA transfers (
-100MB+), this is negligible (<0.01% of total time). For transfers near the RDMA/TCP crossover (~256KB), it adds
-measurable overhead but is still acceptable.
+**For RDMA commands:** The `encodedToken` field in `RdmaReadBlockRequestProto` and `RdmaWriteBlockRequestProto` is
+copied into the `ContainerCommandRequestProto.encodedToken` field, and the existing validation path handles it.
 
 ### 3.5 RDMA Transport Security
 
@@ -1148,12 +1071,12 @@ default [[ref-6]](https://docs.nvidia.com/cuda/gpudirect-rdma/) [[ref-17]](https
 
 **Authorization model:**
 
-- The `x-amz-rdma-token` contains the RDMA memory region key (`rkey`) and remote memory address
+- The `x-amz-rdma-token` [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html) contains the RDMA
+  memory region key (`rkey`) and remote memory address
 - Without a valid `rkey`, a remote host cannot RDMA into GPU memory — the NIC's hardware access control rejects the
   request
-- cuObjServer validates tokens before executing transfers
 - Block tokens provide an additional authorization layer (the datanode verifies the client is authorized for the
-  specific block)
+  specific block via HddsDispatcher)
 
 **Network-level isolation:**
 
@@ -1161,41 +1084,27 @@ default [[ref-6]](https://docs.nvidia.com/cuda/gpudirect-rdma/) [[ref-17]](https
 - Physical network isolation prevents unauthorized access to the RDMA fabric
 - InfiniBand partitioning (pkeys) provides additional isolation within a fabric
 
-**Recommendation:** Document that RDMA transfers are plaintext and rely on network-level isolation. Production
-deployments requiring data-in-transit encryption should either:
-
-1. Use TDE (encrypted at rest, but see 3.3 for RDMA implications), or
-2. Not use the RDMA path for sensitive data
-
 ### 3.6 Disabling Security for Maximum RDMA Performance
 
 ```xml
 <!-- ozone-site.xml — Maximum performance, no security -->
 <configuration>
-  <!-- Disable Kerberos authentication -->
   <property>
     <name>ozone.security.enabled</name>
     <value>false</value>
   </property>
-
-  <!-- Disable block tokens -->
   <property>
     <name>hdds.block.token.enabled</name>
     <value>false</value>
   </property>
-
-  <!-- Disable container tokens -->
   <property>
     <name>hdds.container.token.enabled</name>
     <value>false</value>
   </property>
-
-  <!-- Disable gRPC TLS -->
   <property>
     <name>hdds.grpc.tls.enabled</name>
     <value>false</value>
   </property>
-
   <!-- Do NOT create buckets with --encryption-key to avoid TDE -->
 </configuration>
 ```
@@ -1218,2130 +1127,2206 @@ With these settings:
 | **Shared Cluster** (untrusted network)          |          `true`          |           `true`           |         `true`          | Disabled | **High** — gRPC TLS on control plane only, RDMA data plane unaffected |
 | **Regulated Environment** (encryption required) |          `true`          |           `true`           |         `true`          | Enabled  |      **TCP Fallback** — RDMA incompatible with TDE (by default)       |
 
+
 ---
 
 ## 4. Ozone Code Changes
+
+This section specifies every code change required in the Ozone codebase. Each subsection corresponds to a single file
+or module. Code samples use documented cuObject API names with [[ref-N]](#10-references) links; parameters that are
+inferred (not in public docs) are marked **[inferred]**. All C++ code that calls cuObject APIs is tagged with
+`// ADAPT: verify against cuobjserver.h` because the SDK's public documentation does not include full function
+signatures.
 
 ### 4.1 Protocol Buffer Changes
 
 **File:** `hadoop-hdds/interface-client/src/main/proto/DatanodeClientProtocol.proto`
 
-Add to the `Type` enum (after `ReadBlock = 24` at line 91):
+**Current state (verified against master):**
+
+- `ContainerCommandRequestProto` last field number: `28` (`readBlock`)
+- `ContainerCommandResponseProto` last field number: `25` (`readBlock`)
+- `Type` enum last value: `ReadBlock = 24`
+- `Result` enum last value: `INVALID_CONTAINER_STATE = 28` (note: `DISK_OUT_OF_SPACE = 29` and
+  `CONTAINER_ALREADY_EXISTS = 30` also exist)
+
+> **Implementation note:** Verify these field numbers are still current before implementation. If another PR has
+> added fields, increment accordingly.
+
+#### 4.1.1 New Type Enum Values
 
 ```protobuf
-  // RDMA direct transfer commands (DN-Direct RDMA)
-    RdmaReadBlock = 25;   // Datanode reads block from disk, RDMA-writes to remote GPU
-    RdmaWriteBlock = 26;  // Datanode RDMA-reads from remote GPU, writes block to disk
+enum Type {
+  // ... existing values up to ReadBlock = 24 ...
+  RdmaReadBlock = 25;
+  RdmaWriteBlock = 26;
+}
 ```
 
-Add new message definitions (after existing message definitions):
+#### 4.1.2 New Request/Response Messages
 
 ```protobuf
-// --- RDMA Transfer Messages ---
-
-// Request for datanode to read a block from local storage and RDMA WRITE
-// the data directly to the remote client's GPU memory.
-// Used for S3 GET with RDMA token.
 message RdmaReadBlockRequestProto {
   required DatanodeBlockID blockID = 1;
-  // RDMA token from cuObjClient (contains remote GPU address, rkey, QP info)
-  required bytes rdmaToken = 2;
-  // Offset within the remote GPU buffer where data should be written
-  required int64 destOffset = 3;
-  // Number of bytes to transfer (may be less than full block for range reads)
-  required int64 length = 4;
-  // Block offset to start reading from (for partial block reads)
-  optional int64 blockOffset = 5 [default = 0];
+  // Hex-encoded RDMA token from the x-amz-rdma-token HTTP header.
+  // Contains rkey, virtual address, and DC transport metadata generated by
+  // cuObjClient via cuMemObjGetDescriptor() [ref-1].
+  required string rdmaToken = 2;
+  // Byte offset within the block to begin reading from.
+  optional uint64 offset = 3 [default = 0];
+  // Number of bytes to transfer. If 0 or omitted, transfer the entire block.
+  optional uint64 length = 4 [default = 0];
+  // Pipeline ID for token validation and replica selection.
+  optional hadoop.hdds.PipelineID pipelineID = 5;
 }
 
 message RdmaReadBlockResponseProto {
-  // Actual number of bytes transferred via RDMA
-  required int64 bytesTransferred = 1;
-  // Checksum of transferred data (for verification)
+  // Total bytes transferred via RDMA to the client's GPU/host memory.
+  required uint64 bytesTransferred = 1;
+  // Checksum computed on the datanode before RDMA transfer.
+  // Allows the client to verify data integrity end-to-end.
   optional ChecksumData checksumData = 2;
 }
 
-// Request for datanode to RDMA READ data from the remote client's GPU memory
-// and write it to local storage as a new block.
-// Used for S3 PUT with RDMA token.
 message RdmaWriteBlockRequestProto {
   required DatanodeBlockID blockID = 1;
-  // RDMA token from cuObjClient (contains remote GPU address, rkey, QP info)
-  required bytes rdmaToken = 2;
-  // Offset within the remote GPU buffer to start reading from
-  required int64 srcOffset = 3;
-  // Number of bytes to transfer
-  required int64 length = 4;
-  // Pipeline ID for Ratis replication
-  optional string pipelineID = 5;
-  // Chunk checksums (computed by gateway or client)
-  optional ChecksumData checksumData = 6;
+  // Hex-encoded RDMA token from the x-amz-rdma-token HTTP header.
+  // Contains rkey and virtual address of the client's GPU buffer, generated by
+  // cuObjClient via cuMemObjPutDescriptor() [ref-1].
+  required string rdmaToken = 2;
+  // Number of bytes to read from the client's GPU memory via RDMA_READ.
+  required uint64 length = 3;
+  // Pipeline ID for Ratis replication group selection.
+  optional hadoop.hdds.PipelineID pipelineID = 4;
+  // Block commit length for conditional writes.
+  optional uint64 expectedBlockCommitLength = 5;
 }
 
 message RdmaWriteBlockResponseProto {
-  // Actual number of bytes transferred and written
-  required int64 bytesTransferred = 1;
-  // Container-assigned block commit sequence ID
-  optional int64 blockCommitSequenceId = 2;
+  // Total bytes received via RDMA from the client's GPU/host memory.
+  required uint64 bytesReceived = 1;
+  // Block commit length after the write, used by the client for subsequent operations.
+  optional uint64 committedBlockLength = 2;
 }
 ```
 
-Add fields to `ContainerCommandRequestProto` (after `readBlock = 28` at line 202):
+#### 4.1.3 Add Fields to ContainerCommandRequestProto/ResponseProto
 
 ```protobuf
+message ContainerCommandRequestProto {
+  // ... existing fields up to readBlock = 28 ...
   optional RdmaReadBlockRequestProto rdmaReadBlock = 29;
-    optional RdmaWriteBlockRequestProto rdmaWriteBlock = 30;
-```
+  optional RdmaWriteBlockRequestProto rdmaWriteBlock = 30;
+}
 
-Add fields to `ContainerCommandResponseProto`:
-
-```protobuf
-  optional RdmaReadBlockResponseProto rdmaReadBlock = 19;
-    optional RdmaWriteBlockResponseProto rdmaWriteBlock = 20;
+message ContainerCommandResponseProto {
+  // ... existing fields up to readBlock = 25 ...
+  optional RdmaReadBlockResponseProto rdmaReadBlock = 26;
+  optional RdmaWriteBlockResponseProto rdmaWriteBlock = 27;
+}
 ```
 
 ### 4.2 DatanodeDetails Port Type
 
 **File:** `hadoop-hdds/common/src/main/java/org/apache/hadoop/hdds/protocol/DatanodeDetails.java`
 
-Add `RDMA` to the `Port.Name` enum (at line ~1042, after `CLIENT_RPC`):
+Add `RDMA` to the `Port.Name` enum. This port identifies the cuObjServer RDMA listener on each datanode.
 
 ```java
-  @BelongsToHDDSLayoutVersion(RDMA_PORT_IN_DATANODEDETAILS)  // new layout version
-RDMA;
+public enum Name {
+  STANDALONE, RATIS, REST, REPLICATION, RATIS_ADMIN, RATIS_SERVER,
+  @BelongsToHDDSLayoutVersion(RATIS_DATASTREAM_PORT_IN_DATANODEDETAILS)
+  RATIS_DATASTREAM,
+  @BelongsToHDDSLayoutVersion(SCM_REMOVAL_IN_DATANODE)
+  HTTP,
+  @BelongsToHDDSLayoutVersion(SCM_REMOVAL_IN_DATANODE)
+  HTTPS,
+  @BelongsToHDDSLayoutVersion(SCM_REMOVAL_IN_DATANODE)
+  CLIENT_RPC,
+  @BelongsToHDDSLayoutVersion(RDMA_PORT_IN_DATANODEDETAILS) // NEW — requires layout version
+  RDMA;
+
+  // Update IO_PORTS to include RDMA when available:
+  private static final ImmutableSet<Name> IO_PORTS =
+      Sets.immutableEnumSet(STANDALONE, RATIS, RATIS_DATASTREAM, RDMA);
 ```
 
-Update the `IO_PORTS` set to include RDMA:
+**Required:** Add `RDMA_PORT_IN_DATANODEDETAILS` to `HDDSLayoutFeature` enum. This ensures that older SCM versions
+that do not recognize `RDMA` will not break during rolling upgrades — the port is simply ignored until the cluster
+finalizes the new layout version.
+
+**In `hdds.proto`**, no changes are needed. The `Port` message uses `string name` + `uint32 value`, so `RDMA` is
+stored as the string `"RDMA"` without requiring a proto schema change.
+
+### 4.3 New Maven Module: `container-service-native`
+
+Create a new Maven module at `hadoop-hdds/container-service-native/` to isolate JNI and native build concerns from the
+existing `container-service` module.
+
+```
+hadoop-hdds/container-service-native/
+├── pom.xml
+├── src/
+│   ├── main/
+│   │   ├── java/org/apache/hadoop/ozone/container/rdma/
+│   │   │   ├── RdmaTransferService.java
+│   │   │   ├── CuObjRdmaTransferService.java
+│   │   │   ├── MockRdmaTransferService.java
+│   │   │   ├── CuObjServerBridge.java
+│   │   │   ├── RdmaBuffer.java
+│   │   │   └── RdmaBufferPool.java
+│   │   └── native/
+│   │       ├── CMakeLists.txt
+│   │       └── cuobj_server_bridge.cc
+│   └── test/
+│       └── java/org/apache/hadoop/ozone/container/rdma/
+│           ├── TestRdmaBufferPool.java
+│           └── TestMockRdmaTransferService.java
+└── README.md (build instructions)
+```
+
+**pom.xml** should activate the native build via a Maven profile (e.g., `-Pnative`), following the same pattern as
+`hadoop-hdds/rocks-native/` which uses `cmake-maven-plugin` for RocksDB native builds.
+
+### 4.4 RdmaTransferService Interface
+
+**File:**
+`hadoop-hdds/container-service-native/src/main/java/org/apache/hadoop/ozone/container/rdma/RdmaTransferService.java`
+
+This interface abstracts the RDMA transfer engine, enabling mock implementations for testing and the real cuObjServer
+implementation for production. This follows the standard Ozone dependency-injection pattern (cf. `TokenVerifier` /
+`NoopTokenVerifier`).
 
 ```java
-  public static final Set<Name> IO_PORTS = ImmutableSet.copyOf(
-    EnumSet.of(STANDALONE, RATIS, RATIS_DATASTREAM, RDMA));
-```
+package org.apache.hadoop.ozone.container.rdma;
 
-**Layout version:** A new layout version constant must be added to `HDDSLayoutVersionManager` to handle rolling
-upgrades. Datanodes running older versions will not report an RDMA port, and the S3 Gateway will correctly fall back to
-TCP for those nodes.
+import java.io.Closeable;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 
-**Protobuf serialization:** The `Port.Name` enum is serialized in `HddsProtos.proto` via the `DatanodeDetailsProto`
-message. Add `RDMA = 10` to the `Port.Name` enum in `hdds.proto`:
+/**
+ * Abstraction for RDMA data transfer operations.
+ *
+ * Production implementation uses cuObjServer via JNI.
+ * Test implementation uses in-process memory copies.
+ *
+ * Thread safety: implementations must be thread-safe for concurrent
+ * calls to rdmaWriteToRemote() and rdmaReadFromRemote() on different
+ * buffers. Concurrent operations on the SAME buffer are NOT safe
+ * (per cuObjServer threading model [ref-3]).
+ */
+public interface RdmaTransferService extends Closeable {
 
-```protobuf
-// In hadoop-hdds/interface-client/src/main/proto/hdds.proto
-enum PortName {
-  STANDALONE = 0;
-  RATIS = 1;
-  REST = 2;
-  REPLICATION = 3;
-  RATIS_ADMIN = 4;
-  RATIS_SERVER = 5;
-  RATIS_DATASTREAM = 6;
-  HTTP = 7;
-  HTTPS = 8;
-  CLIENT_RPC = 9;
-  RDMA = 10;
+  /**
+   * Initialize the RDMA transfer engine.
+   *
+   * @param rdmaDeviceName  RDMA device name (e.g., "mlx5_0"), or null for auto-detect
+   * @param port            cuObjServer listen port for DC transport
+   * @param maxConnections  maximum concurrent RDMA connections
+   * @throws IOException if initialization fails (e.g., no RDMA device, no cuObjServer library)
+   */
+  void initialize(String rdmaDeviceName, int port, int maxConnections)
+      throws IOException;
+
+  /**
+   * Register a direct ByteBuffer for RDMA operations.
+   *
+   * The buffer must be a direct ByteBuffer backed by pinned (page-locked) memory.
+   * Maps to cuObjServer registerBuffer() [ref-3].
+   *
+   * @param buffer  direct ByteBuffer to register
+   * @return opaque registration handle for use in deregister()
+   * @throws IOException if registration fails
+   */
+  long registerBuffer(ByteBuffer buffer) throws IOException;
+
+  /**
+   * Deregister a previously registered buffer.
+   *
+   * @param registrationHandle  handle returned by registerBuffer()
+   * @throws IOException if deregistration fails
+   */
+  void deregisterBuffer(long registrationHandle) throws IOException;
+
+  /**
+   * RDMA WRITE: push data from a local buffer to a remote GPU/host memory.
+   * Used for GET operations (datanode sends data to client).
+   *
+   * Maps to cuObjServer handleGetObject() [ref-3]:
+   *   - Performs RDMA_WRITE from local buffer to remote buffer identified by rdmaToken
+   *   - Max 1 GiB per call [ref-3]
+   *
+   * @param rdmaToken       hex-encoded RDMA token from x-amz-rdma-token header
+   * @param localBuffer     registered direct ByteBuffer containing data to send
+   * @param localOffset     offset within localBuffer
+   * @param length          number of bytes to transfer (max 1 GiB)
+   * @param remoteOffset    byte offset in the remote buffer
+   * @return number of bytes transferred
+   * @throws IOException if the RDMA operation fails
+   */
+  long rdmaWriteToRemote(String rdmaToken, ByteBuffer localBuffer,
+      int localOffset, long length, long remoteOffset) throws IOException;
+
+  /**
+   * RDMA READ: pull data from a remote GPU/host memory into a local buffer.
+   * Used for PUT operations (datanode receives data from client).
+   *
+   * Maps to cuObjServer handlePutObject() [ref-3]:
+   *   - Performs RDMA_READ from remote buffer identified by rdmaToken into local buffer
+   *   - Max 1 GiB per call [ref-3]
+   *
+   * @param rdmaToken       hex-encoded RDMA token from x-amz-rdma-token header
+   * @param localBuffer     registered direct ByteBuffer to receive data into
+   * @param localOffset     offset within localBuffer
+   * @param length          number of bytes to transfer (max 1 GiB)
+   * @param remoteOffset    byte offset in the remote buffer
+   * @return number of bytes transferred
+   * @throws IOException if the RDMA operation fails
+   */
+  long rdmaReadFromRemote(String rdmaToken, ByteBuffer localBuffer,
+      int localOffset, long length, long remoteOffset) throws IOException;
+
+  /**
+   * @return true if the RDMA transfer engine initialized successfully and is ready
+   */
+  boolean isAvailable();
 }
 ```
 
-### 4.3 New Maven Module: container-service-native
+### 4.5 JNI Bridge: `CuObjServerBridge.java`
 
-**Location:** `hadoop-hdds/container-service-native/`
+**File:**
+`hadoop-hdds/container-service-native/src/main/java/org/apache/hadoop/ozone/container/rdma/CuObjServerBridge.java`
 
-**`pom.xml`** (following the pattern from `hadoop-hdds/rocks-native/pom.xml`):
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
-         http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-
-  <parent>
-    <groupId>org.apache.ozone</groupId>
-    <artifactId>hdds</artifactId>
-    <version>2.2.0-SNAPSHOT</version>
-  </parent>
-
-  <artifactId>hdds-container-service-native</artifactId>
-  <name>Apache Ozone HDDS cuObjServer JNI Bridge</name>
-  <description>JNI bridge for NVIDIA cuObjServer RDMA operations</description>
-
-  <dependencies>
-    <dependency>
-      <groupId>org.apache.ozone</groupId>
-      <artifactId>hdds-common</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.ozone</groupId>
-      <artifactId>hdds-rocks-native</artifactId>
-      <scope>provided</scope>
-      <!-- For NativeLibraryLoader reuse -->
-    </dependency>
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-core</artifactId>
-      <scope>test</scope>
-    </dependency>
-  </dependencies>
-
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <configuration>
-          <proc>none</proc>
-        </configuration>
-      </plugin>
-    </plugins>
-  </build>
-
-  <profiles>
-    <!-- CPU count detection (same as rocks-native) -->
-    <profile>
-      <id>cpu-count</id>
-      <activation>
-        <property>
-          <name>!system.numCores</name>
-        </property>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>build-helper-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>get-cpu-count</id>
-                <goals>
-                  <goal>cpu-count</goal>
-                </goals>
-                <phase>generate-sources</phase>
-                <configuration>
-                  <cpuCount>system.numCores</cpuCount>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-
-    <!-- Native build profile: activated with -Dgds_native -->
-    <profile>
-      <id>gds_native</id>
-      <activation>
-        <property>
-          <name>gds_native</name>
-        </property>
-        <!-- Only build on Linux x86_64 -->
-        <os>
-          <name>Linux</name>
-          <arch>amd64</arch>
-        </os>
-      </activation>
-
-      <properties>
-        <cmake.standards>17</cmake.standards>
-      </properties>
-
-      <build>
-        <plugins>
-          <!-- Step 1: Compile Java and generate JNI headers -->
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>compile-java</id>
-                <phase>compile</phase>
-                <goals>
-                  <goal>compile</goal>
-                </goals>
-                <configuration>
-                  <compilerArgs>
-                    <arg>-h</arg>
-                    <arg>${project.build.directory}/native/javah</arg>
-                  </compilerArgs>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-
-          <!-- Step 2: CMake configure and build native library -->
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-antrun-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>build-gds-jni</id>
-                <phase>process-classes</phase>
-                <goals>
-                  <goal>run</goal>
-                </goals>
-                <configuration>
-                  <target>
-                    <mkdir dir="${project.build.directory}/native/build"/>
-                    <exec executable="cmake" dir="${project.build.directory}/native/build"
-                          failonerror="true">
-                      <arg value="${basedir}/src/main/native"/>
-                      <arg value="-DGENERATED_JAVAH=${project.build.directory}/native/javah"/>
-                      <arg value="-DJAVA_HOME=${java.home}/.."/>
-                      <arg value="-DCMAKE_STANDARDS=${cmake.standards}"/>
-                      <arg value="-DCMAKE_BUILD_TYPE=Release"/>
-                    </exec>
-                    <exec executable="make" dir="${project.build.directory}/native/build"
-                          failonerror="true">
-                      <arg value="-j${system.numCores}"/>
-                    </exec>
-                  </target>
-                </configuration>
-              </execution>
-
-              <!-- Step 3: Copy native library to classes directory -->
-              <execution>
-                <id>copy-lib-file</id>
-                <phase>process-classes</phase>
-                <goals>
-                  <goal>run</goal>
-                </goals>
-                <configuration>
-                  <target>
-                    <copy todir="${project.build.directory}/classes">
-                      <fileset dir="${project.build.directory}/native/build">
-                        <include name="**/libgds_jni.so"/>
-                      </fileset>
-                    </copy>
-                  </target>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-
-          <!-- Step 4: Package native library into JAR -->
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-jar-plugin</artifactId>
-            <configuration>
-              <includes>
-                <include>**/*.class</include>
-                <include>**/lib*.so</include>
-              </includes>
-            </configuration>
-          </plugin>
-
-          <!-- Step 5: Configure surefire with native library path -->
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-surefire-plugin</artifactId>
-            <configuration>
-              <argLine>-Djava.library.path=${project.build.directory}/native/build</argLine>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
-</project>
-```
-
-### 4.4 JNI Bridge: CuObjServerBridge.java
-
-**File:** `hadoop-hdds/container-service-native/src/main/java/org/apache/hadoop/hdds/gds/CuObjServerBridge.java`
+This class provides the JNI native method declarations that map to the C++ implementation in
+`cuobj_server_bridge.cc`. It is **not** used directly by `XceiverServerRdma` — instead, it is called by
+`CuObjRdmaTransferService` (the production implementation of `RdmaTransferService`).
 
 ```java
-package org.apache.hadoop.hdds.gds;
+package org.apache.hadoop.ozone.container.rdma;
 
 import org.apache.hadoop.hdds.utils.NativeLibraryLoader;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Collections;
 
 /**
- * JNI bridge to NVIDIA cuObjServer library for RDMA operations.
+ * JNI bridge to libcuobjserver (NVIDIA cuObject Server SDK).
  *
- * <p>This class provides Java access to cuObjServer's RDMA capabilities:
- * <ul>
- *   <li>Initialize/shutdown cuObjServer with RDMA device configuration</li>
- *   <li>Register/deregister host memory buffers for RDMA</li>
- *   <li>RDMA WRITE data to remote GPU memory (for GET/read path)</li>
- *   <li>RDMA READ data from remote GPU memory (for PUT/write path)</li>
- * </ul>
+ * Native library: libcuobj_server_bridge.so
+ * Loaded via NativeLibraryLoader (singleton, tries System.loadLibrary
+ * then JAR extraction).
  *
- * <p>All RDMA operations use cuObjServer's Dynamic Connected (DC) transport
- * for efficient connection management. The native library (libgds_jni.so)
- * must be present on the java.library.path or bundled in the JAR.
+ * All cuObjServer API references are to [ref-3]:
+ * https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf
  *
- * <p>Thread safety: All methods are thread-safe. cuObjServer handles internal
- * synchronization for concurrent RDMA operations.
+ * This class is package-private. External code uses RdmaTransferService.
  */
-public final class CuObjServerBridge {
+final class CuObjServerBridge {
 
-  private static final Logger LOG =
-      LoggerFactory.getLogger(CuObjServerBridge.class);
-
-  private static final String LIBRARY_NAME = "gds_jni";
-
-  private static volatile boolean nativeLoaded = false;
-  private static volatile boolean loadAttempted = false;
-
-  static {
-    loadNativeLibrary();
-  }
+  private static final String LIBRARY_NAME = "cuobj_server_bridge";
+  private static volatile boolean loaded = false;
+  private static volatile boolean available = false;
 
   private CuObjServerBridge() {
-    // Utility class — no instantiation
+    // utility class
   }
 
   /**
-   * Attempts to load the native library. Safe to call multiple times.
+   * Attempt to load the native library. Safe to call multiple times.
+   * @return true if the library is loaded and cuObjServer is available
    */
-  private static synchronized void loadNativeLibrary() {
-    if (loadAttempted) {
-      return;
+  static synchronized boolean loadLibrary() {
+    if (loaded) {
+      return available;
     }
-    loadAttempted = true;
+    loaded = true;
     try {
-      nativeLoaded = NativeLibraryLoader.getInstance()
-          .loadLibrary(LIBRARY_NAME, Collections.emptyList());
-      if (nativeLoaded) {
-        LOG.info("cuObjServer JNI bridge loaded successfully");
-      } else {
-        LOG.warn("cuObjServer JNI bridge not available — "
-            + "RDMA transfers will be disabled");
-      }
-    } catch (Exception e) {
-      LOG.warn("Failed to load cuObjServer JNI bridge: {}", e.getMessage());
-      nativeLoaded = false;
+      NativeLibraryLoader.getInstance().loadLibrary(LIBRARY_NAME);
+      available = true;
+    } catch (UnsatisfiedLinkError e) {
+      available = false;
     }
+    return available;
   }
 
-  /**
-   * Returns true if the native library is loaded and RDMA is available.
-   */
-  public static boolean isAvailable() {
-    return nativeLoaded;
+  static boolean isAvailable() {
+    return available;
   }
 
   // --- Native methods ---
 
   /**
-   * Initialize cuObjServer with the specified RDMA device.
+   * Initialize the cuObjServer engine.
    *
-   * @param rdmaDevice RDMA device name (e.g., "mlx5_0", "rxe0")
-   * @param rdmaPort   RDMA port number (0 for auto-assign)
-   * @param maxConnections maximum concurrent RDMA connections
-   * @return opaque handle to the cuObjServer instance
-   * @throws IOException if initialization fails (no RDMA device, etc.)
+   * ADAPT: verify against cuobjserver.h — the actual init function name and
+   * parameters are not documented in public NVIDIA docs. The server likely
+   * requires configuration for RDMA device, port, and connection limits.
+   *
+   * @param rdmaDevice   RDMA NIC device name (e.g., "mlx5_0"), null for auto
+   * @param port         cuObjServer listen port for DC transport
+   * @param maxConns     max concurrent RDMA connections
+   * @return opaque server handle (passed to all subsequent calls)
+   * @throws IOException on initialization failure
    */
-  public static native long init(String rdmaDevice, int rdmaPort,
-      int maxConnections) throws IOException;
+  static native long nativeInit(String rdmaDevice, int port, int maxConns)
+      throws IOException;
 
   /**
-   * Shut down cuObjServer and release all RDMA resources.
+   * Shut down the cuObjServer engine and release resources.
    *
-   * @param handle cuObjServer handle from {@link #init}
+   * ADAPT: verify against cuobjserver.h — no shutdown function is documented.
+   *
+   * @param handle  server handle from nativeInit()
+   * @throws IOException on shutdown failure
    */
-  public static native void shutdown(long handle);
+  static native void nativeShutdown(long handle) throws IOException;
 
   /**
    * Register a direct ByteBuffer for RDMA operations.
-   * The buffer must be a direct ByteBuffer (off-heap).
-   * The returned MR handle must be deregistered before the buffer is freed.
+   * Maps to: cuObjServer::registerBuffer(ptr, size) [ref-3]
    *
-   * @param handle cuObjServer handle
-   * @param buffer direct ByteBuffer to register
-   * @return opaque memory region (MR) handle
-   * @throws IOException if registration fails
+   * The buffer must be a direct ByteBuffer. The JNI implementation calls
+   * GetDirectBufferAddress() to obtain the native pointer, then passes it to
+   * cuObjServer::registerBuffer().
+   *
+   * @param handle  server handle from nativeInit()
+   * @param buffer  direct ByteBuffer (must be page-locked / pinned memory)
+   * @return opaque registration handle for deregister
+   * @throws IOException on registration failure
    */
-  public static native long registerBuffer(long handle,
-      ByteBuffer buffer) throws IOException;
+  static native long nativeRegisterBuffer(long handle, ByteBuffer buffer)
+      throws IOException;
 
   /**
    * Deregister a previously registered buffer.
    *
-   * @param handle cuObjServer handle
-   * @param mrHandle memory region handle from {@link #registerBuffer}
+   * ADAPT: verify against cuobjserver.h — deregister/unregister API name
+   * is not documented. Likely deregisterBuffer() or unregisterBuffer().
+   *
+   * @param handle       server handle
+   * @param regHandle    registration handle from nativeRegisterBuffer()
+   * @throws IOException on failure
    */
-  public static native void deregisterBuffer(long handle, long mrHandle);
+  static native void nativeDeregisterBuffer(long handle, long regHandle)
+      throws IOException;
 
   /**
-   * RDMA WRITE data from a local buffer to remote GPU memory.
-   * Used for the GET/read path: datanode reads from disk into localBuffer,
-   * then RDMA-writes to the client's GPU.
+   * Perform RDMA_WRITE: push data from local buffer to remote GPU/host memory.
+   * Maps to: cuObjServer::handleGetObject() [ref-3]
    *
-   * @param handle      cuObjServer handle
-   * @param rdmaToken   RDMA token from cuObjClient (contains remote addr, rkey)
-   * @param localBuffer registered direct ByteBuffer containing data to send
-   * @param localOffset offset within localBuffer to start reading
-   * @param destOffset  offset within remote GPU buffer to write to
-   * @param length      number of bytes to transfer
-   * @return actual number of bytes transferred
-   * @throws IOException if RDMA operation fails
+   * handleGetObject() performs an RDMA_WRITE from the server's local buffer to
+   * the client's remote buffer identified by the RDMA token. Max 1 GiB per
+   * call [ref-3].
+   *
+   * ADAPT: verify exact parameter order and types against cuobjserver.h.
+   * The documented API signature includes "local buffer pointer+size" and
+   * "remote RDMA token" but exact C++ parameter list is not public.
+   *
+   * @param handle       server handle
+   * @param rdmaToken    hex-encoded RDMA token (from x-amz-rdma-token)
+   * @param buffer       registered direct ByteBuffer with data to send
+   * @param offset       offset within buffer
+   * @param length       bytes to transfer (max 1 GiB = 1073741824)
+   * @param remoteOffset offset in remote buffer
+   * @return bytes actually transferred
+   * @throws IOException on RDMA failure
    */
-  public static native int rdmaWriteToRemote(long handle,
-      byte[] rdmaToken, ByteBuffer localBuffer, int localOffset,
-      long destOffset, int length) throws IOException;
+  static native long nativeRdmaWrite(long handle, String rdmaToken,
+      ByteBuffer buffer, int offset, long length, long remoteOffset)
+      throws IOException;
 
   /**
-   * RDMA READ data from remote GPU memory into a local buffer.
-   * Used for the PUT/write path: datanode RDMA-reads from client's GPU
-   * into localBuffer, then writes to disk.
+   * Perform RDMA_READ: pull data from remote GPU/host memory into local buffer.
+   * Maps to: cuObjServer::handlePutObject() [ref-3]
    *
-   * @param handle      cuObjServer handle
-   * @param rdmaToken   RDMA token from cuObjClient
-   * @param localBuffer registered direct ByteBuffer to receive data
-   * @param localOffset offset within localBuffer to start writing
-   * @param srcOffset   offset within remote GPU buffer to read from
-   * @param length      number of bytes to transfer
-   * @return actual number of bytes transferred
-   * @throws IOException if RDMA operation fails
-   */
-  public static native int rdmaReadFromRemote(long handle,
-      byte[] rdmaToken, ByteBuffer localBuffer, int localOffset,
-      long srcOffset, int length) throws IOException;
-
-  /**
-   * Get the RDMA port number assigned to this cuObjServer instance.
-   * Useful when port 0 (auto-assign) was used in init().
+   * handlePutObject() performs an RDMA_READ from the client's remote buffer
+   * identified by the RDMA token into the server's local buffer. Max 1 GiB per
+   * call [ref-3].
    *
-   * @param handle cuObjServer handle
-   * @return assigned RDMA port number
+   * ADAPT: verify exact parameter order and types against cuobjserver.h.
+   *
+   * @param handle       server handle
+   * @param rdmaToken    hex-encoded RDMA token (from x-amz-rdma-token)
+   * @param buffer       registered direct ByteBuffer to receive data
+   * @param offset       offset within buffer
+   * @param length       bytes to transfer (max 1 GiB = 1073741824)
+   * @param remoteOffset offset in remote buffer
+   * @return bytes actually transferred
+   * @throws IOException on RDMA failure
    */
-  public static native int getPort(long handle);
+  static native long nativeRdmaRead(long handle, String rdmaToken,
+      ByteBuffer buffer, int offset, long length, long remoteOffset)
+      throws IOException;
 }
 ```
 
-### 4.5 Native C++ Implementation
+### 4.6 Native C++ Implementation
 
-**File:** `hadoop-hdds/container-service-native/src/main/native/CuObjServerBridge.cpp`
+**File:** `hadoop-hdds/container-service-native/src/main/native/cuobj_server_bridge.cc`
+
+This file implements the JNI native methods declared in `CuObjServerBridge.java`. It links against
+`libcuobjserver.so` and calls the cuObjServer C++ API.
+
+> **CRITICAL:** The cuObjServer public documentation [[ref-3]](#10-references) provides function names
+> (`registerBuffer`, `allocHostBuffer`, `handleGetObject`, `handlePutObject`, `getRDMABufferFromSgList`) but NOT
+> full C++ signatures. The code below uses the documented names with **inferred parameter lists**. Every function
+> call is marked `// ADAPT: verify against cuobjserver.h`. The actual header file from the cuObjServer package
+> is **required** before this code will compile.
 
 ```cpp
-/**
- * JNI implementation for CuObjServerBridge.java
- * Bridges Java calls to NVIDIA cuObjServer library for RDMA operations.
- */
-
 #include <jni.h>
-#include <cuobjserver.h>
+#include <cstdint>
 #include <cstring>
-#include <string>
 #include <stdexcept>
 
-// JNI header generated from CuObjServerBridge.java
-#include "org_apache_hadoop_hdds_gds_CuObjServerBridge.h"
+// ADAPT: verify actual header name against cuObjServer package.
+// The public docs reference libcuobjserver.so but do not name the header.
+// Likely: #include <cuobjserver.h>
+#include <cuobjserver.h>
 
-/**
- * Helper: throw a Java IOException with the given message.
- */
-static void throwIOException(JNIEnv *env, const char *msg) {
-    jclass cls = env->FindClass("java/io/IOException");
-    if (cls != nullptr) {
-        env->ThrowNew(cls, msg);
+// JNI class path for CuObjServerBridge
+static const char* JNI_CLASS = "org/apache/hadoop/ozone/container/rdma/CuObjServerBridge";
+
+// Helper: throw IOException from JNI
+static void throwIOException(JNIEnv* env, const char* msg) {
+    jclass ioExClass = env->FindClass("java/io/IOException");
+    if (ioExClass != nullptr) {
+        env->ThrowNew(ioExClass, msg);
     }
 }
 
-/**
- * Helper: throw a Java IOException with cuObjServer error code.
- */
-static void throwCuObjError(JNIEnv *env, const char *op, int errCode) {
-    char buf[256];
-    snprintf(buf, sizeof(buf), "cuObjServer %s failed with error %d", op, errCode);
-    throwIOException(env, buf);
+// Helper: convert Java string to std::string, handling null
+static std::string jstringToStdString(JNIEnv* env, jstring jstr) {
+    if (jstr == nullptr) return "";
+    const char* chars = env->GetStringUTFChars(jstr, nullptr);
+    std::string result(chars);
+    env->ReleaseStringUTFChars(jstr, chars);
+    return result;
 }
 
 /*
- * Class:     org_apache_hadoop_hdds_gds_CuObjServerBridge
- * Method:    init
- * Signature: (Ljava/lang/String;II)J
+ * nativeInit: Initialize cuObjServer engine.
+ *
+ * ADAPT: verify against cuobjserver.h.
+ * The cuObjServer docs [ref-3] do not document an explicit init function.
+ * The server library likely has a constructor or init method that accepts
+ * RDMA device, port, and connection parameters. The code below assumes
+ * a class or struct-based API. Adjust to match the real SDK.
  */
-JNIEXPORT jlong JNICALL
-Java_org_apache_hadoop_hdds_gds_CuObjServerBridge_init(
-    JNIEnv *env, jclass /*cls*/,
-    jstring rdmaDevice, jint rdmaPort, jint maxConnections) {
+extern "C" JNIEXPORT jlong JNICALL
+Java_org_apache_hadoop_ozone_container_rdma_CuObjServerBridge_nativeInit(
+    JNIEnv* env, jclass cls,
+    jstring rdmaDevice, jint port, jint maxConns) {
 
-    const char *deviceStr = env->GetStringUTFChars(rdmaDevice, nullptr);
-    if (deviceStr == nullptr) {
-        throwIOException(env, "Failed to get RDMA device string");
+    try {
+        std::string device = jstringToStdString(env, rdmaDevice);
+
+        // ADAPT: verify against cuobjserver.h
+        // The actual initialization API is not documented.
+        // This assumes a constructor or factory function exists.
+        // Possible patterns:
+        //   auto* server = new cuObjServer(device, port, maxConns);
+        //   auto* server = cuObjServer::create(config);
+        // Placeholder:
+        auto* server = new cuObjServer();  // ADAPT: add actual constructor params
+        // server->setDevice(device);       // ADAPT: if setter-based config
+        // server->setPort(port);           // ADAPT
+        // server->setMaxConnections(maxConns); // ADAPT
+        // server->start();                  // ADAPT: if explicit start needed
+
+        return reinterpret_cast<jlong>(server);
+    } catch (const std::exception& e) {
+        throwIOException(env, e.what());
         return 0;
     }
+}
 
-    cuObjServerConfig config;
-    memset(&config, 0, sizeof(config));
-    strncpy(config.rdma_device, deviceStr, sizeof(config.rdma_device) - 1);
-    config.port = static_cast<uint16_t>(rdmaPort);
-    config.max_connections = static_cast<uint32_t>(maxConnections);
+/*
+ * nativeShutdown: Shut down cuObjServer engine.
+ *
+ * ADAPT: verify against cuobjserver.h — no shutdown/destructor documented.
+ */
+extern "C" JNIEXPORT void JNICALL
+Java_org_apache_hadoop_ozone_container_rdma_CuObjServerBridge_nativeShutdown(
+    JNIEnv* env, jclass cls, jlong handle) {
 
-    env->ReleaseStringUTFChars(rdmaDevice, deviceStr);
+    try {
+        auto* server = reinterpret_cast<cuObjServer*>(handle);  // ADAPT: actual type
+        // ADAPT: call actual shutdown API
+        delete server;
+    } catch (const std::exception& e) {
+        throwIOException(env, e.what());
+    }
+}
 
-    cuObjServerHandle handle = 0;
-    int ret = cuObjServer_init(&config, &handle);
-    if (ret != 0) {
-        throwCuObjError(env, "init", ret);
+/*
+ * nativeRegisterBuffer: Register a direct ByteBuffer for RDMA.
+ *
+ * Maps to: cuObjServer::registerBuffer(const void *ptr, size_t size) [ref-3]
+ * The public docs confirm registerBuffer exists and takes a pointer + size.
+ * Return type is not documented — we store the result as a handle.
+ */
+extern "C" JNIEXPORT jlong JNICALL
+Java_org_apache_hadoop_ozone_container_rdma_CuObjServerBridge_nativeRegisterBuffer(
+    JNIEnv* env, jclass cls, jlong handle, jobject buffer) {
+
+    auto* server = reinterpret_cast<cuObjServer*>(handle);  // ADAPT: actual type
+    void* ptr = env->GetDirectBufferAddress(buffer);
+    if (ptr == nullptr) {
+        throwIOException(env, "Buffer is not a direct ByteBuffer");
         return 0;
     }
+    jlong capacity = env->GetDirectBufferCapacity(buffer);
 
-    return static_cast<jlong>(reinterpret_cast<uintptr_t>(handle));
-}
-
-/*
- * Class:     org_apache_hadoop_hdds_gds_CuObjServerBridge
- * Method:    shutdown
- * Signature: (J)V
- */
-JNIEXPORT void JNICALL
-Java_org_apache_hadoop_hdds_gds_CuObjServerBridge_shutdown(
-    JNIEnv * /*env*/, jclass /*cls*/, jlong handle) {
-
-    auto serverHandle =
-        reinterpret_cast<cuObjServerHandle>(static_cast<uintptr_t>(handle));
-    cuObjServer_shutdown(serverHandle);
-}
-
-/*
- * Class:     org_apache_hadoop_hdds_gds_CuObjServerBridge
- * Method:    registerBuffer
- * Signature: (JLjava/nio/ByteBuffer;)J
- */
-JNIEXPORT jlong JNICALL
-Java_org_apache_hadoop_hdds_gds_CuObjServerBridge_registerBuffer(
-    JNIEnv *env, jclass /*cls*/, jlong handle, jobject buffer) {
-
-    auto serverHandle =
-        reinterpret_cast<cuObjServerHandle>(static_cast<uintptr_t>(handle));
-
-    void *bufAddr = env->GetDirectBufferAddress(buffer);
-    if (bufAddr == nullptr) {
-        throwIOException(env, "Buffer must be a direct ByteBuffer");
+    try {
+        // registerBuffer(const void *ptr, size_t size) [ref-3]
+        // ADAPT: verify return type. Assuming it returns a handle/MR object.
+        auto regHandle = server->registerBuffer(ptr, static_cast<size_t>(capacity));
+        return reinterpret_cast<jlong>(regHandle);  // ADAPT: cast depends on return type
+    } catch (const std::exception& e) {
+        throwIOException(env, e.what());
         return 0;
     }
+}
 
-    jlong bufCapacity = env->GetDirectBufferCapacity(buffer);
+/*
+ * nativeDeregisterBuffer: Deregister a previously registered buffer.
+ *
+ * ADAPT: verify API name against cuobjserver.h.
+ * Not explicitly documented. Likely deregisterBuffer() or unregisterBuffer().
+ */
+extern "C" JNIEXPORT void JNICALL
+Java_org_apache_hadoop_ozone_container_rdma_CuObjServerBridge_nativeDeregisterBuffer(
+    JNIEnv* env, jclass cls, jlong handle, jlong regHandle) {
 
-    cuObjServerMR mrHandle = 0;
-    int ret = cuObjServer_registerBuffer(
-        serverHandle, bufAddr, static_cast<size_t>(bufCapacity), &mrHandle);
-    if (ret != 0) {
-        throwCuObjError(env, "registerBuffer", ret);
+    auto* server = reinterpret_cast<cuObjServer*>(handle);  // ADAPT: actual type
+    try {
+        // ADAPT: verify actual deregister API name and signature
+        server->deregisterBuffer(reinterpret_cast<void*>(regHandle));  // ADAPT
+    } catch (const std::exception& e) {
+        throwIOException(env, e.what());
+    }
+}
+
+/*
+ * nativeRdmaWrite: RDMA_WRITE from local buffer to remote GPU.
+ *
+ * Maps to: cuObjServer::handleGetObject() [ref-3]
+ * "Performs RDMA_WRITE: pushes data from server buffer to remote client
+ *  GPU/host memory. Max 1 GiB per call." [ref-3]
+ *
+ * ADAPT: The exact parameter list for handleGetObject() is not documented.
+ * It must include: local buffer pointer+size, remote RDMA token, and offset.
+ * The code below assumes these parameters. Verify against cuobjserver.h.
+ */
+extern "C" JNIEXPORT jlong JNICALL
+Java_org_apache_hadoop_ozone_container_rdma_CuObjServerBridge_nativeRdmaWrite(
+    JNIEnv* env, jclass cls,
+    jlong handle, jstring rdmaToken,
+    jobject buffer, jint offset, jlong length, jlong remoteOffset) {
+
+    auto* server = reinterpret_cast<cuObjServer*>(handle);  // ADAPT: actual type
+    void* ptr = env->GetDirectBufferAddress(buffer);
+    if (ptr == nullptr) {
+        throwIOException(env, "Buffer is not a direct ByteBuffer");
         return 0;
     }
+    std::string token = jstringToStdString(env, rdmaToken);
 
-    return static_cast<jlong>(reinterpret_cast<uintptr_t>(mrHandle));
+    try {
+        void* localAddr = static_cast<char*>(ptr) + offset;
+
+        // handleGetObject(...) [ref-3]
+        // ADAPT: verify exact parameter list against cuobjserver.h.
+        // Documented behavior: RDMA_WRITE from local buffer to remote token.
+        // Inferred parameters: local_ptr, local_size, rdma_token, remote_offset
+        auto bytesWritten = server->handleGetObject(
+            localAddr,                          // [inferred] local buffer pointer
+            static_cast<size_t>(length),         // [inferred] transfer size
+            token.c_str(),                       // [inferred] RDMA token string
+            static_cast<size_t>(token.size()),    // [inferred] token length
+            static_cast<uint64_t>(remoteOffset)  // [inferred] remote buffer offset
+        );  // ADAPT: verify all params
+
+        return static_cast<jlong>(bytesWritten);  // ADAPT: depends on return type
+    } catch (const std::exception& e) {
+        throwIOException(env, e.what());
+        return -1;
+    }
 }
 
 /*
- * Class:     org_apache_hadoop_hdds_gds_CuObjServerBridge
- * Method:    deregisterBuffer
- * Signature: (JJ)V
+ * nativeRdmaRead: RDMA_READ from remote GPU into local buffer.
+ *
+ * Maps to: cuObjServer::handlePutObject() [ref-3]
+ * "Performs RDMA_READ: pulls data from remote client GPU/host memory to
+ *  server buffer. Max 1 GiB per call." [ref-3]
+ *
+ * ADAPT: Same parameter uncertainty as handleGetObject. Verify against cuobjserver.h.
  */
-JNIEXPORT void JNICALL
-Java_org_apache_hadoop_hdds_gds_CuObjServerBridge_deregisterBuffer(
-    JNIEnv * /*env*/, jclass /*cls*/, jlong handle, jlong mrHandle) {
+extern "C" JNIEXPORT jlong JNICALL
+Java_org_apache_hadoop_ozone_container_rdma_CuObjServerBridge_nativeRdmaRead(
+    JNIEnv* env, jclass cls,
+    jlong handle, jstring rdmaToken,
+    jobject buffer, jint offset, jlong length, jlong remoteOffset) {
 
-    auto serverHandle =
-        reinterpret_cast<cuObjServerHandle>(static_cast<uintptr_t>(handle));
-    auto mr =
-        reinterpret_cast<cuObjServerMR>(static_cast<uintptr_t>(mrHandle));
-    cuObjServer_deregisterBuffer(serverHandle, mr);
-}
+    auto* server = reinterpret_cast<cuObjServer*>(handle);  // ADAPT: actual type
+    void* ptr = env->GetDirectBufferAddress(buffer);
+    if (ptr == nullptr) {
+        throwIOException(env, "Buffer is not a direct ByteBuffer");
+        return 0;
+    }
+    std::string token = jstringToStdString(env, rdmaToken);
 
-/*
- * Class:     org_apache_hadoop_hdds_gds_CuObjServerBridge
- * Method:    rdmaWriteToRemote
- * Signature: (J[BLjava/nio/ByteBuffer;IJI)I
- */
-JNIEXPORT jint JNICALL
-Java_org_apache_hadoop_hdds_gds_CuObjServerBridge_rdmaWriteToRemote(
-    JNIEnv *env, jclass /*cls*/, jlong handle,
-    jbyteArray rdmaToken, jobject localBuffer,
-    jint localOffset, jlong destOffset, jint length) {
+    try {
+        void* localAddr = static_cast<char*>(ptr) + offset;
 
-    auto serverHandle =
-        reinterpret_cast<cuObjServerHandle>(static_cast<uintptr_t>(handle));
+        // handlePutObject(...) [ref-3]
+        // ADAPT: verify exact parameter list against cuobjserver.h.
+        // Documented behavior: RDMA_READ from remote token into local buffer.
+        auto bytesRead = server->handlePutObject(
+            localAddr,                          // [inferred] local buffer pointer
+            static_cast<size_t>(length),         // [inferred] transfer size
+            token.c_str(),                       // [inferred] RDMA token string
+            static_cast<size_t>(token.size()),    // [inferred] token length
+            static_cast<uint64_t>(remoteOffset)  // [inferred] remote buffer offset
+        );  // ADAPT: verify all params
 
-    // Get RDMA token bytes
-    jbyte *tokenBytes = env->GetByteArrayElements(rdmaToken, nullptr);
-    jsize tokenLen = env->GetArrayLength(rdmaToken);
-    if (tokenBytes == nullptr) {
-        throwIOException(env, "Failed to get RDMA token bytes");
+        return static_cast<jlong>(bytesRead);  // ADAPT: depends on return type
+    } catch (const std::exception& e) {
+        throwIOException(env, e.what());
         return -1;
     }
-
-    // Get local buffer address
-    void *bufAddr = env->GetDirectBufferAddress(localBuffer);
-    if (bufAddr == nullptr) {
-        env->ReleaseByteArrayElements(rdmaToken, tokenBytes, JNI_ABORT);
-        throwIOException(env, "Buffer must be a direct ByteBuffer");
-        return -1;
-    }
-
-    // Perform RDMA WRITE
-    cuObjServerTransferDesc desc;
-    memset(&desc, 0, sizeof(desc));
-    desc.token = reinterpret_cast<const uint8_t *>(tokenBytes);
-    desc.token_len = static_cast<size_t>(tokenLen);
-    desc.local_addr = static_cast<uint8_t *>(bufAddr) + localOffset;
-    desc.local_length = static_cast<size_t>(length);
-    desc.remote_offset = static_cast<uint64_t>(destOffset);
-    desc.op = CUOBJ_RDMA_WRITE;
-
-    size_t bytesTransferred = 0;
-    int ret = cuObjServer_transfer(serverHandle, &desc, &bytesTransferred);
-
-    env->ReleaseByteArrayElements(rdmaToken, tokenBytes, JNI_ABORT);
-
-    if (ret != 0) {
-        throwCuObjError(env, "rdmaWriteToRemote", ret);
-        return -1;
-    }
-
-    return static_cast<jint>(bytesTransferred);
-}
-
-/*
- * Class:     org_apache_hadoop_hdds_gds_CuObjServerBridge
- * Method:    rdmaReadFromRemote
- * Signature: (J[BLjava/nio/ByteBuffer;IJI)I
- */
-JNIEXPORT jint JNICALL
-Java_org_apache_hadoop_hdds_gds_CuObjServerBridge_rdmaReadFromRemote(
-    JNIEnv *env, jclass /*cls*/, jlong handle,
-    jbyteArray rdmaToken, jobject localBuffer,
-    jint localOffset, jlong srcOffset, jint length) {
-
-    auto serverHandle =
-        reinterpret_cast<cuObjServerHandle>(static_cast<uintptr_t>(handle));
-
-    jbyte *tokenBytes = env->GetByteArrayElements(rdmaToken, nullptr);
-    jsize tokenLen = env->GetArrayLength(rdmaToken);
-    if (tokenBytes == nullptr) {
-        throwIOException(env, "Failed to get RDMA token bytes");
-        return -1;
-    }
-
-    void *bufAddr = env->GetDirectBufferAddress(localBuffer);
-    if (bufAddr == nullptr) {
-        env->ReleaseByteArrayElements(rdmaToken, tokenBytes, JNI_ABORT);
-        throwIOException(env, "Buffer must be a direct ByteBuffer");
-        return -1;
-    }
-
-    cuObjServerTransferDesc desc;
-    memset(&desc, 0, sizeof(desc));
-    desc.token = reinterpret_cast<const uint8_t *>(tokenBytes);
-    desc.token_len = static_cast<size_t>(tokenLen);
-    desc.local_addr = static_cast<uint8_t *>(bufAddr) + localOffset;
-    desc.local_length = static_cast<size_t>(length);
-    desc.remote_offset = static_cast<uint64_t>(srcOffset);
-    desc.op = CUOBJ_RDMA_READ;
-
-    size_t bytesTransferred = 0;
-    int ret = cuObjServer_transfer(serverHandle, &desc, &bytesTransferred);
-
-    env->ReleaseByteArrayElements(rdmaToken, tokenBytes, JNI_ABORT);
-
-    if (ret != 0) {
-        throwCuObjError(env, "rdmaReadFromRemote", ret);
-        return -1;
-    }
-
-    return static_cast<jint>(bytesTransferred);
-}
-
-/*
- * Class:     org_apache_hadoop_hdds_gds_CuObjServerBridge
- * Method:    getPort
- * Signature: (J)I
- */
-JNIEXPORT jint JNICALL
-Java_org_apache_hadoop_hdds_gds_CuObjServerBridge_getPort(
-    JNIEnv * /*env*/, jclass /*cls*/, jlong handle) {
-
-    auto serverHandle =
-        reinterpret_cast<cuObjServerHandle>(static_cast<uintptr_t>(handle));
-    return static_cast<jint>(cuObjServer_getPort(serverHandle));
 }
 ```
 
-### 4.6 CMakeLists.txt for Native Build
+### 4.7 CMakeLists.txt for Native Build
 
 **File:** `hadoop-hdds/container-service-native/src/main/native/CMakeLists.txt`
 
 ```cmake
-cmake_minimum_required(VERSION 3.20)
-project(gds_jni LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.10)
+project(cuobj_server_bridge CXX)
 
-# C++ standard
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-# Variables passed from Maven
-set(GENERATED_JAVAH "" CACHE STRING "Path to generated JNI headers")
-set(JAVA_HOME "" CACHE STRING "Path to JDK")
-set(CMAKE_STANDARDS "17" CACHE STRING "C++ standard version")
-
-# --- Find JNI ---
+# Find JNI
 find_package(JNI REQUIRED)
-if(NOT JNI_FOUND)
-    message(FATAL_ERROR "JNI not found. Set JAVA_HOME.")
+include_directories(${JNI_INCLUDE_DIRS})
+
+# cuObjServer SDK location
+# Set via -DCUOBJSERVER_HOME=/path/to/cuobjserver or environment variable
+if(NOT CUOBJSERVER_HOME)
+  set(CUOBJSERVER_HOME $ENV{CUOBJSERVER_HOME})
+endif()
+if(NOT CUOBJSERVER_HOME)
+  message(FATAL_ERROR "CUOBJSERVER_HOME not set. Point to the cuObjServer SDK directory.")
 endif()
 
-# --- Find CUDA Toolkit (for cuObjServer headers) ---
-find_package(CUDAToolkit)
-if(CUDAToolkit_FOUND)
-    message(STATUS "CUDA Toolkit found: ${CUDAToolkit_VERSION}")
-    message(STATUS "CUDA include: ${CUDAToolkit_INCLUDE_DIRS}")
-else()
-    message(STATUS "CUDA Toolkit not found — checking manual paths")
-    set(CUDA_INCLUDE_DIR "/usr/local/cuda/include" CACHE PATH "CUDA include dir")
-    if(NOT EXISTS "${CUDA_INCLUDE_DIR}/cuda.h")
-        message(FATAL_ERROR "CUDA headers not found at ${CUDA_INCLUDE_DIR}")
-    endif()
-endif()
+# ADAPT: verify actual include/lib paths within the cuObjServer package
+include_directories(${CUOBJSERVER_HOME}/include)
+link_directories(${CUOBJSERVER_HOME}/lib64 ${CUOBJSERVER_HOME}/lib)
 
-# --- Find cuObjServer ---
-find_library(CUOBJSERVER_LIB cuobjserver
-    HINTS /usr/local/cuda/lib64 /usr/lib/x86_64-linux-gnu
-    DOC "cuObjServer library")
-if(NOT CUOBJSERVER_LIB)
-    message(FATAL_ERROR "libcuobjserver.so not found. Install cuObject SDK.")
-endif()
-message(STATUS "cuObjServer library: ${CUOBJSERVER_LIB}")
+# Build shared library
+add_library(cuobj_server_bridge SHARED cuobj_server_bridge.cc)
 
-# Check for cuObjServer header
-find_path(CUOBJSERVER_INCLUDE cuobjserver.h
-    HINTS /usr/local/cuda/include /usr/include
-    DOC "cuObjServer header directory")
-if(NOT CUOBJSERVER_INCLUDE)
-    message(FATAL_ERROR "cuobjserver.h not found. Install cuObject SDK.")
-endif()
+# Link against cuObjServer
+# ADAPT: verify actual library name — likely libcuobjserver.so [ref-3]
+target_link_libraries(cuobj_server_bridge cuobjserver)
 
-# --- Find libibverbs ---
-find_library(IBVERBS_LIB ibverbs DOC "InfiniBand verbs library")
-find_library(RDMACM_LIB rdmacm DOC "RDMA connection manager library")
-
-# --- Build the JNI shared library ---
-add_library(gds_jni SHARED
-    CuObjServerBridge.cpp
-)
-
-target_include_directories(gds_jni PRIVATE
-    ${JNI_INCLUDE_DIRS}
-    ${GENERATED_JAVAH}
-    ${CUOBJSERVER_INCLUDE}
-)
-
-if(CUDAToolkit_FOUND)
-    target_include_directories(gds_jni PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
-endif()
-
-target_link_libraries(gds_jni PRIVATE
-    ${CUOBJSERVER_LIB}
-)
-
-# Optional: link ibverbs and rdmacm if cuObjServer doesn't bundle them
-if(IBVERBS_LIB)
-    target_link_libraries(gds_jni PRIVATE ${IBVERBS_LIB})
-endif()
-if(RDMACM_LIB)
-    target_link_libraries(gds_jni PRIVATE ${RDMACM_LIB})
-endif()
-
-# Compiler flags
-target_compile_options(gds_jni PRIVATE
-    -Wall -Wextra -O2
-    $<$<CONFIG:Debug>:-g -O0>
-)
-
-# Output
-set_target_properties(gds_jni PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
-    PREFIX "lib"
-    SUFFIX ".so"
-)
+# Install to Maven output directory
+install(TARGETS cuobj_server_bridge
+        LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
 ```
 
-### 4.7 XceiverServerRdma.java
+### 4.8 `CuObjRdmaTransferService.java`
 
 **File:**
-`hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/transport/server/XceiverServerRdma.java`
+`hadoop-hdds/container-service-native/src/main/java/org/apache/hadoop/ozone/container/rdma/CuObjRdmaTransferService.java`
+
+Production implementation of `RdmaTransferService` that delegates to `CuObjServerBridge` (JNI → cuObjServer).
 
 ```java
-package org.apache.hadoop.ozone.container.common.transport.server;
+package org.apache.hadoop.ozone.container.rdma;
 
-import com.google.common.annotations.VisibleForTesting;
-import org.apache.hadoop.hdds.conf.ConfigurationSource;
-import org.apache.hadoop.hdds.gds.CuObjServerBridge;
-import org.apache.hadoop.hdds.protocol.DatanodeDetails;
-import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos;
-import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.ContainerCommandRequestProto;
-import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.ContainerCommandResponseProto;
-import org.apache.hadoop.hdds.protocol.proto.HddsProtos;
-import org.apache.hadoop.hdds.security.token.TokenVerifier;
-import org.apache.hadoop.ozone.container.common.interfaces.ContainerDispatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * RDMA transport server for datanode using NVIDIA cuObjServer.
- * Implements {@link XceiverServerSpi} as a third channel alongside
- * the existing gRPC (read) and Ratis (write) channels.
+ * Production RdmaTransferService backed by NVIDIA cuObjServer via JNI.
  *
- * <p>Handles {@code RdmaReadBlock} and {@code RdmaWriteBlock} commands
- * dispatched from the S3 Gateway. Data is transferred directly between
- * the datanode's local NVMe storage and the remote GPU client's memory
- * via RDMA, bypassing the S3 Gateway data plane.
+ * Lifecycle: initialize() -> registerBuffer()/rdmaWriteToRemote()/etc -> close()
  *
- * <p>Graceful degradation: if cuObjServer is not available (no GPU,
- * no RDMA NIC, native library not loaded), this server does not start
- * and the datanode operates exactly as before.
+ * All cuObjServer API references: [ref-3]
  */
-public class XceiverServerRdma implements XceiverServerSpi {
+public class CuObjRdmaTransferService implements RdmaTransferService {
 
   private static final Logger LOG =
-      LoggerFactory.getLogger(XceiverServerRdma.class);
+      LoggerFactory.getLogger(CuObjRdmaTransferService.class);
 
-  // Configuration keys
-  public static final String RDMA_ENABLED_KEY =
-      "ozone.datanode.rdma.enabled";
-  public static final boolean RDMA_ENABLED_DEFAULT = false;
+  /** Max bytes per handleGetObject() / handlePutObject() call [ref-3]. */
+  private static final long MAX_BYTES_PER_RDMA_OP = 1L * 1024 * 1024 * 1024; // 1 GiB
 
-  public static final String RDMA_PORT_KEY =
-      "ozone.datanode.rdma.port";
-  public static final int RDMA_PORT_DEFAULT = 9890;
+  private long serverHandle;
+  private volatile boolean initialized = false;
 
-  public static final String RDMA_DEVICE_KEY =
-      "ozone.datanode.rdma.device";
-  public static final String RDMA_DEVICE_DEFAULT = "mlx5_0";
-
-  public static final String RDMA_BUFFER_SIZE_KEY =
-      "ozone.datanode.rdma.buffer.size";
-  public static final int RDMA_BUFFER_SIZE_DEFAULT = 4 * 1024 * 1024; // 4 MB
-
-  public static final String RDMA_BUFFER_COUNT_KEY =
-      "ozone.datanode.rdma.buffer.count";
-  public static final int RDMA_BUFFER_COUNT_DEFAULT = 64;
-
-  public static final String RDMA_MAX_CONCURRENT_KEY =
-      "ozone.datanode.rdma.max.concurrent.transfers";
-  public static final int RDMA_MAX_CONCURRENT_DEFAULT = 32;
-
-  private final DatanodeDetails datanodeDetails;
-  private final ConfigurationSource conf;
-  private final ContainerDispatcher dispatcher;
-  private final TokenVerifier tokenVerifier;
-
-  private final String rdmaDevice;
-  private final int rdmaPort;
-  private final int bufferSize;
-  private final int bufferCount;
-  private final int maxConcurrent;
-
-  // cuObjServer handle (native pointer)
-  private volatile long cuObjServerHandle;
-
-  // Pre-allocated RDMA buffer pool
-  private BlockingQueue<RdmaBuffer> bufferPool;
-
-  // Concurrency control
-  private Semaphore transferSemaphore;
-
-  private final AtomicBoolean isStarted = new AtomicBoolean(false);
-
-  /**
-   * Wrapper for an RDMA-registered ByteBuffer.
-   */
-  static class RdmaBuffer {
-    final ByteBuffer buffer;
-    final long mrHandle;
-
-    RdmaBuffer(ByteBuffer buffer, long mrHandle) {
-      this.buffer = buffer;
-      this.mrHandle = mrHandle;
+  @Override
+  public void initialize(String rdmaDeviceName, int port, int maxConnections)
+      throws IOException {
+    if (!CuObjServerBridge.loadLibrary()) {
+      throw new IOException("Failed to load cuobj_server_bridge native library. "
+          + "Ensure libcuobjserver.so is installed and CUOBJSERVER_HOME is set.");
     }
-  }
-
-  public XceiverServerRdma(DatanodeDetails datanodeDetails,
-      ConfigurationSource conf, ContainerDispatcher dispatcher,
-      TokenVerifier tokenVerifier) {
-    this.datanodeDetails = datanodeDetails;
-    this.conf = conf;
-    this.dispatcher = dispatcher;
-    this.tokenVerifier = tokenVerifier;
-
-    this.rdmaDevice = conf.get(RDMA_DEVICE_KEY, RDMA_DEVICE_DEFAULT);
-    this.rdmaPort = conf.getInt(RDMA_PORT_KEY, RDMA_PORT_DEFAULT);
-    this.bufferSize = conf.getInt(RDMA_BUFFER_SIZE_KEY,
-        RDMA_BUFFER_SIZE_DEFAULT);
-    this.bufferCount = conf.getInt(RDMA_BUFFER_COUNT_KEY,
-        RDMA_BUFFER_COUNT_DEFAULT);
-    this.maxConcurrent = conf.getInt(RDMA_MAX_CONCURRENT_KEY,
-        RDMA_MAX_CONCURRENT_DEFAULT);
+    serverHandle = CuObjServerBridge.nativeInit(rdmaDeviceName, port, maxConnections);
+    initialized = true;
+    LOG.info("CuObjRdmaTransferService initialized: device={}, port={}, maxConns={}",
+        rdmaDeviceName, port, maxConnections);
   }
 
   @Override
-  public void start() throws IOException {
-    if (!CuObjServerBridge.isAvailable()) {
-      LOG.warn("cuObjServer JNI bridge not available. "
-          + "RDMA transport will not start.");
-      return;
+  public long registerBuffer(ByteBuffer buffer) throws IOException {
+    checkInitialized();
+    if (!buffer.isDirect()) {
+      throw new IllegalArgumentException("Buffer must be a direct ByteBuffer");
     }
-
-    try {
-      // Initialize cuObjServer
-      cuObjServerHandle = CuObjServerBridge.init(
-          rdmaDevice, rdmaPort, maxConcurrent);
-
-      int assignedPort = CuObjServerBridge.getPort(cuObjServerHandle);
-      LOG.info("cuObjServer initialized on device {} port {}",
-          rdmaDevice, assignedPort);
-
-      // Register RDMA port in DatanodeDetails
-      datanodeDetails.setPort(
-          DatanodeDetails.newPort(DatanodeDetails.Port.Name.RDMA,
-              assignedPort));
-
-      // Pre-allocate and register RDMA buffers
-      bufferPool = new ArrayBlockingQueue<>(bufferCount);
-      for (int i = 0; i < bufferCount; i++) {
-        ByteBuffer buf = ByteBuffer.allocateDirect(bufferSize);
-        long mrHandle = CuObjServerBridge.registerBuffer(
-            cuObjServerHandle, buf);
-        bufferPool.add(new RdmaBuffer(buf, mrHandle));
-      }
-      LOG.info("Allocated {} RDMA buffers of {} bytes each",
-          bufferCount, bufferSize);
-
-      transferSemaphore = new Semaphore(maxConcurrent);
-      isStarted.set(true);
-
-      LOG.info("XceiverServerRdma started on {}:{}", rdmaDevice,
-          assignedPort);
-
-    } catch (IOException e) {
-      LOG.error("Failed to start XceiverServerRdma", e);
-      cleanup();
-      throw e;
-    }
+    return CuObjServerBridge.nativeRegisterBuffer(serverHandle, buffer);
   }
 
   @Override
-  public void stop() {
-    if (!isStarted.compareAndSet(true, false)) {
-      return;
-    }
-    LOG.info("Stopping XceiverServerRdma");
-    cleanup();
-  }
-
-  private void cleanup() {
-    // Deregister all buffers
-    if (bufferPool != null && cuObjServerHandle != 0) {
-      for (RdmaBuffer rdmaBuf : bufferPool) {
-        try {
-          CuObjServerBridge.deregisterBuffer(
-              cuObjServerHandle, rdmaBuf.mrHandle);
-        } catch (Exception e) {
-          LOG.warn("Error deregistering RDMA buffer", e);
-        }
-      }
-      bufferPool.clear();
-    }
-
-    // Shutdown cuObjServer
-    if (cuObjServerHandle != 0) {
-      CuObjServerBridge.shutdown(cuObjServerHandle);
-      cuObjServerHandle = 0;
-    }
+  public void deregisterBuffer(long registrationHandle) throws IOException {
+    checkInitialized();
+    CuObjServerBridge.nativeDeregisterBuffer(serverHandle, registrationHandle);
   }
 
   @Override
-  public int getIPCPort() {
-    return rdmaPort;
+  public long rdmaWriteToRemote(String rdmaToken, ByteBuffer localBuffer,
+      int localOffset, long length, long remoteOffset) throws IOException {
+    checkInitialized();
+    if (length > MAX_BYTES_PER_RDMA_OP) {
+      throw new IllegalArgumentException(
+          "Transfer size " + length + " exceeds max " + MAX_BYTES_PER_RDMA_OP
+              + " per handleGetObject() call [ref-3]");
+    }
+    return CuObjServerBridge.nativeRdmaWrite(
+        serverHandle, rdmaToken, localBuffer, localOffset, length, remoteOffset);
   }
 
   @Override
-  public HddsProtos.ReplicationType getServerType() {
-    return HddsProtos.ReplicationType.STAND_ALONE;
+  public long rdmaReadFromRemote(String rdmaToken, ByteBuffer localBuffer,
+      int localOffset, long length, long remoteOffset) throws IOException {
+    checkInitialized();
+    if (length > MAX_BYTES_PER_RDMA_OP) {
+      throw new IllegalArgumentException(
+          "Transfer size " + length + " exceeds max " + MAX_BYTES_PER_RDMA_OP
+              + " per handlePutObject() call [ref-3]");
+    }
+    return CuObjServerBridge.nativeRdmaRead(
+        serverHandle, rdmaToken, localBuffer, localOffset, length, remoteOffset);
   }
 
   @Override
-  public void submitRequest(
-      ContainerCommandRequestProto request,
-      HddsProtos.PipelineID pipelineID) throws IOException {
-    // XceiverServerRdma does not handle pipeline-based requests.
-    // RDMA requests come directly via handleRdmaReadBlock/handleRdmaWriteBlock.
-    throw new UnsupportedOperationException(
-        "XceiverServerRdma does not accept pipeline-based requests");
+  public boolean isAvailable() {
+    return initialized && CuObjServerBridge.isAvailable();
   }
 
   @Override
-  public boolean isExist(HddsProtos.PipelineID pipelineId) {
-    return false;
-  }
-
-  @Override
-  public List<HddsProtos.PipelineReport> getPipelineReport() {
-    return Collections.emptyList();
-  }
-
-  /**
-   * Handle an RdmaReadBlock request: read block from disk, RDMA WRITE
-   * to remote GPU memory.
-   *
-   * Called by KeyValueHandler.handleRdmaReadBlock() or directly by the
-   * gRPC service handling the gateway's RdmaReadBlock command.
-   *
-   * @param request the RdmaReadBlock request
-   * @return response with bytes transferred
-   * @throws IOException on RDMA or I/O failure
-   */
-  public ContainerCommandResponseProto handleRdmaReadBlock(
-      ContainerCommandRequestProto request) throws IOException {
-
-    if (!isStarted.get()) {
-      throw new IOException("XceiverServerRdma is not running");
-    }
-
-    // Validate security token
-    tokenVerifier.verify(request, request.getEncodedToken());
-
-    ContainerProtos.RdmaReadBlockRequestProto rdmaReq =
-        request.getRdmaReadBlock();
-
-    byte[] rdmaToken = rdmaReq.getRdmaToken().toByteArray();
-    long destOffset = rdmaReq.getDestOffset();
-    long length = rdmaReq.getLength();
-    long blockOffset = rdmaReq.getBlockOffset();
-
-    // Read block data from disk via existing dispatcher
-    // (builds a ReadBlock request and dispatches to KeyValueHandler)
-    ContainerProtos.ReadBlockRequestProto readReq =
-        ContainerProtos.ReadBlockRequestProto.newBuilder()
-            .setBlockID(rdmaReq.getBlockID())
-            .setOffset(blockOffset)
-            .setLength(length)
-            .build();
-
-    ContainerCommandRequestProto readCommand =
-        ContainerCommandRequestProto.newBuilder()
-            .setCmdType(ContainerProtos.Type.ReadBlock)
-            .setContainerID(request.getContainerID())
-            .setDatanodeUuid(request.getDatanodeUuid())
-            .setReadBlock(readReq)
-            .setEncodedToken(request.getEncodedToken())
-            .build();
-
-    // Acquire transfer semaphore
-    try {
-      transferSemaphore.acquire();
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new IOException("Interrupted waiting for RDMA transfer slot", e);
-    }
-
-    try {
-      // Dispatch read to get block data
-      ContainerCommandResponseProto readResp =
-          dispatcher.dispatch(readCommand, null);
-
-      if (readResp.getResult() != ContainerProtos.Result.SUCCESS) {
-        throw new IOException("Block read failed: " + readResp.getResult());
-      }
-
-      // Get data bytes from response
-      byte[] blockData = readResp.getReadBlock().getData().toByteArray();
-
-      // Acquire RDMA buffer from pool
-      RdmaBuffer rdmaBuf = bufferPool.poll();
-      if (rdmaBuf == null) {
-        throw new IOException("No RDMA buffers available");
-      }
-
-      try {
-        // Copy block data to RDMA-registered buffer
-        // (For large blocks, this would be done in chunks)
-        rdmaBuf.buffer.clear();
-        rdmaBuf.buffer.put(blockData, 0,
-            Math.min(blockData.length, bufferSize));
-        rdmaBuf.buffer.flip();
-
-        // RDMA WRITE to remote GPU memory
-        int transferred = CuObjServerBridge.rdmaWriteToRemote(
-            cuObjServerHandle, rdmaToken, rdmaBuf.buffer,
-            0, destOffset, rdmaBuf.buffer.remaining());
-
-        // Build response
-        ContainerProtos.RdmaReadBlockResponseProto rdmaResp =
-            ContainerProtos.RdmaReadBlockResponseProto.newBuilder()
-                .setBytesTransferred(transferred)
-                .build();
-
-        return ContainerCommandResponseProto.newBuilder()
-            .setCmdType(ContainerProtos.Type.RdmaReadBlock)
-            .setResult(ContainerProtos.Result.SUCCESS)
-            .setRdmaReadBlock(rdmaResp)
-            .build();
-
-      } finally {
-        // Return buffer to pool
-        bufferPool.offer(rdmaBuf);
-      }
-
-    } finally {
-      transferSemaphore.release();
+  public void close() throws IOException {
+    if (initialized) {
+      CuObjServerBridge.nativeShutdown(serverHandle);
+      initialized = false;
+      LOG.info("CuObjRdmaTransferService shut down");
     }
   }
 
-  /**
-   * Handle an RdmaWriteBlock request: RDMA READ from remote GPU memory,
-   * write block to disk.
-   */
-  public ContainerCommandResponseProto handleRdmaWriteBlock(
-      ContainerCommandRequestProto request) throws IOException {
-
-    if (!isStarted.get()) {
-      throw new IOException("XceiverServerRdma is not running");
+  private void checkInitialized() throws IOException {
+    if (!initialized) {
+      throw new IOException("CuObjRdmaTransferService not initialized");
     }
-
-    // Validate security token
-    tokenVerifier.verify(request, request.getEncodedToken());
-
-    ContainerProtos.RdmaWriteBlockRequestProto rdmaReq =
-        request.getRdmaWriteBlock();
-
-    byte[] rdmaToken = rdmaReq.getRdmaToken().toByteArray();
-    long srcOffset = rdmaReq.getSrcOffset();
-    int length = (int) rdmaReq.getLength();
-
-    try {
-      transferSemaphore.acquire();
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new IOException("Interrupted waiting for RDMA transfer slot", e);
-    }
-
-    try {
-      RdmaBuffer rdmaBuf = bufferPool.poll();
-      if (rdmaBuf == null) {
-        throw new IOException("No RDMA buffers available");
-      }
-
-      try {
-        // RDMA READ from remote GPU memory
-        rdmaBuf.buffer.clear();
-        int transferred = CuObjServerBridge.rdmaReadFromRemote(
-            cuObjServerHandle, rdmaToken, rdmaBuf.buffer,
-            0, srcOffset, length);
-
-        rdmaBuf.buffer.limit(transferred);
-
-        // Write to disk via existing WriteChunk path
-        // (builds a WriteChunk request and dispatches to KeyValueHandler)
-        byte[] data = new byte[transferred];
-        rdmaBuf.buffer.get(data);
-
-        // Build and dispatch WriteChunk + PutBlock commands
-        // (follows existing Ratis write path pattern)
-        // ... dispatch to existing write path ...
-
-        ContainerProtos.RdmaWriteBlockResponseProto rdmaResp =
-            ContainerProtos.RdmaWriteBlockResponseProto.newBuilder()
-                .setBytesTransferred(transferred)
-                .build();
-
-        return ContainerCommandResponseProto.newBuilder()
-            .setCmdType(ContainerProtos.Type.RdmaWriteBlock)
-            .setResult(ContainerProtos.Result.SUCCESS)
-            .setRdmaWriteBlock(rdmaResp)
-            .build();
-
-      } finally {
-        bufferPool.offer(rdmaBuf);
-      }
-
-    } finally {
-      transferSemaphore.release();
-    }
-  }
-
-  /**
-   * Returns true if this RDMA server is running and available for transfers.
-   */
-  public boolean isRunning() {
-    return isStarted.get();
-  }
-
-  @VisibleForTesting
-  long getCuObjServerHandle() {
-    return cuObjServerHandle;
-  }
-
-  @VisibleForTesting
-  int getAvailableBuffers() {
-    return bufferPool != null ? bufferPool.size() : 0;
   }
 }
 ```
 
-### 4.8 OzoneContainer.java Modifications
-
-**File:** `hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/ozoneimpl/OzoneContainer.java`
-
-**Changes:**
-
-1. **Add field** (after `readChannel` declaration, around line 116):
-
-```java
-private XceiverServerSpi rdmaChannel;
-```
-
-2. **In constructor** (after `readChannel` creation at line 251):
-
-```java
-    // Create RDMA channel if enabled and cuObjServer available
-boolean rdmaEnabled = conf.getBoolean(
-    XceiverServerRdma.RDMA_ENABLED_KEY,
-    XceiverServerRdma.RDMA_ENABLED_DEFAULT);
-    if(rdmaEnabled &&CuObjServerBridge.
-
-isAvailable()){
-SecurityConfig secConf = new SecurityConfig(conf);
-TokenVerifier rdmaTokenVerifier =
-    TokenVerifier.create(secConf, secretKeyClient);
-      this.rdmaChannel =new
-
-XceiverServerRdma(
-    datanodeDetails, conf, hddsDispatcher, rdmaTokenVerifier);
-      LOG.
-
-info("RDMA channel created for datanode");
-    }else{
-        this.rdmaChannel =null;
-    if(rdmaEnabled){
-    LOG.
-
-warn("RDMA enabled in config but cuObjServer native library "
-    +"not available. RDMA channel will not start.");
-      }
-          }
-```
-
-3. **In `start()` method** (after `readChannel` start, around line 574):
-
-```java
-    // Start RDMA channel
-    if(rdmaChannel !=null){
-    rdmaChannel.
-
-start();
-      LOG.
-
-info("RDMA channel started");
-    }
-```
-
-4. **In `stop()` method** (before `readChannel` stop):
-
-```java
-    // Stop RDMA channel
-    if(rdmaChannel !=null){
-    rdmaChannel.
-
-stop();
-    }
-```
-
-5. **Add accessor** (after `getReadChannel()`):
-
-```java
-  /**
- * Returns the RDMA channel, or null if RDMA is not enabled.
- */
-public XceiverServerSpi getRdmaChannel() {
-  return rdmaChannel;
-}
-```
-
-### 4.9 HddsDispatcher Modifications
+### 4.9 `MockRdmaTransferService.java`
 
 **File:**
-`hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/impl/HddsDispatcher.java`
+`hadoop-hdds/container-service-native/src/main/java/org/apache/hadoop/ozone/container/rdma/MockRdmaTransferService.java`
 
-In `dispatchRequest()` method (around line 205), add handling for the new command types in the switch/routing logic:
-
-```java
-    // In the command routing section, add cases for RDMA commands
-    case RdmaReadBlock:
-    case RdmaWriteBlock:
-// RDMA commands are dispatched to the appropriate handler
-// Token validation is handled within XceiverServerRdma
-handler =handlers.
-
-get(containerType);
-      if(handler !=null){
-    return handler.
-
-handle(msg, container, dispatcherContext);
-      }
-          break;
-```
-
-### 4.10 KeyValueHandler Modifications
-
-**File:** `hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/keyvalue/KeyValueHandler.java`
-
-Add to the `handle()` method's switch statement (around line 297):
+Mock implementation for unit and integration tests. No JNI, no native library, no RDMA hardware required.
 
 ```java
-    case RdmaReadBlock:
-    return
-
-handleRdmaReadBlock(request, kvContainer);
-    case RdmaWriteBlock:
-    return
-
-handleRdmaWriteBlock(request, kvContainer, dispatcherContext);
-```
-
-Add new handler methods:
-
-```java
-  /**
- * Handle RdmaReadBlock: delegates to XceiverServerRdma which reads
- * block data from disk and RDMA-writes to remote GPU.
- *
- * This method is a routing stub — the actual RDMA operation is
- * performed by XceiverServerRdma.handleRdmaReadBlock().
- */
-ContainerCommandResponseProto handleRdmaReadBlock(
-    ContainerCommandRequestProto request,
-    KeyValueContainer kvContainer) {
-  // The XceiverServerRdma handles the full RDMA read flow internally.
-  // This handler validates the container state and delegates.
-  try {
-    checkContainerOpen(kvContainer);
-    // The actual implementation calls through OzoneContainer.getRdmaChannel()
-    // which returns the XceiverServerRdma instance.
-    // The S3 Gateway dispatches RdmaReadBlock directly to XceiverServerRdma
-    // via gRPC, bypassing HddsDispatcher for the RDMA data transfer.
-    // This handler exists for completeness and container state validation.
-    return getSuccessResponse(request);
-  } catch (StorageContainerException e) {
-    return getErrorResponse(request, e);
-  }
-}
-
-/**
- * Handle RdmaWriteBlock: delegates to XceiverServerRdma which
- * RDMA-reads from remote GPU and writes block to disk.
- */
-ContainerCommandResponseProto handleRdmaWriteBlock(
-    ContainerCommandRequestProto request,
-    KeyValueContainer kvContainer,
-    DispatcherContext dispatcherContext) {
-  try {
-    checkContainerOpen(kvContainer);
-    return getSuccessResponse(request);
-  } catch (StorageContainerException e) {
-    return getErrorResponse(request, e);
-  }
-}
-```
-
-### 4.11 S3 Gateway: ObjectEndpoint Modifications
-
-**File:** `hadoop-ozone/s3gateway/src/main/java/org/apache/hadoop/ozone/s3/endpoint/ObjectEndpoint.java`
-
-**In `handleGetRequest()` (line 432):**
-
-Add RDMA detection and orchestration before the existing data streaming code:
-
-```java
-
-@Override
-Response handleGetRequest(ObjectRequestContext context, String keyPath)
-    throws IOException, OS3Exception {
-
-  // ... existing code to get keyDetails from OM (lines 446-448) ...
-
-  // --- RDMA PATH ---
-  byte[] rdmaToken = context.getRdmaToken();  // extracted by RdmaRequestFilter
-  if (rdmaToken != null) {
-    return handleRdmaGet(context, keyPath, keyDetails, rdmaToken);
-  }
-
-  // --- EXISTING TCP PATH (unchanged) ---
-  // ... rest of existing handleGetRequest code ...
-}
-
-/**
- * Handle S3 GET via RDMA: orchestrate direct datanode-to-GPU transfers.
- */
-private Response handleRdmaGet(ObjectRequestContext context, String keyPath,
-    OzoneKeyDetails keyDetails, byte[] rdmaToken)
-    throws IOException, OS3Exception {
-
-  long objectSize = keyDetails.getDataSize();
-
-  // Check: object size below RDMA threshold?
-  long minRdmaSize = getOzoneConfiguration().getLong(
-      "ozone.s3g.rdma.min.object.size", 262144L);
-  if (objectSize < minRdmaSize) {
-    LOG.debug("Object {} size {} below RDMA threshold {}, using TCP",
-        keyPath, objectSize, minRdmaSize);
-    // Fall through to TCP path
-    return null;  // caller falls through to TCP
-  }
-
-  // Check: bucket has TDE encryption?
-  if (keyDetails.getEncryptionInfo() != null) {
-    boolean allowEncrypted = getOzoneConfiguration().getBoolean(
-        "ozone.s3g.rdma.allow.encrypted.buckets", false);
-    if (!allowEncrypted) {
-      LOG.warn("RDMA requested for TDE-encrypted bucket, falling back to TCP");
-      return null;  // fall through to TCP
-    }
-  }
-
-  // Get block locations
-  List<OmKeyLocationInfo> blockLocations =
-      keyDetails.getKeyLocationVersions().get(0).getLocationList();
-
-  long destOffset = 0;
-
-  // For each block, send RdmaReadBlock to the owning datanode
-  for (OmKeyLocationInfo blockInfo : blockLocations) {
-    Pipeline pipeline = blockInfo.getPipeline();
-    long blockLength = blockInfo.getLength();
-
-    // Find a datanode with RDMA port
-    DatanodeDetails rdmaDatanode = findRdmaDatanode(pipeline);
-    if (rdmaDatanode == null) {
-      LOG.warn("No RDMA-capable datanode for block {}, falling back to TCP",
-          blockInfo.getBlockID());
-      return null;  // fall through to TCP
-    }
-
-    // Build RdmaReadBlock command
-    ContainerProtos.RdmaReadBlockRequestProto rdmaReq =
-        ContainerProtos.RdmaReadBlockRequestProto.newBuilder()
-            .setBlockID(blockInfo.getBlockID().getDatanodeBlockIDProtobuf())
-            .setRdmaToken(ByteString.copyFrom(rdmaToken))
-            .setDestOffset(destOffset)
-            .setLength(blockLength)
-            .build();
-
-    ContainerCommandRequestProto command =
-        ContainerCommandRequestProto.newBuilder()
-            .setCmdType(ContainerProtos.Type.RdmaReadBlock)
-            .setContainerID(blockInfo.getContainerID())
-            .setDatanodeUuid(rdmaDatanode.getUuidString())
-            .setRdmaReadBlock(rdmaReq)
-            .build();
-
-    // Send command to datanode via gRPC
-    // (reuse existing XceiverClientGrpc connection management)
-    sendRdmaCommandToDatanode(rdmaDatanode, command);
-
-    destOffset += blockLength;
-  }
-
-  // Return HTTP 200 with metadata only (no body — data sent via RDMA)
-  ResponseBuilder response = Response.ok()
-      .header("ETag", keyDetails.getMetadata().get("ETag"))
-      .header("Content-Length", objectSize)
-      .header("x-amz-rdma-status", "complete");
-
-  addLastModifiedDate(response, keyDetails);
-  return response.build();
-}
-
-/**
- * Find a datanode in the pipeline that has an RDMA port registered.
- */
-private DatanodeDetails findRdmaDatanode(Pipeline pipeline) {
-  for (DatanodeDetails dn : pipeline.getNodes()) {
-    if (dn.getPort(DatanodeDetails.Port.Name.RDMA) != null
-        && dn.getPort(DatanodeDetails.Port.Name.RDMA).getValue() > 0) {
-      return dn;
-    }
-  }
-  return null;
-}
-```
-
-**In `handlePutRequest()` (line 213):**
-
-Similar pattern — detect RDMA token, orchestrate `RdmaWriteBlock` to datanodes.
-
-### 4.12 S3 Gateway: RdmaRequestFilter
-
-**File:** `hadoop-ozone/s3gateway/src/main/java/org/apache/hadoop/ozone/s3/filter/RdmaRequestFilter.java`
-
-```java
-package org.apache.hadoop.ozone.s3.filter;
+package org.apache.hadoop.ozone.container.rdma;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+
+/**
+ * Mock RdmaTransferService for testing without RDMA hardware or cuObjServer.
+ *
+ * Simulates RDMA transfers by copying data between local ByteBuffers and a
+ * shared "remote memory" map keyed by RDMA token. Tests register a
+ * "remote buffer" via {@link #registerRemoteBuffer(String, ByteBuffer)} to
+ * simulate the GPU client's memory.
+ */
+public class MockRdmaTransferService implements RdmaTransferService {
+
+  private static final Logger LOG =
+      LoggerFactory.getLogger(MockRdmaTransferService.class);
+
+  private final AtomicLong handleCounter = new AtomicLong(1);
+  private final Map<Long, ByteBuffer> registeredBuffers = new ConcurrentHashMap<>();
+  private final Map<String, ByteBuffer> remoteBuffers = new ConcurrentHashMap<>();
+  private volatile boolean initialized = false;
+
+  /**
+   * Register a simulated remote (GPU client) buffer for testing.
+   * Tests call this to set up the "other side" of the RDMA transfer.
+   */
+  public void registerRemoteBuffer(String rdmaToken, ByteBuffer buffer) {
+    remoteBuffers.put(rdmaToken, buffer);
+  }
+
+  @Override
+  public void initialize(String rdmaDeviceName, int port, int maxConnections)
+      throws IOException {
+    initialized = true;
+    LOG.info("MockRdmaTransferService initialized (no real RDMA)");
+  }
+
+  @Override
+  public long registerBuffer(ByteBuffer buffer) throws IOException {
+    long handle = handleCounter.getAndIncrement();
+    registeredBuffers.put(handle, buffer);
+    return handle;
+  }
+
+  @Override
+  public void deregisterBuffer(long registrationHandle) throws IOException {
+    registeredBuffers.remove(registrationHandle);
+  }
+
+  @Override
+  public long rdmaWriteToRemote(String rdmaToken, ByteBuffer localBuffer,
+      int localOffset, long length, long remoteOffset) throws IOException {
+    ByteBuffer remote = getRemoteBuffer(rdmaToken);
+    int len = (int) length;
+    // Simulate RDMA_WRITE: copy from local -> remote
+    byte[] data = new byte[len];
+    localBuffer.position(localOffset);
+    localBuffer.get(data, 0, len);
+    remote.position((int) remoteOffset);
+    remote.put(data, 0, len);
+    return len;
+  }
+
+  @Override
+  public long rdmaReadFromRemote(String rdmaToken, ByteBuffer localBuffer,
+      int localOffset, long length, long remoteOffset) throws IOException {
+    ByteBuffer remote = getRemoteBuffer(rdmaToken);
+    int len = (int) length;
+    // Simulate RDMA_READ: copy from remote -> local
+    byte[] data = new byte[len];
+    remote.position((int) remoteOffset);
+    remote.get(data, 0, len);
+    localBuffer.position(localOffset);
+    localBuffer.put(data, 0, len);
+    return len;
+  }
+
+  @Override
+  public boolean isAvailable() {
+    return initialized;
+  }
+
+  @Override
+  public void close() throws IOException {
+    initialized = false;
+    registeredBuffers.clear();
+    remoteBuffers.clear();
+  }
+
+  private ByteBuffer getRemoteBuffer(String rdmaToken) throws IOException {
+    ByteBuffer remote = remoteBuffers.get(rdmaToken);
+    if (remote == null) {
+      throw new IOException("No remote buffer registered for RDMA token: "
+          + rdmaToken + ". In tests, call registerRemoteBuffer() first.");
+    }
+    return remote;
+  }
+}
+```
+
+### 4.10 `RdmaBuffer.java` and `RdmaBufferPool.java`
+
+**File:** `hadoop-hdds/container-service-native/src/main/java/org/apache/hadoop/ozone/container/rdma/RdmaBuffer.java`
+
+```java
+package org.apache.hadoop.ozone.container.rdma;
+
+import java.nio.ByteBuffer;
+
+/**
+ * A single RDMA-registered buffer with its registration handle.
+ * Obtained from and returned to RdmaBufferPool.
+ */
+public class RdmaBuffer {
+  private final ByteBuffer buffer;
+  private final long registrationHandle;
+
+  RdmaBuffer(ByteBuffer buffer, long registrationHandle) {
+    this.buffer = buffer;
+    this.registrationHandle = registrationHandle;
+  }
+
+  /** The direct ByteBuffer backed by pinned memory, registered for RDMA. */
+  public ByteBuffer getBuffer() {
+    return buffer;
+  }
+
+  /** Opaque handle from RdmaTransferService.registerBuffer(). */
+  public long getRegistrationHandle() {
+    return registrationHandle;
+  }
+
+  /** Reset the buffer for reuse (clear position/limit). */
+  public void reset() {
+    buffer.clear();
+  }
+}
+```
+
+**File:**
+`hadoop-hdds/container-service-native/src/main/java/org/apache/hadoop/ozone/container/rdma/RdmaBufferPool.java`
+
+```java
+package org.apache.hadoop.ozone.container.rdma;
+
+import org.apache.hadoop.hdds.conf.ConfigurationSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.Closeable;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * Pool of pre-allocated, RDMA-registered direct ByteBuffers.
+ *
+ * Each buffer is allocated as pinned (page-locked) memory via the
+ * RdmaTransferService and registered for RDMA operations. Buffers are
+ * borrowed via {@link #acquire(long, TimeUnit)} and returned via
+ * {@link #release(RdmaBuffer)}.
+ *
+ * Configuration keys:
+ *   hdds.datanode.rdma.buffer.size    — bytes per buffer (default: 4 MiB)
+ *   hdds.datanode.rdma.buffer.count   — number of buffers (default: 64)
+ *   hdds.datanode.rdma.buffer.acquire.timeout.ms — acquire timeout (default: 5000)
+ *
+ * Design: Uses a BlockingQueue with timeout-based acquire. If all buffers
+ * are in use, acquire() blocks up to the configured timeout, then throws
+ * IOException. This provides backpressure under heavy load rather than
+ * immediate failure.
+ */
+public class RdmaBufferPool implements Closeable {
+
+  private static final Logger LOG =
+      LoggerFactory.getLogger(RdmaBufferPool.class);
+
+  public static final String BUFFER_SIZE_KEY = "hdds.datanode.rdma.buffer.size";
+  public static final int BUFFER_SIZE_DEFAULT = 4 * 1024 * 1024; // 4 MiB
+
+  public static final String BUFFER_COUNT_KEY = "hdds.datanode.rdma.buffer.count";
+  public static final int BUFFER_COUNT_DEFAULT = 64;
+
+  public static final String ACQUIRE_TIMEOUT_KEY =
+      "hdds.datanode.rdma.buffer.acquire.timeout.ms";
+  public static final long ACQUIRE_TIMEOUT_DEFAULT = 5000;
+
+  private final BlockingQueue<RdmaBuffer> pool;
+  private final List<RdmaBuffer> allBuffers; // for cleanup
+  private final int bufferSize;
+  private final int bufferCount;
+  private final long acquireTimeoutMs;
+
+  public RdmaBufferPool(ConfigurationSource conf,
+      RdmaTransferService transferService) throws IOException {
+    this.bufferSize = conf.getInt(BUFFER_SIZE_KEY, BUFFER_SIZE_DEFAULT);
+    this.bufferCount = conf.getInt(BUFFER_COUNT_KEY, BUFFER_COUNT_DEFAULT);
+    this.acquireTimeoutMs = conf.getLong(ACQUIRE_TIMEOUT_KEY, ACQUIRE_TIMEOUT_DEFAULT);
+    this.pool = new ArrayBlockingQueue<>(bufferCount);
+    this.allBuffers = new ArrayList<>(bufferCount);
+
+    for (int i = 0; i < bufferCount; i++) {
+      // Allocate pinned direct memory.
+      // In production, cuObjServer.allocHostBuffer() [ref-3] should be used
+      // for guaranteed page-locked memory. For now, ByteBuffer.allocateDirect()
+      // is used as a fallback — the JVM may or may not pin this memory.
+      //
+      // ADAPT: Replace with allocHostBuffer() from cuObjServer when available.
+      // allocHostBuffer(size) allocates pinned CPU memory suitable for RDMA [ref-3].
+      ByteBuffer buf = ByteBuffer.allocateDirect(bufferSize);
+      long regHandle = transferService.registerBuffer(buf);
+      RdmaBuffer rdmaBuffer = new RdmaBuffer(buf, regHandle);
+      allBuffers.add(rdmaBuffer);
+      pool.offer(rdmaBuffer);
+    }
+
+    LOG.info("RdmaBufferPool initialized: {} buffers x {} bytes = {} MiB total",
+        bufferCount, bufferSize, (long) bufferCount * bufferSize / (1024 * 1024));
+  }
+
+  /**
+   * Acquire a buffer from the pool, blocking up to the configured timeout.
+   *
+   * @param timeout  max time to wait
+   * @param unit     time unit
+   * @return an RdmaBuffer ready for use
+   * @throws IOException if the pool is exhausted and timeout expires
+   * @throws InterruptedException if the thread is interrupted while waiting
+   */
+  public RdmaBuffer acquire(long timeout, TimeUnit unit)
+      throws IOException, InterruptedException {
+    RdmaBuffer buf = pool.poll(timeout, unit);
+    if (buf == null) {
+      throw new IOException("RDMA buffer pool exhausted: all " + bufferCount
+          + " buffers in use. Consider increasing " + BUFFER_COUNT_KEY);
+    }
+    buf.reset();
+    return buf;
+  }
+
+  /**
+   * Acquire a buffer using the default configured timeout.
+   */
+  public RdmaBuffer acquire() throws IOException, InterruptedException {
+    return acquire(acquireTimeoutMs, TimeUnit.MILLISECONDS);
+  }
+
+  /**
+   * Return a buffer to the pool.
+   */
+  public void release(RdmaBuffer buffer) {
+    if (buffer != null) {
+      buffer.reset();
+      if (!pool.offer(buffer)) {
+        LOG.warn("Failed to return RDMA buffer to pool (pool full). "
+            + "This indicates a buffer leak — buffer was returned twice?");
+      }
+    }
+  }
+
+  public int getBufferSize() {
+    return bufferSize;
+  }
+
+  public int getAvailableCount() {
+    return pool.size();
+  }
+
+  public int getTotalCount() {
+    return bufferCount;
+  }
+
+  @Override
+  public void close() throws IOException {
+    allBuffers.clear();
+    pool.clear();
+    LOG.info("RdmaBufferPool closed");
+  }
+}
+```
+
+### 4.11 `XceiverServerRdma.java`
+
+**File:**
+`hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/transport/server/XceiverServerRdma.java`
+
+`XceiverServerRdma` is the RDMA transfer engine on the datanode. It does **not** implement `XceiverServerSpi` — it is
+not a standalone server that listens for gRPC requests. Instead, it is a **service** that `KeyValueHandler` calls
+when it receives an `RdmaReadBlock` or `RdmaWriteBlock` request through the normal dispatch chain (see
+[Section 1.6](#16-request-dispatch-model)).
+
+```mermaid
+graph LR
+  A[gRPC request] --> B[HddsDispatcher]
+  B --> C[KeyValueHandler]
+  C -->|RdmaReadBlock| D[XceiverServerRdma.handleRdmaRead]
+  C -->|RdmaWriteBlock| D2[XceiverServerRdma.handleRdmaWrite]
+  D --> E[FileChannel → RDMA buffer → handleGetObject]
+D2 --> F[handlePutObject → RDMA buffer → Ratis write]
+```
+
+```java
+package org.apache.hadoop.ozone.container.common.transport.server;
+
+import org.apache.hadoop.hdds.conf.ConfigurationSource;
+import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos;
+import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.RdmaReadBlockRequestProto;
+import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.RdmaReadBlockResponseProto;
+import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.RdmaWriteBlockRequestProto;
+import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.RdmaWriteBlockResponseProto;
+import org.apache.hadoop.ozone.container.rdma.RdmaBuffer;
+import org.apache.hadoop.ozone.container.rdma.RdmaBufferPool;
+import org.apache.hadoop.ozone.container.rdma.RdmaTransferService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.Closeable;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+
+/**
+ * RDMA transfer engine for the datanode.
+ *
+ * Owns the RdmaTransferService and RdmaBufferPool. Called by KeyValueHandler
+ * for RdmaReadBlock and RdmaWriteBlock operations.
+ *
+ * Read path (S3 GET → RDMA_WRITE to client GPU):
+ *   1. Borrow buffer from pool
+ *   2. Read block data from FileChannel into buffer (chunked if block > buffer)
+ *   3. For each chunk: call rdmaWriteToRemote() which maps to handleGetObject() [ref-3]
+ *   4. Return buffer to pool
+ *
+ * Write path (S3 PUT → RDMA_READ from client GPU):
+ *   1. Borrow buffer from pool
+ *   2. For each chunk: call rdmaReadFromRemote() which maps to handlePutObject() [ref-3]
+ *   3. Return received data to caller (KeyValueHandler writes to storage via Ratis)
+ *   4. Return buffer to pool
+ *
+ * Configuration keys:
+ *   hdds.datanode.rdma.enabled             — master enable switch (default: false)
+ *   hdds.datanode.rdma.device              — RDMA NIC device name (default: auto)
+ *   hdds.datanode.rdma.port                — cuObjServer DC transport port (default: 19870)
+ *   hdds.datanode.rdma.max.connections     — max concurrent RDMA connections (default: 32)
+ */
+public class XceiverServerRdma implements Closeable {
+
+  private static final Logger LOG =
+      LoggerFactory.getLogger(XceiverServerRdma.class);
+
+  public static final String RDMA_ENABLED_KEY = "hdds.datanode.rdma.enabled";
+  public static final boolean RDMA_ENABLED_DEFAULT = false;
+
+  public static final String RDMA_DEVICE_KEY = "hdds.datanode.rdma.device";
+  public static final String RDMA_PORT_KEY = "hdds.datanode.rdma.port";
+  public static final int RDMA_PORT_DEFAULT = 19870;
+
+  public static final String RDMA_MAX_CONNECTIONS_KEY =
+      "hdds.datanode.rdma.max.connections";
+  public static final int RDMA_MAX_CONNECTIONS_DEFAULT = 32;
+
+  /** Max per-op size for handleGetObject()/handlePutObject() [ref-3]. */
+  private static final long MAX_RDMA_OP_SIZE = 1L * 1024 * 1024 * 1024; // 1 GiB
+
+  private final RdmaTransferService transferService;
+  private final RdmaBufferPool bufferPool;
+  private final int rdmaPort;
+
+  public XceiverServerRdma(ConfigurationSource conf,
+      RdmaTransferService transferService) throws IOException {
+    this.transferService = transferService;
+    this.rdmaPort = conf.getInt(RDMA_PORT_KEY, RDMA_PORT_DEFAULT);
+
+    String device = conf.get(RDMA_DEVICE_KEY);
+    int maxConns = conf.getInt(RDMA_MAX_CONNECTIONS_KEY, RDMA_MAX_CONNECTIONS_DEFAULT);
+
+    transferService.initialize(device, rdmaPort, maxConns);
+    this.bufferPool = new RdmaBufferPool(conf, transferService);
+
+    LOG.info("XceiverServerRdma started: port={}, device={}, maxConns={}",
+        rdmaPort, device, maxConns);
+  }
+
+  /**
+   * Handle an RDMA read (S3 GET): read block data from disk and RDMA_WRITE to client GPU.
+   *
+   * This is the critical data path. It reads directly from the FileChannel into the
+   * RDMA-registered buffer, bypassing protobuf serialization entirely. For blocks larger
+   * than the RDMA buffer size, the transfer is chunked.
+   *
+   * Data flow per chunk:
+   *   Disk → DMA → kernel buffer → FileChannel.read() → RDMA buffer → NIC DMA → client GPU
+   *
+   * This is 1 CPU copy (kernel→userspace via FileChannel.read). The original spec had 3 copies
+   * (disk→protobuf byte[]→Java heap→RDMA buffer); this design eliminates 2 of them.
+   *
+   * @param request   the RdmaReadBlockRequest with blockID, rdmaToken, offset, length
+   * @param blockFile open FileChannel to the block file on disk
+   * @param blockSize total size of the block on disk
+   * @return RdmaReadBlockResponseProto with bytesTransferred
+   */
+  public RdmaReadBlockResponseProto handleRdmaRead(
+      RdmaReadBlockRequestProto request, FileChannel blockFile, long blockSize)
+      throws IOException, InterruptedException {
+
+    final String rdmaToken = request.getRdmaToken();
+    final long offset = request.hasOffset() ? request.getOffset() : 0;
+    final long requestedLength = request.hasLength() && request.getLength() > 0
+        ? request.getLength() : (blockSize - offset);
+    final long transferLength = Math.min(requestedLength, blockSize - offset);
+
+    if (transferLength <= 0) {
+      return RdmaReadBlockResponseProto.newBuilder()
+          .setBytesTransferred(0)
+          .build();
+    }
+
+    RdmaBuffer rdmaBuffer = bufferPool.acquire();
+    try {
+      final ByteBuffer buffer = rdmaBuffer.getBuffer();
+      final int bufSize = buffer.capacity();
+      long totalTransferred = 0;
+      long fileOffset = offset;
+
+      // Chunked transfer: read bufSize bytes at a time from disk, RDMA_WRITE each chunk.
+      // This handles blocks of any size with a fixed-size RDMA buffer.
+      while (totalTransferred < transferLength) {
+        long remaining = transferLength - totalTransferred;
+        int chunkSize = (int) Math.min(remaining, bufSize);
+        // Also respect the 1 GiB per-op limit [ref-3]
+        chunkSize = (int) Math.min(chunkSize, MAX_RDMA_OP_SIZE);
+
+        // Read from disk directly into the RDMA-registered buffer.
+        // No protobuf, no byte[] copy, no Java heap allocation.
+        buffer.clear();
+        buffer.limit(chunkSize);
+        int bytesRead = 0;
+        while (bytesRead < chunkSize) {
+          int n = blockFile.read(buffer, fileOffset + bytesRead);
+          if (n < 0) {
+            break; // EOF
+          }
+          bytesRead += n;
+        }
+
+        if (bytesRead == 0) {
+          break;
+        }
+
+        // RDMA_WRITE this chunk to the client's GPU memory.
+        // Maps to cuObjServer::handleGetObject() [ref-3].
+        long written = transferService.rdmaWriteToRemote(
+            rdmaToken,
+            buffer,
+            0,                              // localOffset: start of buffer
+            bytesRead,                       // length: bytes actually read from disk
+            totalTransferred                 // remoteOffset: position in client's buffer
+        );
+
+        totalTransferred += written;
+        fileOffset += written;
+
+        LOG.debug("RDMA chunk written: {} bytes at remoteOffset={}, fileOffset={}",
+            written, totalTransferred - written, fileOffset - written);
+      }
+
+      LOG.info("RDMA read complete: block={}, transferred={} bytes",
+          request.getBlockID(), totalTransferred);
+
+      return RdmaReadBlockResponseProto.newBuilder()
+          .setBytesTransferred(totalTransferred)
+          .build();
+
+    } finally {
+      bufferPool.release(rdmaBuffer);
+    }
+  }
+
+  /**
+   * Handle an RDMA write (S3 PUT): RDMA_READ data from client GPU into local buffer,
+   * then return the data for the caller to write to storage.
+   *
+   * Data flow per chunk:
+   *   Client GPU → NIC DMA → RDMA buffer → caller writes to Ratis pipeline
+   *
+   * The caller (KeyValueHandler.handleRdmaWriteBlock) is responsible for:
+   *   1. Feeding each chunk into the Ratis write pipeline
+   *   2. Computing checksums
+   *   3. Calling PutBlock after all chunks are received
+   *
+   * @param request    the RdmaWriteBlockRequest with blockID, rdmaToken, length
+   * @param chunkSink  callback to receive each chunk of data from the RDMA transfer
+   * @return RdmaWriteBlockResponseProto with bytesReceived
+   */
+  public RdmaWriteBlockResponseProto handleRdmaWrite(
+      RdmaWriteBlockRequestProto request, ChunkSink chunkSink)
+      throws IOException, InterruptedException {
+
+    final String rdmaToken = request.getRdmaToken();
+    final long totalLength = request.getLength();
+
+    RdmaBuffer rdmaBuffer = bufferPool.acquire();
+    try {
+      final ByteBuffer buffer = rdmaBuffer.getBuffer();
+      final int bufSize = buffer.capacity();
+      long totalReceived = 0;
+
+      while (totalReceived < totalLength) {
+        long remaining = totalLength - totalReceived;
+        int chunkSize = (int) Math.min(remaining, bufSize);
+        chunkSize = (int) Math.min(chunkSize, MAX_RDMA_OP_SIZE);
+
+        // RDMA_READ this chunk from the client's GPU memory.
+        // Maps to cuObjServer::handlePutObject() [ref-3].
+        buffer.clear();
+        long bytesRead = transferService.rdmaReadFromRemote(
+            rdmaToken,
+            buffer,
+            0,                    // localOffset
+            chunkSize,            // length
+            totalReceived         // remoteOffset
+        );
+
+        if (bytesRead <= 0) {
+          break;
+        }
+
+        // Pass the chunk to the caller for storage.
+        buffer.position(0);
+        buffer.limit((int) bytesRead);
+        chunkSink.accept(buffer, totalReceived, (int) bytesRead);
+
+        totalReceived += bytesRead;
+
+        LOG.debug("RDMA chunk read: {} bytes at remoteOffset={}",
+            bytesRead, totalReceived - bytesRead);
+      }
+
+      LOG.info("RDMA write complete: block={}, received={} bytes",
+          request.getBlockID(), totalReceived);
+
+      return RdmaWriteBlockResponseProto.newBuilder()
+          .setBytesReceived(totalReceived)
+          .build();
+
+    } finally {
+      bufferPool.release(rdmaBuffer);
+    }
+  }
+
+  /**
+   * Callback interface for receiving chunks of data during RDMA write operations.
+   */
+  @FunctionalInterface
+  public interface ChunkSink {
+    /**
+     * @param data       ByteBuffer with chunk data (position=0, limit=length)
+     * @param offset     byte offset of this chunk within the overall transfer
+     * @param length     number of valid bytes in data
+     */
+    void accept(ByteBuffer data, long offset, int length) throws IOException;
+  }
+
+  public int getRdmaPort() {
+    return rdmaPort;
+  }
+
+  public boolean isAvailable() {
+    return transferService.isAvailable();
+  }
+
+  public RdmaBufferPool getBufferPool() {
+    return bufferPool;
+  }
+
+  @Override
+  public void close() throws IOException {
+    bufferPool.close();
+    transferService.close();
+    LOG.info("XceiverServerRdma closed");
+  }
+}
+```
+
+### 4.12 `OzoneContainer.java` Modifications
+
+**File:** `hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/ozoneimpl/OzoneContainer.java`
+
+Add `XceiverServerRdma` creation and lifecycle management. The RDMA engine is conditional — it is only created when
+`hdds.datanode.rdma.enabled=true` and the native library loads successfully. If initialization fails, a warning is
+logged and the datanode continues without RDMA (graceful degradation).
+
+```java
+// --- Add field ---
+private final XceiverServerRdma xceiverServerRdma;
+
+// --- In constructor, after existing XceiverServer creation (around line 250) ---
+// Conditionally initialize RDMA engine
+XceiverServerRdma rdma = null;
+if(conf.
+
+getBoolean(XceiverServerRdma.RDMA_ENABLED_KEY,
+    XceiverServerRdma.RDMA_ENABLED_DEFAULT)){
+    try{
+RdmaTransferService rdmaService = new CuObjRdmaTransferService();
+rdma =new
+
+XceiverServerRdma(conf, rdmaService);
+// Register RDMA port with DatanodeDetails for SCM heartbeat
+    dnDetails.
+
+setPort(DatanodeDetails.newPort(
+    DatanodeDetails.Port.Name.RDMA, rdma.getRdmaPort()));
+    LOG.
+
+info("RDMA engine initialized on port {}",rdma.getRdmaPort());
+    }catch(
+Exception e){
+    LOG.
+
+warn("Failed to initialize RDMA engine. Datanode will operate "
+    +"without RDMA support. Reason: {}",e.getMessage());
+rdma =null;
+    }
+    }
+    this.xceiverServerRdma =rdma;
+
+// --- Pass to HddsDispatcher/KeyValueHandler (see Section 4.13/4.14) ---
+// The XceiverServerRdma reference is passed to KeyValueHandler so it can
+// delegate RdmaReadBlock/RdmaWriteBlock requests.
+
+// --- In start() ---
+// No additional start needed — XceiverServerRdma initializes in constructor
+
+// --- In stop() ---
+if(xceiverServerRdma !=null){
+    xceiverServerRdma.
+
+close();
+}
+
+// --- Getter ---
+public XceiverServerRdma getXceiverServerRdma() {
+  return xceiverServerRdma;
+}
+```
+
+### 4.13 `HddsDispatcher` Modifications
+
+**File:**
+`hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/helpers/HddsDispatcher.java`
+
+Add routing for the new `RdmaReadBlock` and `RdmaWriteBlock` command types in `dispatchRequest()`. These follow the
+exact same pattern as the existing `ReadBlock` routing — they go through the same container lookup, token validation,
+and handler dispatch.
+
+```java
+// In dispatchRequest(), add cases to the Type switch (around line 350):
+
+case RdmaReadBlock:
+    // Token validation: same as ReadBlock — validates the block token
+    // for the requested blockID. The token was originally issued for a
+    // standard read; RDMA reuses it.
+    if(tokenVerifier !=null){
+    tokenVerifier.
+
+verify(request, encodedToken);
+  }
+responseProto =handler.
+
+handleRdmaReadBlock(request, container);
+  break;
+
+      case RdmaWriteBlock:
+    if(tokenVerifier !=null){
+    tokenVerifier.
+
+verify(request, encodedToken);
+  }
+responseProto =handler.
+
+handleRdmaWriteBlock(request, container);
+  break;
+```
+
+> **Note:** The `handler` here is `KeyValueHandler` (the only container type handler in Ozone). The dispatch goes
+> through `HddsDispatcher` → `KeyValueHandler` — this is the single, consistent dispatch model described in
+> [Section 1.6](#16-request-dispatch-model). There is NO separate gRPC service for RDMA.
+
+### 4.14 `KeyValueHandler` Modifications
+
+**File:** `hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/keyvalue/KeyValueHandler.java`
+
+Add `handleRdmaReadBlock()` and `handleRdmaWriteBlock()` methods. These are the core implementations that own the
+disk I/O and delegate RDMA transfers to `XceiverServerRdma`.
+
+#### 4.14.1 Constructor Change
+
+```java
+// Add XceiverServerRdma as a constructor parameter.
+// OzoneContainer passes it during construction (may be null if RDMA disabled).
+private final XceiverServerRdma xceiverServerRdma;
+
+// In constructor:
+public KeyValueHandler(/* existing params */, XceiverServerRdma xceiverServerRdma) {
+  // ... existing initialization ...
+  this.xceiverServerRdma = xceiverServerRdma;
+}
+```
+
+#### 4.14.2 `handleRdmaReadBlock()`
+
+This method reads block data directly from disk into the RDMA buffer and transfers it to the client's GPU memory.
+It **bypasses** the protobuf-based `ReadBlock` path entirely — no `ReadBlockResponseProto`, no
+`getData().toByteArray()`,
+no Java heap copies.
+
+The data path is:
+
+```
+Disk → FileChannel.read() → RDMA-registered ByteBuffer → NIC DMA → Client GPU
+         (1 CPU copy)                                    (0 CPU copies)
+```
+
+Compare with the original spec's incorrect path:
+
+```
+Disk → protobuf byte[] → Java heap byte[] → RDMA ByteBuffer → NIC DMA → Client GPU
+         (1 CPU copy)     (1 CPU copy)        (1 CPU copy)     (0 CPU copies)
+```
+
+```java
+/**
+ * Handle RdmaReadBlock: read block from disk and RDMA_WRITE to client GPU.
+ *
+ * This bypasses the normal ReadBlock protobuf response path. Instead of
+ * serializing block data into a protobuf message, we read directly from
+ * the block file into an RDMA-registered buffer and transfer via
+ * handleGetObject() [ref-3].
+ */
+ContainerCommandResponseProto handleRdmaReadBlock(
+    ContainerCommandRequestProto request, Container container) {
+
+  final RdmaReadBlockRequestProto rdmaRequest = request.getRdmaReadBlock();
+
+  // Validate RDMA is available
+  if (xceiverServerRdma == null || !xceiverServerRdma.isAvailable()) {
+    return ContainerUtils.getErrorResponse(request,
+        ContainerProtos.Result.UNSUPPORTED_REQUEST,
+        "RDMA not available on this datanode");
+  }
+
+  try {
+    final BlockID blockID = BlockID.getFromProtobuf(rdmaRequest.getBlockID());
+    KeyValueContainerData containerData =
+        (KeyValueContainerData) container.getContainerData();
+
+    // Verify the block exists and passes BCS ID check
+    BlockUtils.verifyBCSId(container, blockID);
+    BlockUtils.verifyReplicaIdx(container, blockID);
+
+    // Open the block file directly — same FilePerBlockStrategy as readBlockImpl()
+    final File blockFile = FILE_PER_BLOCK.getChunkFile(containerData, blockID, "unused");
+    try (FileChannel fileChannel = FileChannel.open(blockFile.toPath(),
+        java.nio.file.StandardOpenOption.READ)) {
+
+      long blockSize = fileChannel.size();
+
+      // Delegate to XceiverServerRdma for the RDMA transfer.
+      // XceiverServerRdma handles:
+      //   - Buffer pool management (acquire/release)
+      //   - Chunked reads from FileChannel into RDMA buffer
+      //   - RDMA_WRITE via handleGetObject() [ref-3]
+      RdmaReadBlockResponseProto rdmaResponse =
+          xceiverServerRdma.handleRdmaRead(rdmaRequest, fileChannel, blockSize);
+
+      return getSuccessResponse(request).toBuilder()
+          .setRdmaReadBlock(rdmaResponse)
+          .setCmdType(ContainerProtos.Type.RdmaReadBlock)
+          .build();
+    }
+
+  } catch (InterruptedException e) {
+    Thread.currentThread().interrupt();
+    return ContainerUtils.getErrorResponse(request,
+        ContainerProtos.Result.IO_EXCEPTION,
+        "RDMA read interrupted: " + e.getMessage());
+  } catch (IOException e) {
+    LOG.error("RDMA read failed for block {}",
+        rdmaRequest.getBlockID(), e);
+    return ContainerUtils.getErrorResponse(request,
+        ContainerProtos.Result.IO_EXCEPTION,
+        "RDMA read failed: " + e.getMessage());
+  }
+}
+```
+
+#### 4.14.3 `handleRdmaWriteBlock()`
+
+This method RDMA_READs data from the client's GPU memory and writes it to storage via the Ratis pipeline.
+
+The write path is more complex than the read path because:
+
+1. Data arrives in chunks via RDMA_READ (each chunk ≤ buffer size)
+2. Each chunk must be written to local storage
+3. The write must be replicated to follower datanodes via Ratis
+4. `PutBlock` must be called after all chunks are committed
+
+```java
+/**
+ * Handle RdmaWriteBlock: RDMA_READ data from client GPU, write to storage.
+ *
+ * Write path:
+ *   1. RDMA_READ chunks from client GPU via handlePutObject() [ref-3]
+ *   2. Write each chunk to local storage (WriteChunk)
+ *   3. Ratis replicates to followers via the normal write pipeline
+ *   4. PutBlock finalizes the block
+ *
+ * Note: In Phase 1, the primary datanode receives data via RDMA and then
+ * replicates to followers via the existing Ratis TCP pipeline. This means
+ * followers do NOT use RDMA — only the primary datanode does. Phase 2 may
+ * add RDMA-based replication between datanodes.
+ */
+ContainerCommandResponseProto handleRdmaWriteBlock(
+    ContainerCommandRequestProto request, Container container) {
+
+  final RdmaWriteBlockRequestProto rdmaRequest = request.getRdmaWriteBlock();
+
+  if (xceiverServerRdma == null || !xceiverServerRdma.isAvailable()) {
+    return ContainerUtils.getErrorResponse(request,
+        ContainerProtos.Result.UNSUPPORTED_REQUEST,
+        "RDMA not available on this datanode");
+  }
+
+  try {
+    final BlockID blockID = BlockID.getFromProtobuf(rdmaRequest.getBlockID());
+    KeyValueContainerData containerData =
+        (KeyValueContainerData) container.getContainerData();
+
+    // Accumulate chunks into block data.
+    // Each chunk received via RDMA is written as a WriteChunk to the container.
+    final List<ContainerProtos.ChunkInfo> chunkInfos = new ArrayList<>();
+    final long[] totalReceived = {0};
+
+    RdmaWriteBlockResponseProto rdmaResponse =
+        xceiverServerRdma.handleRdmaWrite(rdmaRequest, (data, offset, length) -> {
+          // For each chunk received via RDMA_READ:
+
+          // 1. Build a ChunkInfo for this chunk
+          String chunkName = blockID.getLocalID() + "_chunk_" + (offset / length);
+          ContainerProtos.ChunkInfo chunkInfo = ContainerProtos.ChunkInfo.newBuilder()
+              .setChunkName(chunkName)
+              .setOffset(offset)
+              .setLen(length)
+              .build();
+
+          // 2. Write the chunk to local storage via ChunkManager.
+          //    This follows the same pattern as the normal WriteChunk path.
+          ByteBuffer chunkData = data.duplicate();
+          getChunkManager().writeChunk(
+              container, blockID, chunkInfo, chunkData,
+              ContainerProtos.WriteChunkRequestProto.Stage.COMBINED);
+
+          chunkInfos.add(chunkInfo);
+          totalReceived[0] += length;
+        });
+
+    // 3. Build and commit the block metadata via PutBlock.
+    //    This is what makes the written data visible to readers.
+    BlockData blockData = new BlockData(blockID);
+    blockData.setChunks(chunkInfos);
+    blockData.setSize(totalReceived[0]);
+    getBlockManager().putBlock(container, blockData);
+
+    // 4. If this is a Ratis pipeline, the PutBlock above was dispatched
+    //    through the Ratis state machine, which handles replication to
+    //    followers. The followers receive the WriteChunk + PutBlock via
+    //    Ratis log entries and apply them locally (using normal TCP/disk I/O).
+
+    return getSuccessResponse(request).toBuilder()
+        .setRdmaWriteBlock(rdmaResponse)
+        .setCmdType(ContainerProtos.Type.RdmaWriteBlock)
+        .build();
+
+  } catch (InterruptedException e) {
+    Thread.currentThread().interrupt();
+    return ContainerUtils.getErrorResponse(request,
+        ContainerProtos.Result.IO_EXCEPTION,
+        "RDMA write interrupted: " + e.getMessage());
+  } catch (IOException e) {
+    LOG.error("RDMA write failed for block {}",
+        rdmaRequest.getBlockID(), e);
+    return ContainerUtils.getErrorResponse(request,
+        ContainerProtos.Result.IO_EXCEPTION,
+        "RDMA write failed: " + e.getMessage());
+  }
+}
+```
+
+### 4.15 S3 Gateway: `ObjectEndpoint` Modifications
+
+**File:** `hadoop-ozone/s3gateway/src/main/java/org/apache/hadoop/ozone/s3/endpoint/ObjectEndpoint.java`
+
+Modify `handleGetRequest()` (currently at lines 433-548) to detect RDMA-capable requests and route them through
+the RDMA path. The key decision point is the presence of the `x-amz-rdma-token` HTTP header.
+
+#### 4.15.1 RDMA Detection and Routing
+
+```java
+// In handleGetRequest(), at the top (before the existing TCP logic):
+
+@HeaderParam("x-amz-rdma-token")
+String rdmaToken;
+
+// After validating the key and obtaining OzoneKeyDetails:
+
+if(rdmaToken !=null&&!rdmaToken.
+
+isEmpty()){
+    return
+
+handleRdmaGet(keyDetails, rdmaToken, range);
+}
+
+// ... existing TCP GET logic continues unchanged ...
+```
+
+#### 4.15.2 `handleRdmaGet()` Implementation
+
+```java
+/**
+ * Handle an S3 GET request with RDMA token.
+ *
+ * Sends RdmaReadBlock commands to the datanodes that hold the key's blocks.
+ * For each block, the datanode reads from disk and RDMA_WRITEs directly to
+ * the client's GPU memory via handleGetObject() [ref-3].
+ *
+ * The HTTP response contains NO body data — the data arrives via RDMA.
+ * The x-amz-rdma-reply header confirms the transfer.
+ */
+private Response handleRdmaGet(OzoneKeyDetails keyDetails, String rdmaToken,
+    RangeHeader range) throws IOException {
+
+  final long objectSize = keyDetails.getDataSize();
+
+  // Minimum size threshold for RDMA — small objects use TCP (less overhead).
+  final long minRdmaSize = ozoneConfiguration.getLong(
+      "ozone.s3g.rdma.min.object.size", 1024 * 1024); // default 1 MiB
+
+  if (objectSize < minRdmaSize) {
+    // Fall back to TCP for small objects.
+    // Return null signals the caller to use the normal TCP path.
+    // NOT returning null — instead, fall through to the normal TCP GET logic.
+    LOG.debug("Object size {} < RDMA threshold {}, using TCP",
+        objectSize, minRdmaSize);
+    return handleGetRequest(/* re-invoke without RDMA */);
+  }
+
+  // TDE check: RDMA is incompatible with encrypted buckets (see Section 3.3)
+  if (keyDetails.getFileEncryptionInfo() != null) {
+    LOG.warn("RDMA requested for TDE-encrypted object, falling back to TCP");
+    return handleGetRequest(/* re-invoke without RDMA */);
+  }
+
+  long totalTransferred = 0;
+  final List<OzoneKeyLocation> locations = keyDetails.getOzoneKeyLocations();
+
+  for (OzoneKeyLocation location : locations) {
+    // Build RdmaReadBlock request for this block
+    ContainerProtos.DatanodeBlockID blockID = location.getBlockID().getProtobuf();
+
+    ContainerProtos.RdmaReadBlockRequestProto rdmaRequest =
+        ContainerProtos.RdmaReadBlockRequestProto.newBuilder()
+            .setBlockID(blockID)
+            .setRdmaToken(rdmaToken)
+            .setOffset(0)
+            .setLength(location.getLength())
+            .build();
+
+    ContainerProtos.ContainerCommandRequestProto containerRequest =
+        ContainerProtos.ContainerCommandRequestProto.newBuilder()
+            .setCmdType(ContainerProtos.Type.RdmaReadBlock)
+            .setRdmaReadBlock(rdmaRequest)
+            .setContainerID(location.getContainerID())
+            .setDatanodeUuid(location.getPipeline().getClosestNode().getUuidString())
+            .build();
+
+    // Send via existing XceiverClientGrpc to the datanode.
+    // The gRPC channel is the CONTROL PLANE — it carries the request/response protos.
+    // The DATA PLANE is RDMA — data flows via handleGetObject() [ref-3], not gRPC.
+    ContainerProtos.ContainerCommandResponseProto response =
+        sendCommandToDatanode(containerRequest, location.getPipeline());
+
+    if (response.getResult() != ContainerProtos.Result.SUCCESS) {
+      // RDMA failed on this datanode. Options:
+      //   1. Retry on a different replica (if pipeline has >1 nodes)
+      //   2. Fall back to TCP for this block
+      // For Phase 1, fall back to TCP for the entire request.
+      LOG.warn("RDMA read failed for block {}: {}. Falling back to TCP.",
+          blockID, response.getMessage());
+      return handleGetRequest(/* re-invoke without RDMA */);
+    }
+
+    totalTransferred += response.getRdmaReadBlock().getBytesTransferred();
+  }
+
+  // Build response with RDMA confirmation.
+  // The response body is EMPTY — all data was transferred via RDMA.
+  return Response.ok()
+      .header("x-amz-rdma-reply", "OK")
+      .header("Content-Length", "0")
+      .header("x-amz-rdma-bytes-transferred", totalTransferred)
+      .header("ETag", keyDetails.getMetadata().get("ETag"))
+      .build();
+}
+```
+
+#### 4.15.3 `handleRdmaPut()` — S3 PUT with RDMA
+
+Add similar logic in the PUT handling path:
+
+```java
+// In the PUT handler, detect x-amz-rdma-token and route to handleRdmaPut():
+
+if(rdmaToken !=null&&!rdmaToken.
+
+isEmpty()){
+    return
+
+handleRdmaPut(keyName, rdmaToken, contentLength);
+}
+
+/**
+ * Handle an S3 PUT request with RDMA token.
+ *
+ * Sends RdmaWriteBlock commands to the pipeline leader datanode.
+ * The datanode RDMA_READs from the client's GPU memory via
+ * handlePutObject() [ref-3], writes to local storage, and replicates
+ * via Ratis to followers.
+ *
+ * The HTTP request body is EMPTY — data arrives via RDMA.
+ */
+private Response handleRdmaPut(String keyName, String rdmaToken,
+    long contentLength) throws IOException {
+
+  // Create the key via OzoneManager (normal path)
+  OzoneBucket bucket = getBucket();
+  OzoneOutputStream outputStream = bucket.createKey(keyName, contentLength);
+
+  try {
+    // Get the pipeline and block allocation from the key output stream
+    // (The key creation allocates blocks via SCM)
+    KeyOutputStream keyOutputStream = (KeyOutputStream) outputStream.getOutputStream();
+    List<BlockOutputStreamEntry> streamEntries = keyOutputStream.getStreamEntries();
+
+    long totalReceived = 0;
+
+    for (BlockOutputStreamEntry entry : streamEntries) {
+      long blockLength = Math.min(contentLength - totalReceived, entry.getLength());
+
+      ContainerProtos.RdmaWriteBlockRequestProto rdmaRequest =
+          ContainerProtos.RdmaWriteBlockRequestProto.newBuilder()
+              .setBlockID(entry.getBlockID().getProtobuf())
+              .setRdmaToken(rdmaToken)
+              .setLength(blockLength)
+              .build();
+
+      ContainerProtos.ContainerCommandRequestProto containerRequest =
+          ContainerProtos.ContainerCommandRequestProto.newBuilder()
+              .setCmdType(ContainerProtos.Type.RdmaWriteBlock)
+              .setRdmaWriteBlock(rdmaRequest)
+              .setContainerID(entry.getBlockID().getContainerID())
+              .build();
+
+      ContainerProtos.ContainerCommandResponseProto response =
+          sendCommandToDatanode(containerRequest, entry.getPipeline());
+
+      if (response.getResult() != ContainerProtos.Result.SUCCESS) {
+        LOG.warn("RDMA write failed for block {}: {}",
+            entry.getBlockID(), response.getMessage());
+        throw new IOException("RDMA write failed: " + response.getMessage());
+      }
+
+      totalReceived += response.getRdmaWriteBlock().getBytesReceived();
+    }
+
+    // Commit the key
+    outputStream.close();
+
+    return Response.ok()
+        .header("x-amz-rdma-reply", "OK")
+        .header("x-amz-rdma-bytes-received", totalReceived)
+        .header("ETag", DatatypeConverter.printHexBinary(
+            outputStream.getCommitInfo().getHash()).toLowerCase())
+        .build();
+
+  } catch (Exception e) {
+    outputStream.close(); // abort
+    throw e;
+  }
+}
+```
+
+### 4.16 S3 Gateway: `RdmaRequestFilter`
+
+**File:** `hadoop-ozone/s3gateway/src/main/java/org/apache/hadoop/ozone/s3/endpoint/RdmaRequestFilter.java`
+
+JAX-RS filter to detect RDMA-capable requests early and set request-scoped attributes for downstream handlers.
+
+```java
+package org.apache.hadoop.ozone.s3.endpoint;
+
 import javax.annotation.Priority;
+import javax.ws.rs.Priorities;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.ext.Provider;
-import java.io.IOException;
-import java.util.Base64;
 
 /**
- * JAX-RS filter that extracts the RDMA token from S3 requests.
- *
- * <p>When a cuObjClient sends an S3 GET/PUT request, it includes an
- * {@code x-amz-rdma-token} HTTP header containing the RDMA memory
- * region descriptor (GPU address, rkey, etc.) encoded in Base64.
- *
- * <p>This filter extracts and validates the token format, storing it
- * in the request context for downstream use by {@code ObjectEndpoint}.
+ * Detects RDMA-capable S3 requests by checking for x-amz-rdma-token header.
+ * Sets request-scoped properties for downstream endpoint handlers.
  */
 @Provider
-@Priority(500)
+@Priority(Priorities.HEADER_DECORATOR)
 public class RdmaRequestFilter implements ContainerRequestFilter {
 
-  private static final Logger LOG =
-      LoggerFactory.getLogger(RdmaRequestFilter.class);
-
-  public static final String RDMA_TOKEN_HEADER = "x-amz-rdma-token";
   public static final String RDMA_TOKEN_PROPERTY = "ozone.s3.rdma.token";
+  public static final String RDMA_CAPABLE_PROPERTY = "ozone.s3.rdma.capable";
 
   @Override
-  public void filter(ContainerRequestContext requestContext)
-      throws IOException {
-    String tokenHeader = requestContext.getHeaderString(RDMA_TOKEN_HEADER);
-    if (tokenHeader == null || tokenHeader.isEmpty()) {
-      return;
-    }
-
-    try {
-      // Validate Base64 encoding
-      byte[] tokenBytes = Base64.getDecoder().decode(tokenHeader);
-
-      // Basic sanity check on token size
-      // cuObject RDMA tokens are typically 64-256 bytes
-      if (tokenBytes.length < 16 || tokenBytes.length > 4096) {
-        LOG.warn("RDMA token has unexpected size: {} bytes", tokenBytes.length);
-        return;
-      }
-
-      // Store parsed token in request context
-      requestContext.setProperty(RDMA_TOKEN_PROPERTY, tokenBytes);
-
-      LOG.debug("RDMA token extracted from request, {} bytes",
-          tokenBytes.length);
-
-    } catch (IllegalArgumentException e) {
-      LOG.warn("Invalid RDMA token encoding: {}", e.getMessage());
-      // Don't fail the request — fall through to TCP path
+  public void filter(ContainerRequestContext requestContext) {
+    String rdmaToken = requestContext.getHeaderString("x-amz-rdma-token");
+    if (rdmaToken != null && !rdmaToken.isEmpty()) {
+      requestContext.setProperty(RDMA_CAPABLE_PROPERTY, Boolean.TRUE);
+      requestContext.setProperty(RDMA_TOKEN_PROPERTY, rdmaToken);
     }
   }
 }
 ```
+
 
 ---
 
 ## 5. C/C++ Integration Architecture
 
-### 5.1 Why CuObjServerBridge Exists
+This section details the cuObject SDK API surface used by the datanode, the JNI architecture, native library lifecycle,
+RDMA buffer memory management, and the build system.
 
-**The question**: Why do we need a `CuObjServerBridge` Java class? Why can't Java JNI code call cuObjServer's C
-functions directly?
+### 5.1 cuObject SDK API Surface
 
-**The answer**: CuObjServerBridge **is** the JNI layer. There is no extra intermediary — the bridge class declares Java
-`native` methods, and the corresponding C++ file (`CuObjServerBridge.cpp`) implements them by calling cuObjServer's C
-API. The name "Bridge" reflects its role as the boundary between the Java and native worlds.
+The datanode uses **only the cuObjServer library** (`libcuobjserver.so`). It does NOT use the cuObjClient library —
+that runs on the GPU application side. The cuObjServer library does **not require a GPU or CUDA on the server side**
+[[ref-3]](#10-references).
 
-Here is the actual call chain with no extra layers:
+#### APIs Used by the Datanode
 
-```mermaid
-flowchart LR
-  subgraph Java["Java (JVM)"]
-    XR["XceiverServerRdma.java<br/>(transport logic)"]
-    Bridge["CuObjServerBridge.java<br/>(declares native methods:<br/>init, registerBuffer,<br/>rdmaWriteToRemote, etc.)"]
-    XR -->|" calls "| Bridge
-  end
+| API Function                   | Purpose                                   | Direction       | Max per Call   | Reference                                                                                           |
+|--------------------------------|-------------------------------------------|-----------------|----------------|-----------------------------------------------------------------------------------------------------|
+| `registerBuffer(ptr, size)`    | Register host memory for RDMA             | —               | —              | [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf) |
+| `allocHostBuffer(size)`        | Allocate pinned (page-locked) host memory | —               | —              | [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf) |
+| `handleGetObject(...)`         | RDMA_WRITE: push data to client GPU       | Server → Client | 1 GiB          | [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf) |
+| `handlePutObject(...)`         | RDMA_READ: pull data from client GPU      | Client → Server | 1 GiB          | [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf) |
+| `getRDMABufferFromSgList(...)` | Multi-segment RDMA buffer setup           | —               | 10 SGE entries | [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf) |
 
-  subgraph JNI["JNI Boundary"]
-    Header["Auto-generated header<br/>(javac -h)"]
-  end
+> **IMPORTANT:** Full function signatures are NOT available in public NVIDIA documentation as of April 2026.
+> The cuObjServer header file (`cuobjserver.h`) from the cuObjServer package is required. All C++ code in
+> [Section 4.6](#46-native-c-implementation) uses documented function **names** with **[inferred]** parameters.
 
-  subgraph Native["C++ (libgds_jni.so)"]
-    Impl["CuObjServerBridge.cpp<br/>(implements each native method<br/>by calling cuObjServer C API)"]
-    cuObj["libcuobjserver.so<br/>(NVIDIA's library)"]
-    Impl -->|" cuObjServer_init()<br/>cuObjServer_transfer()<br/>etc. "| cuObj
-  end
+#### APIs NOT Used by the Datanode (Client-Side Only)
 
-  subgraph HW["Hardware"]
-    NIC["ConnectX NIC<br/>(RDMA operations)"]
-    cuObj -->|" ibverbs "| NIC
-  end
+These run on the GPU application host, NOT on the Ozone datanode:
 
-  Bridge -->|" System.loadLibrary() "| Impl
-```
-
-**Why this pattern instead of alternatives:**
-
-| Alternative                                               | Why Rejected                                                                                                                                                                     |
-|-----------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Put `native` methods directly in `XceiverServerRdma.java` | Mixes transport logic with native binding. Cannot mock for testing without mocking the whole server. Cannot make RDMA optional — the class would fail to load without the `.so`. |
-| JNA (Java Native Access)                                  | Simpler binding but adds ~10× per-call overhead vs JNI. RDMA buffer registration and transfer calls are on the hot path.                                                         |
-| JNR-FFI                                                   | Similar overhead concern. The cuObjServer API surface is small (6 functions), so hand-written JNI is manageable and optimal.                                                     |
-| Wrap cuObjServer in a separate gRPC/socket service        | Adds an IPC hop between the datanode JVM and the RDMA engine. Defeats the purpose of embedding cuObjServer directly for minimal latency.                                         |
-
-**Graceful degradation**: `CuObjServerBridge.isAvailable()` returns `false` when the native library is absent (no GPU
-hardware, no RDMA NIC, or not built with `-Dgds_native`). The datanode starts normally without RDMA — the bridge is the
-clean boundary where "RDMA available?" is answered without affecting any other code.
+| API Function                       | Purpose                                        | Reference                                                                           |
+|------------------------------------|------------------------------------------------|-------------------------------------------------------------------------------------|
+| `cuObjClient(ops, proto)`          | Initialize client with callbacks               | [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html)            |
+| `cuObjGet(ctx, ptr, size, offset)` | Initiate GET (triggers RDMA_WRITE from server) | [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html)            |
+| `cuObjPut(ctx, ptr, size, offset)` | Initiate PUT (triggers RDMA_READ by server)    | [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html)            |
+| `cuMemObjGetDescriptor(...)`       | Register GPU buffer for GET (max 4 GiB)        | [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html)            |
+| `cuMemObjPutDescriptor(...)`       | Register GPU buffer for PUT (max 4 GiB)        | [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html)            |
+| `cuMemObjGetRDMAToken(...)`        | Get RDMA token for manual GET flow             | [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html)            |
+| `cuMemObjPutRDMAToken(...)`        | Get RDMA token for manual PUT flow             | [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html)            |
+| `cuFileDriverOpen()`               | Initialize GDS (prerequisite)                  | [[ref-5]](https://docs.nvidia.com/gpudirect-storage/api-reference-guide/index.html) |
+| `cuFileDriverClose()`              | Shutdown GDS                                   | [[ref-5]](https://docs.nvidia.com/gpudirect-storage/api-reference-guide/index.html) |
 
 ### 5.2 JNI Architecture
 
 ```mermaid
-flowchart TB
-  subgraph JavaLayer["Java Layer (JVM)"]
-    XceiverRdma["XceiverServerRdma"]
-    Bridge["CuObjServerBridge.java<br/>(native method declarations)"]
-    DirectBuf["Direct ByteBuffer<br/>(off-heap, RDMA-registered)"]
-    XceiverRdma --> Bridge
-    Bridge --> DirectBuf
-  end
-
-  subgraph JNIBoundary["JNI Boundary"]
-    JNI["JNI Function Calls<br/>(env->GetDirectBufferAddress,<br/>env->GetByteArrayElements)"]
-  end
-
-  subgraph NativeLayer["Native C++ Layer"]
-    JNIImpl["CuObjServerBridge.cpp<br/>(JNI function implementations)"]
-    cuObjAPI["cuObjServer API<br/>(cuObjServer_init, _transfer, etc.)"]
-    ibverbs["libibverbs<br/>(InfiniBand verbs,<br/>managed by cuObjServer)"]
-  end
-
-  subgraph Hardware["Hardware"]
-    NIC["ConnectX NIC<br/>(RDMA operations)"]
-  end
-
-  Bridge -->|" JNI call "| JNI --> JNIImpl
-  JNIImpl --> cuObjAPI --> ibverbs --> NIC
-  DirectBuf -.->|" Direct memory<br/>pointer shared "| JNIImpl
+graph TD
+subgraph "Java (JVM)"
+A[KeyValueHandler] --> B[XceiverServerRdma]
+B --> C[RdmaTransferService interface]
+C --> D[CuObjRdmaTransferService]
+D --> E[CuObjServerBridge — native methods]
+end
+subgraph "Native (C++)"
+E --> F[cuobj_server_bridge.cc]
+F --> G["libcuobjserver.so (NVIDIA)"]
+end
+subgraph "Kernel"
+G --> H[rdma_cm / ibverbs]
+H --> I[mlx5_ib / rxe driver]
+I --> J[nvidia_peermem — GPU P2P]
+end
 ```
 
-**Memory management model:**
+**Key design decisions:**
 
-| Memory Type         | Allocated By                            | Freed By                                  | JNI Access Method                      |
-|---------------------|-----------------------------------------|-------------------------------------------|----------------------------------------|
-| Direct ByteBuffer   | Java (`ByteBuffer.allocateDirect()`)    | Java GC + Cleaner                         | `GetDirectBufferAddress()` — zero-copy |
-| RDMA token (byte[]) | Java (from HTTP header)                 | Java GC                                   | `GetByteArrayElements()` — may copy    |
-| cuObjServer handle  | Native (`cuObjServer_init()`)           | Native (`cuObjServer_shutdown()`)         | Passed as `jlong`                      |
-| MR handle           | Native (`cuObjServer_registerBuffer()`) | Native (`cuObjServer_deregisterBuffer()`) | Passed as `jlong`                      |
+1. **Interface-based abstraction** (`RdmaTransferService`): Allows `MockRdmaTransferService` for testing without any
+   native libraries. This follows Ozone's `TokenVerifier` / `NoopTokenVerifier` pattern.
 
-**Thread model:** Java threads from the gRPC executor pool call JNI methods directly. cuObjServer is thread-safe and
-handles internal locking. No additional synchronization needed in the JNI layer.
+2. **Package-private JNI class**: `CuObjServerBridge` is package-private. External code only sees
+   `RdmaTransferService`. This prevents accidental direct JNI calls.
 
-**Error propagation:** Native errors (cuObjServer return codes) are converted to Java `IOException` via
-`env->ThrowNew()`. The JNI function returns a sentinel value (0 or -1), and the Java caller sees the exception.
+3. **`NativeLibraryLoader` reuse**: Uses Ozone's existing `NativeLibraryLoader` (singleton pattern, tries
+   `System.loadLibrary` then JAR extraction). Same pattern as `rocks-native`.
+
+4. **No static native methods on the interface**: Unlike the original v1.1 spec, native methods are instance-scoped
+   via the `long handle` pattern. This avoids the static-mock problem that required PowerMock.
 
 ### 5.3 Native Library Lifecycle
 
 ```mermaid
 sequenceDiagram
-  participant JVM as JVM Startup
-  participant Loader as NativeLibraryLoader
-  participant Bridge as CuObjServerBridge
   participant OC as OzoneContainer
   participant RDMA as XceiverServerRdma
-  participant Native as libgds_jni.so
-  JVM ->> Bridge: Class loading (static initializer)
-  Bridge ->> Loader: loadLibrary("gds_jni", [])
-
-  alt Library found on java.library.path
-    Loader ->> Native: System.loadLibrary("gds_jni")
-  else Extract from JAR
-    Loader ->> Loader: Extract libgds_jni.so to temp dir
-    Loader ->> Native: System.load(tempPath)
-  end
-
-  Native -->> Bridge: nativeLoaded = true
-  Note over JVM, Native: Later, during datanode startup...
-  OC ->> OC: Constructor: check rdmaEnabled && isAvailable()
-  OC ->> RDMA: new XceiverServerRdma(...)
-  OC ->> RDMA: start()
-  RDMA ->> Bridge: init("mlx5_0", 9890, 32)
-  Bridge ->> Native: Java_...CuObjServerBridge_init()
-  Native ->> Native: cuObjServer_init(&config, &handle)
-  Native -->> Bridge: handle (long)
-  RDMA ->> Bridge: registerBuffer(handle, directBuf)
-  Bridge ->> Native: Java_...registerBuffer()
-  Native ->> Native: cuObjServer_registerBuffer(handle, addr, size, &mr)
-  Native -->> Bridge: mrHandle (long)
-  Note over JVM, Native: During shutdown...
-  OC ->> RDMA: stop()
-  RDMA ->> Bridge: deregisterBuffer(handle, mrHandle)
-  RDMA ->> Bridge: shutdown(handle)
-  Bridge ->> Native: Java_...shutdown()
-  Native ->> Native: cuObjServer_shutdown(handle)
-  Note over JVM, Native: JVM shutdown hook deletes temp .so file
+  participant SVC as CuObjRdmaTransferService
+  participant JNI as CuObjServerBridge
+  participant NL as NativeLibraryLoader
+  participant LIB as libcuobjserver.so
+  OC ->> SVC: new CuObjRdmaTransferService()
+  OC ->> SVC: initialize("mlx5_0", 19870, 32)
+  SVC ->> JNI: loadLibrary()
+  JNI ->> NL: loadLibrary("cuobj_server_bridge")
+  NL ->> NL: System.loadLibrary("cuobj_server_bridge")
+  NL -->> JNI: loaded (or UnsatisfiedLinkError)
+  SVC ->> JNI: nativeInit("mlx5_0", 19870, 32)
+  JNI ->> LIB: cuObjServer init [ADAPT]
+  LIB -->> JNI: server handle
+  JNI -->> SVC: handle (long)
+  SVC -->> OC: initialized
+  OC ->> RDMA: new XceiverServerRdma(conf, svc)
+  RDMA ->> SVC: registerBuffer(buf) × N
+  SVC ->> JNI: nativeRegisterBuffer(handle, buf)
+  JNI ->> LIB: registerBuffer(ptr, size) [ref-3]
+  Note over RDMA: Ready to handle RDMA requests
+  Note over OC: Shutdown
+  OC ->> RDMA: close()
+  RDMA ->> SVC: close()
+  SVC ->> JNI: nativeShutdown(handle)
+  JNI ->> LIB: shutdown [ADAPT]
 ```
 
 ### 5.4 RDMA Buffer Management: Whose Memory and Why
 
-**What memory are we managing?** Pinned (page-locked) **host system memory on the datanode machine**. This is CPU RAM,
-not GPU memory. Datanodes do not need GPUs — they have RDMA NICs.
+Understanding the memory model is essential for correct implementation:
 
-**Why does the datanode need this memory?** The RDMA data path has two steps:
+| Memory Type                       | Owner              | Purpose                                 | Allocated By                                                     | RDMA Registered?                |
+|-----------------------------------|--------------------|-----------------------------------------|------------------------------------------------------------------|---------------------------------|
+| GPU device memory                 | Client application | Stores training data, model weights     | `cudaMalloc()`                                                   | Yes, by cuObjClient             |
+| Pinned host memory (client)       | Client application | Optional staging for non-GPU-aware apps | `cudaHostAlloc()`                                                | Yes, by cuObjClient             |
+| **Pinned host memory (datanode)** | **Ozone datanode** | **RDMA staging buffer for disk I/O**    | **`allocHostBuffer()` [ref-3] or `ByteBuffer.allocateDirect()`** | **Yes, by cuObjServer**         |
+| Java heap memory                  | JVM                | General Java objects                    | JVM GC                                                           | **Never** — not usable for RDMA |
 
-```mermaid
-flowchart LR
-  subgraph Datanode["Datanode Host Machine"]
-    NVMe[("NVMe Disk<br/>(block data)")]
-    HostMem["Pinned Host Memory<br/>(RDMA-registered buffer pool)<br/>256 MB total<br/>(64 × 4 MB buffers)"]
-    NIC["RDMA NIC<br/>(ConnectX-5+)"]
-    NVMe -->|" 1. FileChannel.read()<br/>(disk → host memory) "| HostMem
-    HostMem -->|" 2. RDMA WRITE<br/>(NIC DMAs directly from<br/>host memory to remote) "| NIC
-  end
+**Why the datanode needs pinned memory:**
 
-  subgraph GPU_Node["GPU Client Node"]
-    GPU_NIC["RDMA NIC"]
-    GPU_Mem["GPU Memory<br/>(allocated by cuObjClient)"]
-    GPU_NIC -->|" 3. PCIe DMA<br/>(NIC → GPU memory) "| GPU_Mem
-  end
+RDMA requires the NIC to DMA directly to/from a fixed physical address. If the OS swaps the page or the JVM GC
+moves the object, the RDMA transfer corrupts memory. Pinned (page-locked) memory guarantees:
 
-  NIC <-->|" InfiniBand / RoCEv2 "| GPU_NIC
-```
+- The page is not swappable
+- The physical address is stable for the duration of the RDMA operation
+- The NIC can safely DMA without coordinating with the CPU/MMU
 
-1. **Disk read**: The datanode reads block data from NVMe into a host memory buffer using `FileChannel.read()` — the
-   same code path as today's gRPC reads.
-2. **RDMA transfer**: The RDMA NIC DMAs (Direct Memory Access) the data from host memory to the remote GPU. The NIC
-   reads directly from RAM — no CPU copying needed.
-3. **Remote write**: On the GPU node, the RDMA NIC writes directly into GPU memory via GPUDirect
-   RDMA [[ref-6]](https://docs.nvidia.com/cuda/gpudirect-rdma/). The GPU node's CPU is not involved.
+**`allocHostBuffer()` vs `ByteBuffer.allocateDirect()`:**
 
-**Why must this memory be pinned (page-locked)?**
+- `allocHostBuffer()` [[ref-3]](#10-references) is the cuObjServer API that allocates guaranteed pinned memory.
+  This is the correct approach for production.
+- `ByteBuffer.allocateDirect()` allocates off-heap memory, but the JVM does **not** guarantee it is page-locked.
+  On Linux, `mlock()` would be needed. This works for development/testing but is unreliable for production RDMA.
 
-RDMA requires that memory regions used for transfers are **pinned** — the OS cannot page them out to swap. This is
-because:
-
-- The RDMA NIC accesses memory via **physical addresses**, not virtual addresses
-- If the OS pages out the memory, the physical-to-virtual mapping changes
-- The NIC would read/write to the wrong physical location → data corruption or kernel panic
-
-Pinning happens in two steps:
-
-1. `ByteBuffer.allocateDirect()` in Java allocates off-heap memory (stable address, not moved by GC)
-2. `cuObjServer_registerBuffer()` calls `ibv_reg_mr()` internally, which pins the pages in the kernel via
-   `pin_user_pages()` [[ref-17]](https://docs.nvidia.com/doca/archive/doca-v2.2.0/pdf/rdma-programming-guide.pdf)
-
-**Why can't the datanode transfer data directly from disk to the RDMA NIC?**
-
-This is a common question. The short answer: **RDMA operates on memory addresses, not I/O devices.** The RDMA NIC and
-the storage controller are two separate DMA engines, and both use host memory as their intermediary:
-
-```mermaid
-flowchart LR
-  subgraph Impossible["NOT POSSIBLE: Direct disk-to-NIC"]
-    style Impossible fill: #fee, stroke: #f66
-    DiskX[("Disk")] -.->|" No direct path exists "| NICX["RDMA NIC"]
-  end
-
-  subgraph Actual["ACTUAL: Two-step DMA via host memory"]
-    style Actual fill: #efe, stroke: #6b6
-    Disk2[("HDD/NVMe")] -->|" 1. NVMe DMA<br/>(disk controller → RAM) "| RAM["Host Memory<br/>(pinned, RDMA-registered)"]
-    RAM -->|" 2. RDMA DMA<br/>(NIC reads from RAM) "| NIC2["RDMA NIC"]
-  end
-```
-
-1. **Disk controllers and RDMA NICs are separate devices.** An NVMe SSD transfers data by writing from its internal
-   flash to host RAM via PCIe DMA (initiated by the NVMe controller). An RDMA NIC transfers data by reading from host
-   RAM and sending it over the network via PCIe DMA (initiated by the NIC). Neither device can command the other — they
-   both talk to RAM independently.
-
-2. **RDMA requires registered memory regions.** The NIC can only DMA from/to memory that has been registered via
-   `ibv_reg_mr()`, which pins pages and sets up NIC-accessible address mappings. Disk I/O does not produce registered
-   memory — `FileChannel.read()` writes into a normal buffer, which the NIC then reads from.
-
-3. **The host memory "bounce" is not a CPU copy.** Although data passes through host RAM, the CPU does not copy bytes.
-   The NVMe controller writes data to RAM via DMA (step 1), and the RDMA NIC reads that same data from RAM via DMA (step
-   2). The CPU only orchestrates the operations (issues the read command, then triggers the RDMA transfer).
-
-4. **The exception: GPUDirect Storage (GDS).** NVIDIA's GDS technology creates a direct NVMe-to-GPU-memory path that
-   bypasses host RAM entirely. However, GDS requires the NVMe and GPU to be on the **same physical machine** with the
-   GDS kernel driver (`nvidia-fs`). In our architecture, the NVMe is on the datanode and the GPU is on a remote client —
-   GDS cannot operate across the network. GDS would only help if the GPU application were reading from a local Ozone
-   datanode on the same machine, which is not our target deployment.
-
-**Why pre-allocate a pool instead of registering per-request?**
-
-Memory registration is expensive: `ibv_reg_mr()` takes ~10µs to 1ms per call because it involves kernel page pinning. If
-we registered memory per-request, every RDMA transfer would pay this overhead. Pre-allocating a pool at startup
-amortizes the cost:
-
-```mermaid
-flowchart TB
-  subgraph Pool["RDMA Buffer Pool (ArrayBlockingQueue)"]
-    B1["Buffer 1: 4 MB<br/>Direct ByteBuffer<br/>MR Handle: 0x1234<br/>(pinned at startup)"]
-    B2["Buffer 2: 4 MB<br/>Direct ByteBuffer<br/>MR Handle: 0x5678<br/>(pinned at startup)"]
-    BN["Buffer N: 4 MB<br/>..."]
-  end
-
-  subgraph Request1["Request Thread 1 (GET path)"]
-    R1_Take["1. pool.poll() → Buffer 1"]
-    R1_Read["2. FileChannel.read(block) → Buffer 1"]
-    R1_RDMA["3. rdmaWriteToRemote(Buffer 1)"]
-    R1_Return["4. pool.offer(Buffer 1)"]
-    R1_Take --> R1_Read --> R1_RDMA --> R1_Return
-  end
-
-  subgraph Request2["Request Thread 2 (PUT path)"]
-    R2_Take["1. pool.poll() → Buffer 2"]
-    R2_RDMA["2. rdmaReadFromRemote(Buffer 2)"]
-    R2_Write["3. ChunkManager.writeChunk(Buffer 2)"]
-    R2_Return["4. pool.offer(Buffer 2)"]
-    R2_Take --> R2_RDMA --> R2_Write --> R2_Return
-  end
-
-  Pool -->|" borrow "| R1_Take
-  Pool -->|" borrow "| R2_Take
-  R1_Return -->|" return "| Pool
-  R2_Return -->|" return "| Pool
-```
-
-**Pool sizing:**
-
-| Parameter             | Default      | Config Key                         | Notes                                                                                                   |
-|-----------------------|--------------|------------------------------------|---------------------------------------------------------------------------------------------------------|
-| Buffer size           | 4 MB         | `ozone.datanode.rdma.buffer.size`  | Aligns with typical NVMe read granularity. Balances concurrent transfer count vs per-transfer overhead. |
-| Buffer count          | 64           | `ozone.datanode.rdma.buffer.count` | Supports 64 concurrent RDMA operations (more than `max.concurrent.transfers` default of 32)             |
-| Total pinned memory   | 256 MB       | (size × count)                     | Acceptable for storage servers with 64+ GB RAM. Configurable for smaller nodes.                         |
-| Registration overhead | ~64 ms total | One-time at startup                | 64 buffers × ~1ms each                                                                                  |
-
-**For blocks larger than 4 MB** (Ozone default block size is 256 MB): the datanode transfers in 4 MB chunks using the
-same buffer:
-
-```text
-for each 4 MB chunk of the 256 MB block:
-    FileChannel.read(blockFile, chunk_offset) → RDMA buffer  // disk read
-    cuObjServer.handleGetObject(buffer, rdmaToken, gpu_offset) // RDMA transfer
-    gpu_offset += 4 MB
-```
-
-**Do we need GPU memory on the datanode?** No. The datanodes do not need GPUs. cuObjServer runs on the host CPU and uses
-the RDMA NIC to move data from pinned host memory to the remote GPU client's memory. All GPU memory management happens
-on the client side (cuObjClient).
+The `RdmaBufferPool` (Section 4.10) currently uses `ByteBuffer.allocateDirect()` as a fallback. The production
+implementation should use `allocHostBuffer()` via an additional JNI method. See the `// ADAPT` comment in
+`RdmaBufferPool.java`.
 
 ### 5.5 Build System Integration
 
-```mermaid
-flowchart LR
-  subgraph Maven["Maven Build Pipeline"]
-    direction LR
-    JavaCompile["1. Java Compile<br/>+ JNI Header Generation<br/>(maven-compiler-plugin<br/>with -h flag)"]
-    CMake["2. CMake Configure<br/>(find JNI, CUDA,<br/>cuObjServer, ibverbs)"]
-    Make["3. Make<br/>(compile C++ → .so)"]
-    CopyLib["4. Copy .so to<br/>target/classes/"]
-    Package["5. Package .so<br/>into JAR"]
-    JavaCompile --> CMake --> Make --> CopyLib --> Package
-  end
+The native build uses CMake, invoked by the `cmake-maven-plugin` during `mvn package -Pnative`. This matches
+the existing `hadoop-hdds/rocks-native/` pattern.
 
-  subgraph Conditional["Conditional Activation"]
-    Profile["-Dgds_native flag<br/>+ Linux x86_64 OS"]
-    Profile -->|" activates "| Maven
-  end
+```xml
+<!-- In container-service-native/pom.xml -->
+<profiles>
+  <profile>
+    <id>native</id>
+    <build>
+      <plugins>
+        <plugin>
+          <groupId>com.googlecode.cmake-maven-project</groupId>
+          <artifactId>cmake-maven-plugin</artifactId>
+          <executions>
+            <execution>
+              <id>cmake-generate</id>
+              <goals>
+                <goal>generate</goal>
+              </goals>
+              <configuration>
+                <sourcePath>${project.basedir}/src/main/native</sourcePath>
+                <targetPath>${project.build.directory}/native</targetPath>
+                <generator>Unix Makefiles</generator>
+                <options>
+                  <option>-DCUOBJSERVER_HOME=${env.CUOBJSERVER_HOME}</option>
+                </options>
+              </configuration>
+            </execution>
+            <execution>
+              <id>cmake-compile</id>
+              <goals>
+                <goal>compile</goal>
+              </goals>
+              <configuration>
+                <projectDirectory>${project.build.directory}/native</projectDirectory>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+      </plugins>
+    </build>
+  </profile>
+</profiles>
 ```
 
-**CI without GPU hardware:** Tests that need the RDMA path use a mock `CuObjServerBridge` that records calls instead of
-performing real RDMA. The mock is injected via a test-only factory method or by not activating the `-Dgds_native`
-profile.
+**Build commands:**
+
+```bash
+# Full build with native library
+export CUOBJSERVER_HOME=/usr/local/cuobjserver  # path to cuObjServer SDK
+mvn package -Pnative -pl hadoop-hdds/container-service-native
+
+# Java-only build (no native, for CI without RDMA hardware)
+mvn package -pl hadoop-hdds/container-service-native
+# The native library won't be built; CuObjServerBridge.loadLibrary() returns false
+```
 
 ### 5.6 Compiler and Toolchain Requirements
 
-#### CUDA Toolkit and Host Compiler Compatibility
+| Component        | Minimum Version | Notes                                          |
+|------------------|-----------------|------------------------------------------------|
+| GCC / G++        | 7.5+            | C++14 support required                         |
+| CMake            | 3.10+           | For native build                               |
+| JDK              | 8+              | For JNI headers (`jni.h`)                      |
+| cuObjServer SDK  | 1.0.0           | `libcuobjserver.so`, `cuobjserver.h`           |
+| CUDA Toolkit     | 13.1.1+         | Only needed on client side, NOT on datanode    |
+| MLNX_OFED        | 5.8+            | Or kernel ibverbs 5.8+                         |
+| `nvidia_peermem` | —               | Kernel module for GPUDirect RDMA (client side) |
 
-NVIDIA `nvcc` delegates host-side compilation to GCC. Not all GCC versions are compatible with all CUDA
-versions [[ref-5]](https://docs.nvidia.com/gpudirect-storage/troubleshooting-guide/index.html).
+> The datanode does NOT need a GPU, CUDA toolkit, or `nvidia_peermem`. It only needs `libcuobjserver.so` and
+> the RDMA stack (ibverbs + NIC drivers).
 
-| CUDA Toolkit Version |       Max GCC Version        | Min GCC Version | C++ Standard |
-|----------------------|:----------------------------:|:---------------:|:------------:|
-| CUDA 12.0–12.2       |           GCC 12.2           |      GCC 6      |    C++17     |
-| CUDA 12.3–12.6       |           GCC 12.3           |      GCC 6      |    C++17     |
-| CUDA 13.0+           | GCC 13.x (verify at release) |      GCC 7      | C++17/C++20  |
-
-**Note:** Our JNI bridge (`CuObjServerBridge.cpp`) does not use `nvcc` directly — it's pure C++ compiled with `g++`.
-However, it links against cuObjServer which was built with nvcc, so ABI compatibility matters. Use the same GCC version
-that the installed CUDA toolkit was tested against.
-
-#### Required Toolchain Components
-
-| Component             |      Minimum Version      |     Recommended Version     | Notes                                                                                           |
-|-----------------------|:-------------------------:|:---------------------------:|-------------------------------------------------------------------------------------------------|
-| GCC (g++)             |           11.x            |            12.x             | Must match CUDA compatibility                                                                   |
-| CMake                 |           3.20            |            3.28+            | Required for `FindCUDAToolkit`, `FindJNI`                                                       |
-| CUDA Toolkit (nvcc)   | 13.1.1 (cuObject minimum) | 13.2.0 (latest, March 2026) | Includes cuObject client library. See [Section 10](#10-cuda-toolkit-and-cuobject-sdk-versions). |
-| cuObject Server SDK   |           1.0.0           |            1.0.0            | `cuobjserver.h`, `libcuobjserver.so`                                                            |
-| JDK (for JNI headers) |          8 or 11          |             11              | `javac -h` generates headers                                                                    |
-| libibverbs-dev        |           1.14+           |    Latest from MLNX_OFED    | InfiniBand verbs headers                                                                        |
-| librdmacm-dev         |           1.3+            |    Latest from MLNX_OFED    | RDMA connection manager                                                                         |
-| pkg-config            |            Any            |           Latest            | Library path discovery                                                                          |
-
-#### CUDA Architecture Targets
-
-| GPU Generation | Compute Capability | Architecture |     Typical Instances      |
-|:--------------:|:------------------:|:------------:|:--------------------------:|
-|      V100      |        7.0         |    Volta     |       Lambda 1x_v100       |
-|      A100      |        8.0         |    Ampere    | Lambda 1x_a100, Vultr A100 |
-|      H100      |        9.0         |    Hopper    |       Lambda 1x_h100       |
-
-CMake CUDA architectures flag:
-
-```cmake
-set(CMAKE_CUDA_ARCHITECTURES "70;80;90")
-```
-
-This generates:
-
-- PTX for each architecture (forward compatible)
-- Native binary (SASS) for each architecture (optimal performance)
-
-Equivalent nvcc flags:
-`-gencode arch=compute_70,code=sm_70 -gencode arch=compute_80,code=sm_80 -gencode arch=compute_90,code=sm_90`
-
-**Note:** Our JNI bridge does NOT compile CUDA code (no `.cu` files). It's pure C++ that links against cuObjServer.
-`CMAKE_CUDA_ARCHITECTURES` is only relevant if we add CUDA kernels in the future (e.g., GPU-side decryption).
-
-#### Platform Verification Script: `check-toolchain.sh`
-
-```bash
-#!/usr/bin/env bash
-# check-toolchain.sh — Verify build toolchain for container-service-native
-set -uo pipefail
-
-ERRORS=0
-warn() { echo "WARNING: $*"; }
-fail() { echo "ERROR: $*"; ((ERRORS++)); }
-ok()   { echo "OK: $*"; }
-
-# GCC
-if command -v g++ >/dev/null 2>&1; then
-  GCC_VER=$(g++ -dumpversion)
-  ok "GCC $GCC_VER"
-  # Check CUDA compatibility (GCC <= 12.x for CUDA 12.6)
-  GCC_MAJOR=$(echo "$GCC_VER" | cut -d. -f1)
-  if [ "$GCC_MAJOR" -gt 13 ]; then
-    warn "GCC $GCC_VER may be too new for CUDA. Recommend GCC 12.x"
-  fi
-else
-  fail "GCC (g++) not found"
-fi
-
-# CMake
-if command -v cmake >/dev/null 2>&1; then
-  CMAKE_VER=$(cmake --version | head -1 | awk '{print $3}')
-  ok "CMake $CMAKE_VER"
-  CMAKE_MAJOR=$(echo "$CMAKE_VER" | cut -d. -f1)
-  CMAKE_MINOR=$(echo "$CMAKE_VER" | cut -d. -f2)
-  if [ "$CMAKE_MAJOR" -lt 3 ] || [ "$CMAKE_MINOR" -lt 20 ]; then
-    fail "CMake >= 3.20 required, found $CMAKE_VER"
-  fi
-else
-  fail "CMake not found"
-fi
-
-# CUDA / nvcc
-if command -v nvcc >/dev/null 2>&1; then
-  NVCC_VER=$(nvcc --version | grep release | awk '{print $5}' | tr -d ',')
-  ok "CUDA Toolkit $NVCC_VER"
-else
-  fail "nvcc not found. Install CUDA Toolkit."
-fi
-
-# cuObjServer
-if [ -f /usr/local/cuda/include/cuobjserver.h ] || \
-   [ -f /usr/include/cuobjserver.h ]; then
-  ok "cuObjServer header found"
-else
-  fail "cuobjserver.h not found"
-fi
-
-if ldconfig -p 2>/dev/null | grep -q libcuobjserver; then
-  ok "libcuobjserver.so found"
-else
-  fail "libcuobjserver.so not found"
-fi
-
-# JNI headers
-JAVA_HOME="${JAVA_HOME:-/usr/lib/jvm/java-11-openjdk-amd64}"
-if [ -f "$JAVA_HOME/include/jni.h" ]; then
-  ok "JNI headers found at $JAVA_HOME/include/jni.h"
-else
-  fail "jni.h not found. Set JAVA_HOME."
-fi
-
-# libibverbs
-if [ -f /usr/include/infiniband/verbs.h ]; then
-  ok "libibverbs-dev headers found"
-else
-  fail "libibverbs-dev not installed"
-fi
-
-# librdmacm
-if [ -f /usr/include/rdma/rdma_cma.h ]; then
-  ok "librdmacm-dev headers found"
-else
-  warn "librdmacm-dev not installed (may be optional)"
-fi
-
-echo ""
-if [ "$ERRORS" -gt 0 ]; then
-  echo "FAILED: $ERRORS error(s) found. Fix before building."
-  exit 1
-else
-  echo "PASSED: All toolchain checks passed."
-  exit 0
-fi
-```
-
-**Cross-compilation note:** The JNI `.so` is built only on Linux x86_64. Maven profile activation:
-
-```xml
-
-<activation>
-  <property>
-    <name>gds_native</name>
-  </property>
-  <os>
-    <name>Linux</name>
-    <arch>amd64</arch>
-  </os>
-</activation>
-```
-
-On macOS or other platforms, the native module is skipped entirely. Tests without GPU hardware mock the native layer.
 
 ---
 
@@ -3349,962 +3334,232 @@ On macOS or other platforms, the native module is skipped entirely. Tests withou
 
 ### 6.1 SoftRoCE: Decision and Limitations
 
-**Decision: YES, use SoftRoCE for development.**
+**SoftRoCE** (`rdma_rxe` kernel module) provides a software RDMA implementation over standard Ethernet NICs. It is
+suitable for development and functional testing but NOT for performance testing.
 
-SoftRoCE (`rdma_rxe`) is a Linux kernel module that provides software-emulated RDMA over any standard Ethernet NIC. It
-implements the full ibverbs API in software, allowing development and functional testing of RDMA code without
-specialized InfiniBand or RoCE hardware.
+| Aspect        | SoftRoCE                  | Real RDMA (ConnectX-6+)        |
+|---------------|---------------------------|--------------------------------|
+| Kernel module | `rdma_rxe`                | `mlx5_ib`                      |
+| Latency       | ~50 μs                    | ~1-2 μs                        |
+| Throughput    | Limited by CPU            | Limited by NIC (200 Gbps)      |
+| GPUDirect     | NOT supported             | Supported via `nvidia_peermem` |
+| DC transport  | Depends on kernel version | Native support                 |
+| Use case      | Dev/functional testing    | Benchmarking/production        |
 
-**Why use SoftRoCE:**
+**Limitation:** SoftRoCE does NOT support GPUDirect RDMA (no `nvidia_peermem` integration). RDMA transfers with
+SoftRoCE go through CPU memory only. This means:
 
-- Implements the **same ibverbs API** as hardware RDMA -- code written against SoftRoCE is portable to ConnectX-5+ with
-  zero changes
-- No special hardware needed -- works on any Linux machine with a NIC
-- Available in mainline Linux kernel since 4.8
-- Sufficient for validating RDMA buffer registration, QP creation, RDMA read/write code paths, and completion handling
-
-**Setup:**
-
-```bash
-# Load the rdma_rxe kernel module
-sudo modprobe rdma_rxe
-
-# Create a SoftRoCE device on the desired network interface
-sudo rdma link add rxe0 type rxe netdev eth0
-
-# Verify
-rdma link show
-# output: link rxe0/1 state ACTIVE physical_state LINK_UP netdev eth0
-
-ibv_devinfo
-# output: hca_id: rxe0, transport: InfiniBand (0), ...
-
-# Make persistent across reboots
-echo "rdma_rxe" | sudo tee /etc/modules-load.d/rdma_rxe.conf
-```
-
-**Limitations:**
-
-| Aspect        | SoftRoCE (rdma_rxe)             | Hardware RDMA (ConnectX-5+)     |
-|---------------|---------------------------------|---------------------------------|
-| Latency       | 50-100us                        | 1-2us                           |
-| Throughput    | Limited by CPU                  | Line rate (200-400 Gbps)        |
-| CPU usage     | High (software emulation)       | Near zero (NIC offload)         |
-| GPUDirect     | NOT supported                   | Supported                       |
-| Zero-copy GPU | NOT possible                    | Yes                             |
-| ibverbs API   | Same                            | Same                            |
-| Use case      | Development, functional testing | Performance testing, production |
-
-**NVIDIA Hardware Compliance Warning:**
-
-SoftRoCE is **NOT** what NVIDIA recommends for production. NVIDIA requires ConnectX-5+ for GPUDirect RDMA. SoftRoCE
-validates code paths but **CANNOT** validate GPU-direct DMA transfers. Specifically:
-
-- `nvidia_peermem` (the kernel module that enables GPUDirect RDMA) does not work with SoftRoCE
-- `cuObjServer` will operate in host-memory mode with SoftRoCE, not GPU-direct mode
-- Performance numbers from SoftRoCE are meaningless for production sizing
-
-**When to graduate from SoftRoCE:** Once your code compiles, passes unit tests, and completes functional integration
-tests on SoftRoCE, move to a cloud instance with real InfiniBand hardware (see Section 6.2).
+- cuObjClient on the test client must use **pinned host memory** (`cudaHostAlloc`), not GPU memory
+- OR: Use the `MockRdmaTransferService` for pure Java testing (no kernel RDMA at all)
 
 ### 6.2 GPU Cloud Providers
 
-For development and testing beyond SoftRoCE, you need cloud instances with actual RDMA verbs (`ibverbs`) exposed to user
-space. All providers below are **self-service** (credit card signup, no sales contact required).
+For benchmarking and integration testing with real GPU + RDMA hardware:
 
-#### Single-Node Development (Recommended: Crusoe Cloud)
+| Provider        | Instance Type | GPU     | RDMA NIC                  | Approx. Cost/hr | Notes                              |
+|-----------------|---------------|---------|---------------------------|-----------------|------------------------------------|
+| **AWS**         | p5.48xlarge   | 8× H100 | EFA (400 Gbps)            | ~$98            | EFA uses SRD, not ibverbs directly |
+| **GCP**         | a3-highgpu-8g | 8× H100 | GPUDirect-TCPX (200 Gbps) | ~$101           | Custom NVIDIA TCPX stack           |
+| **Azure**       | ND H100 v5    | 8× H100 | InfiniBand NDR (400 Gbps) | ~$96            | True InfiniBand, best for ibverbs  |
+| **Lambda Labs** | 1x H100       | 1× H100 | 200 Gbps                  | ~$2-3           | Cheapest for dev; no multi-node    |
+| **CoreWeave**   | H100 80GB     | 1× H100 | InfiniBand (200 Gbps)     | ~$4-5           | Good for small-scale RDMA testing  |
 
-**Primary: [Crusoe Cloud](https://www.crusoe.ai/cloud/) — H100 SXM VM**
-
-- **What to provision:** 1x GPU VM with 8x H100 SXM 80GB, InfiniBand networking
-- **Cost:** ~$15.60/hr ($1.95/GPU/hr on-demand)
-- **ibverbs:** CONFIRMED — official docs show `ibv_devinfo`, `ib_write_bw` working
-- **Signup:** https://www.crusoe.ai — credit card. Create a "GPU VM", select H100 SXM, enable InfiniBand.
-
-**Fallback if Crusoe unavailable: [Voltage Park](https://www.voltagepark.com/) — HGX H100 bare metal**
-
-- **What to provision:** 1x bare-metal HGX H100 node (8x H100 SXM)
-- **Cost:** ~$15.92/hr ($1.99/GPU/hr)
-- **ibverbs:** LIKELY (bare metal = full hardware access)
-- **Signup:** https://www.voltagepark.com — credit card. Select "On-Demand HGX H100s."
-
-**Budget option (no real RDMA): [Lambda Cloud](https://lambda.ai/) — single GPU + SoftRoCE**
-
-- **What to provision:** 1x A100 ($1.29/hr) or 1x H100 ($2.49/hr)
-- **ibverbs:** Via SoftRoCE only (software emulation). No InfiniBand hardware.
-- **Use for:** Code development, unit tests, Java/JNI compilation. NOT for RDMA performance testing.
-
-#### Multi-Node Testing (Recommended: Crusoe Cloud)
-
-**Primary: [Crusoe Cloud](https://www.crusoe.ai/cloud/) — 2x H100 SXM VMs**
-
-- **What to provision:** 2 VMs in the same region, each 8x H100 SXM with IB. Same IB fabric enables RDMA between nodes.
-- **Cost:** ~$31.20/hr total
-- **Verify:** SSH to each VM, run `ibv_devinfo` on both, then `ib_write_bw <other-vm-ip>` to confirm cross-node RDMA.
-
-**Fallback: [Azure](https://portal.azure.com/) — 2x ND96isr H100 v5 (spot)**
-
-- **What to provision:** 2x spot VMs in a proximity placement group
-- **Cost:** ~$36/hr total at spot pricing (~$18/hr per node)
-- **ibverbs:** CONFIRMED — dedicated 400Gb/s CX7 IB per GPU
-- **Risk:** Spot instances can be preempted. Save work frequently.
-- **Note:** May require a spot quota increase request for ND96isr_H100_v5 in your region.
-
-**Fallback: [CoreWeave](https://www.coreweave.com/) — 2x HGX H100 K8s pods**
-
-- **What to provision:** 2x bare-metal K8s nodes with RDMA device plugin
-- **Cost:** ~$76/hr total (~$38/hr per node)
-- **Caveat:** Kubernetes-based. Requires RDMA device plugin configuration in pod spec.
-
-#### Providers NOT Suitable for cuObject
-
-- **AWS EFA** — Custom protocol via libfabric, not ConnectX-based. cuObject requires ConnectX-5+ HCA.
-- **TensorDock / Jarvis Labs** — No InfiniBand networking.
-- **Vast.ai** — Marketplace model; IB availability varies by host and is not guaranteed.
-
-**Full provider research:** See [gpu-cloud-rdma-pricing-research.md](gpu-cloud-rdma-pricing-research.md) for the
-complete comparison including all providers, pricing, and verification evidence.
+**Recommendation:** Use **Azure ND H100 v5** or **CoreWeave** for RDMA testing — they provide true InfiniBand
+which is the cleanest path for ibverbs + cuObjServer. AWS EFA and GCP TCPX require additional adapter layers.
 
 ### 6.3 How to Run Ozone for Development
 
-There are four options, from simplest to most realistic:
+#### Prerequisites
 
-#### Option A: MiniOzoneCluster in IDE (No Hardware Required)
+1. **Java 8+ or 11+** (Ozone builds with both)
+2. **Maven 3.8+**
+3. **Docker** (for integration test cluster)
+4. **RDMA stack** (for RDMA testing only):
+  - SoftRoCE: `sudo modprobe rdma_rxe && sudo rdma link add rxe0 type rxe netdev eth0`
+  - Or: Mellanox NIC with MLNX_OFED installed
+5. **cuObjServer SDK** (for native build only):
+  - Download from NVIDIA: `cuobjserver` package
+  - Set `CUOBJSERVER_HOME=/path/to/sdk`
 
-The simplest way to develop. MiniOzoneCluster runs OM, SCM, S3 Gateway, and 3 Datanodes in a single JVM process. No
-Docker, no RDMA hardware, no GPU needed.
-
-```java
-// In IntelliJ or any IDE, create a test class:
-OzoneConfiguration conf = new OzoneConfiguration();
-conf.
-
-setBoolean("ozone.datanode.rdma.enabled",true);
-// RDMA paths are exercised but native lib isn't loaded — uses mock/noop
-
-MiniOzoneCluster cluster = MiniOzoneCluster.newBuilder(conf)
-    .setNumDatanodes(3)
-    .build();
-cluster.
-
-waitForClusterToBeReady();
-
-// S3 endpoint: cluster.getS3GAddress()
-// Use any S3 client to PUT/GET objects
-// RDMA code paths execute with the mock native layer
-
-cluster.
-
-shutdown();
-```
-
-**Use this for:** Java code development, testing S3 Gateway RDMA token flow, testing protobuf changes, testing dispatch
-logic. Does NOT exercise actual RDMA transfers.
-
-#### Option B: MiniOzoneCluster + SoftRoCE (Real RDMA, No GPU)
-
-Same as Option A but with SoftRoCE configured on the host and the native library built. Tests real RDMA verbs on
-loopback.
-
-**Prerequisites:** SoftRoCE configured (see Section 6.1), cuObjServer SDK installed, native build enabled.
+#### Build
 
 ```bash
-# Build Ozone with native RDMA support
-mvn clean install -DskipTests -Dgds_native
+# Java-only build (no RDMA, for IDE development)
+mvn install -DskipTests -pl hadoop-hdds/container-service-native
 
-# Run tests that use real RDMA
-mvn test -pl hadoop-ozone/integration-test -Dgds_native \
-  -Dtest=TestRdmaS3Integration
+# Full build with native library
+export CUOBJSERVER_HOME=/usr/local/cuobjserver
+mvn install -DskipTests -Pnative -pl hadoop-hdds/container-service-native
+
+# Run all RDMA unit tests (uses MockRdmaTransferService, no hardware)
+mvn test -pl hadoop-hdds/container-service-native
+
+# Run integration tests with MiniOzoneCluster
+mvn test -pl hadoop-ozone/integration-test -Dtest=TestRdmaReadBlock
 ```
 
-```java
-conf.setBoolean("ozone.datanode.rdma.enabled",true);
-conf.
+### 6.4 `setup-dev-env.sh`
 
-set("ozone.datanode.rdma.device","rxe0");  // SoftRoCE device
-```
-
-**Use this for:** Validating the JNI bridge, verifying RDMA buffer registration, testing real ibverbs calls. Performance
-will be CPU-bound (SoftRoCE) but the code path is identical to production.
-
-#### Option C: Docker Cluster with SoftRoCE
-
-Multi-container setup for testing distributed RDMA. Uses the docker-compose.yml from Section 6.6.
-
-```bash
-# Build Ozone distribution
-mvn clean install -DskipTests -Dgds_native
-# Package distribution
-cd hadoop-ozone/dist && mvn package -DskipTests
-# Start Docker cluster
-docker compose -f dev-support/rdma/docker-compose.yml up -d
-```
-
-**Use this for:** Testing multi-datanode scenarios, testing RDMA between separate processes, testing container RDMA
-device passthrough.
-
-#### Option D: Multi-Node Cloud Cluster (Real Hardware RDMA)
-
-For performance validation. Requires a cloud provider from Section 6.2 with IB/RoCE access.
-
-```mermaid
-flowchart LR
-  subgraph Node1["Node 1: GPU Client"]
-    cuObjClient["cuObjClient"]
-    GPU["GPU Memory"]
-    cuObjClient --> GPU
-  end
-
-  subgraph Node2["Node 2: Ozone Cluster"]
-    OM["OM"]
-    SCM["SCM"]
-    S3GW["S3 Gateway"]
-    DN1["Datanode 1"]
-    DN2["Datanode 2"]
-    DN3["Datanode 3"]
-  end
-
-  Node1 <-->|" RDMA Data Plane<br/>(InfiniBand) "| Node2
-  Node1 <-->|" TCP Control Plane "| Node2
-```
-
-```bash
-# Node 2: Start Ozone
-./setup-dev-env.sh
-bin/ozone om --init && bin/ozone om &
-bin/ozone scm --init && bin/ozone scm &
-bin/ozone datanode &
-bin/ozone s3g &
-
-# Node 1: Run benchmark
-python3 ozone-rdma-bench.py --endpoint http://node2:9878 --bucket test --mode compare --gpu-id 0
-```
-
-**Use this for:** Performance benchmarking, validating GPUDirect transfers, comparing RDMA vs TCP throughput.
-
-### 6.4 setup-dev-env.sh
-
-Full development environment setup script. Installs all prerequisites for building and running Ozone with RDMA support.
+Script to prepare a development machine for RDMA work:
 
 ```bash
 #!/usr/bin/env bash
-# setup-dev-env.sh — One-shot development environment provisioning
-# Installs: Java 11, Maven 3.9, CMake 3.28, NVIDIA drivers, CUDA,
-#           GDS, RDMA (SoftRoCE or MLNX_OFED), cuObject SDK, Ozone build
-#
-# Usage:
-#   ./setup-dev-env.sh                    # Full install
-#   ./setup-dev-env.sh --soft-roce-only   # Skip MLNX_OFED, use SoftRoCE
-#   ./setup-dev-env.sh --skip-ozone-build # Skip Ozone Maven build
-#   ./setup-dev-env.sh --dry-run          # Print commands without executing
-
 set -euo pipefail
 
-# --- Configuration ---
-CUDA_VERSION="${CUDA_VERSION:-13-2}"
-MAVEN_VERSION="3.9.9"
-CMAKE_VERSION="3.28.6"
-MLNX_VERSION="24.10-2.1.8.0"
-LOG_FILE="/tmp/setup-dev-env-$(date +%Y%m%d-%H%M%S).log"
+echo "=== Ozone RDMA Development Environment Setup ==="
 
-# --- Argument parsing ---
-SKIP_OZONE_BUILD=false
-SOFT_ROCE_ONLY=false
-DRY_RUN=false
+# 1. Install SoftRoCE
+echo "--- Setting up SoftRoCE ---"
+sudo modprobe rdma_rxe
+# Find primary network interface
+IFACE=$(ip route get 8.8.8.8 | head -1 | awk '{print $5}')
+sudo rdma link add rxe0 type rxe netdev "$IFACE"
+echo "SoftRoCE device rxe0 created on $IFACE"
 
-for arg in "$@"; do
-  case $arg in
-    --skip-ozone-build) SKIP_OZONE_BUILD=true ;;
-    --soft-roce-only) SOFT_ROCE_ONLY=true ;;
-    --cuda-version=*) CUDA_VERSION="${arg#*=}" ;;
-    --dry-run) DRY_RUN=true ;;
-    --help) usage; exit 0 ;;
-    *) echo "Unknown option: $arg"; exit 1 ;;
-  esac
-done
+# 2. Verify RDMA
+echo "--- Verifying RDMA ---"
+rdma link show
+ibv_devices
 
-# --- Functions ---
-log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
-run() {
-  log "RUN: $*"
-  if [ "$DRY_RUN" = false ]; then
-    "$@" >> "$LOG_FILE" 2>&1
-  fi
-}
-
-check_installed() {
-  command -v "$1" >/dev/null 2>&1
-}
-
-# --- Step 1: OS detection ---
-log "Detecting OS..."
-if [ ! -f /etc/os-release ]; then
-  log "ERROR: Only Linux is supported"
-  exit 1
-fi
-source /etc/os-release
-if [[ "$ID" != "ubuntu" ]]; then
-  log "WARNING: Only Ubuntu is tested. Detected: $ID $VERSION_ID"
-fi
-log "OS: $ID $VERSION_ID, Arch: $(uname -m)"
-
-# --- Step 2: System packages ---
-log "Installing system packages..."
-run sudo apt-get update
-run sudo apt-get install -y build-essential linux-headers-$(uname -r) \
-  dkms pkg-config autoconf automake libtool flex bison \
-  libssl-dev libelf-dev libnuma-dev libcap-dev \
-  wget curl unzip software-properties-common \
-  openjdk-8-jdk openjdk-11-jdk \
-  libibverbs-dev librdmacm-dev ibverbs-utils rdmacm-utils \
-  infiniband-diags perftest protobuf-compiler git
-
-# --- Step 3: Java ---
-log "Configuring Java 11..."
-run sudo update-alternatives --set java /usr/lib/jvm/java-11-openjdk-amd64/bin/java
-run sudo update-alternatives --set javac /usr/lib/jvm/java-11-openjdk-amd64/bin/javac
-export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-
-# --- Step 4: Maven ---
-if ! check_installed mvn || ! mvn --version 2>/dev/null | grep -q "3.9"; then
-  log "Installing Maven ${MAVEN_VERSION}..."
-  run wget -q "https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz" -O /tmp/maven.tar.gz
-  run sudo tar xzf /tmp/maven.tar.gz -C /opt/
-  run sudo ln -sf "/opt/apache-maven-${MAVEN_VERSION}/bin/mvn" /usr/local/bin/mvn
-fi
-
-# --- Step 5: CMake ---
-if ! check_installed cmake || ! cmake --version 2>/dev/null | grep -qE "3\.(2[8-9]|[3-9])"; then
-  log "Installing CMake ${CMAKE_VERSION}..."
-  run wget -q "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.sh" -O /tmp/cmake.sh
-  run sudo sh /tmp/cmake.sh --skip-license --prefix=/usr/local
-fi
-
-# --- Step 6: NVIDIA Driver + CUDA ---
-if ! check_installed nvidia-smi; then
-  log "Installing NVIDIA driver and CUDA toolkit ${CUDA_VERSION}..."
-  run wget -q "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb" -O /tmp/cuda-keyring.deb
-  run sudo dpkg -i /tmp/cuda-keyring.deb
-  run sudo apt-get update
-  run sudo apt-get install -y nvidia-driver-560 "cuda-toolkit-${CUDA_VERSION}"
+# 3. Check for cuObjServer SDK
+if [ -z "${CUOBJSERVER_HOME:-}" ]; then
+  echo "WARNING: CUOBJSERVER_HOME not set."
+  echo "  For native builds, install cuobjserver and set CUOBJSERVER_HOME."
+  echo "  For Java-only development, this is not required."
 else
-  log "NVIDIA driver already installed: $(nvidia-smi --query-gpu=driver_version --format=csv,noheader | head -1)"
-fi
-
-# Environment
-grep -q "CUDA_HOME" ~/.bashrc || cat >> ~/.bashrc << 'ENVEOF'
-export CUDA_HOME=/usr/local/cuda
-export PATH=$CUDA_HOME/bin:$PATH
-export LD_LIBRARY_PATH=$CUDA_HOME/lib64:${LD_LIBRARY_PATH:-}
-ENVEOF
-export CUDA_HOME=/usr/local/cuda
-export PATH=$CUDA_HOME/bin:$PATH
-export LD_LIBRARY_PATH=$CUDA_HOME/lib64:${LD_LIBRARY_PATH:-}
-
-# --- Step 7: GDS ---
-log "Installing GPUDirect Storage..."
-run sudo apt-get install -y nvidia-gds || log "WARNING: nvidia-gds not available, may be bundled with CUDA"
-
-# --- Step 8: RDMA ---
-if [ "$SOFT_ROCE_ONLY" = true ] || ! ibv_devinfo 2>/dev/null | grep -q "mlx5"; then
-  log "Configuring SoftRoCE (no hardware RDMA detected or --soft-roce-only)..."
-  run sudo modprobe rdma_rxe
-  rdma link show | grep -q "rxe0" || run sudo rdma link add rxe0 type rxe netdev lo
-  echo "rdma_rxe" | sudo tee -a /etc/modules-load.d/rdma_rxe.conf > /dev/null 2>&1 || true
-else
-  log "Hardware RDMA device detected"
-  if [ ! -d "/tmp/MLNX_OFED_LINUX-${MLNX_VERSION}"* ]; then
-    log "Installing MLNX_OFED ${MLNX_VERSION}..."
-    # Download and install MLNX_OFED (see NVIDIA MLNX_OFED documentation)
-  fi
-fi
-
-# --- Step 9: cuObject SDK ---
-log "Checking cuObject SDK..."
-if [ -f /usr/local/cuda/include/cuobjserver.h ]; then
-  log "cuObject SDK already installed"
-else
-  log "WARNING: cuObject SDK not found. Install manually from NVIDIA Developer."
-  log "See: https://developer.nvidia.com/gpudirect-storage"
-fi
-
-# --- Step 10: Ozone build ---
-if [ "$SKIP_OZONE_BUILD" = false ]; then
-  if [ -d "hadoop-ozone" ]; then
-    log "Building Apache Ozone..."
-    run mvn clean install -DskipTests -Dmaven.javadoc.skip=true
+  echo "CUOBJSERVER_HOME=$CUOBJSERVER_HOME"
+  if [ -f "$CUOBJSERVER_HOME/include/cuobjserver.h" ]; then
+    echo "  cuobjserver.h found"
   else
-    log "WARNING: Not in Ozone source directory. Skipping build."
+    echo "  WARNING: cuobjserver.h not found at $CUOBJSERVER_HOME/include/"
+  fi
+  if [ -f "$CUOBJSERVER_HOME/lib64/libcuobjserver.so" ] || \
+     [ -f "$CUOBJSERVER_HOME/lib/libcuobjserver.so" ]; then
+    echo "  libcuobjserver.so found"
+  else
+    echo "  WARNING: libcuobjserver.so not found"
   fi
 fi
 
-# --- Step 11: IOMMU warning ---
-if grep -q "intel_iommu=on\|amd_iommu=on" /proc/cmdline 2>/dev/null; then
-  log "WARNING: IOMMU is enabled. GPUDirect requires IOMMU disabled."
-  log "Add 'intel_iommu=off' (or 'amd_iommu=off') to GRUB_CMDLINE_LINUX_DEFAULT"
-  log "in /etc/default/grub, then run: sudo update-grub && sudo reboot"
-fi
+# 4. Check Java/Maven
+echo "--- Build tools ---"
+java -version 2>&1 | head -1
+mvn --version 2>&1 | head -1
 
-log "Setup complete! Run ./validate-env.sh to verify."
+echo ""
+echo "=== Setup complete ==="
+echo "To build with native RDMA support:"
+echo "  export CUOBJSERVER_HOME=/path/to/cuobjserver"
+echo "  mvn install -Pnative -pl hadoop-hdds/container-service-native"
+echo ""
+echo "To run Java-only tests (no hardware):"
+echo "  mvn test -pl hadoop-hdds/container-service-native"
 ```
 
-### 6.5 validate-env.sh
+### 6.5 `validate-env.sh`
 
-Comprehensive validation of all development environment components. Produces a summary table with PASS/FAIL for each
-check and returns non-zero exit code if any critical check fails.
+Script to validate that an environment is ready for RDMA operations:
 
 ```bash
 #!/usr/bin/env bash
-# validate-env.sh — Validates the complete development environment
-# Produces a summary table with PASS/FAIL for each check
-# Returns non-zero exit code if any critical check fails
-
-set -uo pipefail
+set -euo pipefail
 
 PASS=0
 FAIL=0
-WARN=0
-RESULTS=()
 
 check() {
-  local name="$1"
-  local critical="$2"  # "critical" or "optional"
-  shift 2
-  if "$@" > /dev/null 2>&1; then
-    RESULTS+=("PASS|$name|$critical")
-    ((PASS++))
-  elif [ "$critical" = "critical" ]; then
-    RESULTS+=("FAIL|$name|$critical")
-    ((FAIL++))
+  local desc="$1"; shift
+  if "$@" >/dev/null 2>&1; then
+    echo "  [PASS] $desc"
+    PASS=$((PASS + 1))
   else
-    RESULTS+=("WARN|$name|$critical")
-    ((WARN++))
+    echo "  [FAIL] $desc"
+    FAIL=$((FAIL + 1))
   fi
 }
 
-check_output() {
-  local name="$1"
-  local critical="$2"
-  shift 2
-  local output
-  output=$("$@" 2>&1) && {
-    RESULTS+=("PASS|$name ($output)|$critical")
-    ((PASS++))
-  } || {
-    if [ "$critical" = "critical" ]; then
-      RESULTS+=("FAIL|$name|$critical")
-      ((FAIL++))
-    else
-      RESULTS+=("WARN|$name|$critical")
-      ((WARN++))
-    fi
-  }
-}
+echo "=== RDMA Environment Validation ==="
 
-# GPU checks
-check "NVIDIA GPU accessible" critical nvidia-smi
-check_output "CUDA toolkit" critical nvcc --version
-check_output "NVIDIA driver version" critical nvidia-smi --query-gpu=driver_version --format=csv,noheader
-
-# Compute capability check (A100=8.0, H100=9.0, V100=7.0)
-check "GPU compute capability >= 7.0" critical \
-  bash -c 'nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -1 | awk -F. "{exit (\$1 >= 7) ? 0 : 1}"'
-
-# RDMA checks
-check "RDMA device present" critical bash -c 'ibv_devinfo 2>/dev/null | grep -q "hca_id\|device:"'
-check "RDMA link active" optional bash -c 'rdma link show 2>/dev/null | grep -q "ACTIVE\|state ACTIVE"'
-check "RDMA loopback (rping)" optional bash -c \
-  'timeout 5 rping -s -v & sleep 1 && timeout 3 rping -c -a 127.0.0.1 -C 3 && kill %1 2>/dev/null'
-
-# GDS checks
-check "GPUDirect Storage installed" optional bash -c 'dpkg -l | grep -q nvidia-gds'
-check "cuFile config exists" optional test -f /etc/cufile.json
-
-# cuObject checks
-check "cuObjServer header present" critical test -f /usr/local/cuda/include/cuobjserver.h
-check "cuObjServer library present" critical bash -c 'ldconfig -p | grep -q libcuobjserver'
-check "cuObjClient library present" optional bash -c 'ldconfig -p | grep -q libcuobjclient'
-
-# Build toolchain
-check "Java 11" critical bash -c 'java -version 2>&1 | grep -q "11\."'
-check "Maven 3.9+" critical bash -c 'mvn --version 2>&1 | grep -qE "3\.(9|[1-9][0-9])\."'
-check "CMake 3.20+" critical bash -c 'cmake --version 2>&1 | grep -qE "3\.(2[0-9]|[3-9][0-9])\."'
-check "GCC" critical bash -c 'gcc --version > /dev/null 2>&1'
-check "protoc" critical bash -c 'protoc --version > /dev/null 2>&1'
-check "libibverbs-dev" critical test -f /usr/include/infiniband/verbs.h
-check "JNI headers" critical test -f "${JAVA_HOME:-/usr/lib/jvm/java-11-openjdk-amd64}/include/jni.h"
-
-# Ozone checks
-check "Ozone builds" optional bash -c 'test -f hadoop-ozone/dist/target/ozone-*/bin/ozone'
-check "MiniOzoneCluster classes" optional bash -c \
-  'find . -path "*/MiniOzoneClusterImpl.class" 2>/dev/null | grep -q .'
-
-# IOMMU check
-check "IOMMU disabled" optional bash -c '! grep -q "iommu=on" /proc/cmdline'
-
-# Print summary
 echo ""
-echo "╔══════════════════════════════════════════════════════════╗"
-echo "║          Development Environment Validation             ║"
-echo "╠════════╦════════════════════════════════════════╦════════╣"
-echo "║ Status ║ Check                                  ║ Level  ║"
-echo "╠════════╬════════════════════════════════════════╬════════╣"
-for result in "${RESULTS[@]}"; do
-  IFS='|' read -r status name level <<< "$result"
-  printf "║ %-6s ║ %-38s ║ %-6s ║\n" "$status" "${name:0:38}" "$level"
-done
-echo "╠════════╩════════════════════════════════════════╩════════╣"
-printf "║ PASS: %-3d  FAIL: %-3d  WARN: %-3d                       ║\n" "$PASS" "$FAIL" "$WARN"
-echo "╚════════════════════════════════════════════════════════════╝"
+echo "--- Kernel modules ---"
+check "rdma_cm loaded" lsmod | grep -q rdma_cm
+check "ib_core loaded" lsmod | grep -q ib_core
+check "ib_uverbs loaded" lsmod | grep -q ib_uverbs
 
-# --- NVIDIA Hardware Compliance Warnings ---
 echo ""
-echo "╔══════════════════════════════════════════════════════════╗"
-echo "║          NVIDIA Hardware Compliance Warnings             ║"
-echo "╠════════════════════════════════════════════════════════════╣"
+echo "--- RDMA devices ---"
+check "At least one RDMA device" test "$(rdma link show 2>/dev/null | wc -l)" -gt 0
+check "ibv_devices works" ibv_devices
 
-# Check for SoftRoCE vs hardware RDMA
-if rdma link show 2>/dev/null | grep -q "type rxe"; then
-  echo "║ WARNING: SoftRoCE (rdma_rxe) detected.                  ║"
-  echo "║ NVIDIA recommends ConnectX-5+ for production RDMA.      ║"
-  echo "║ SoftRoCE is for development/functional testing ONLY.    ║"
-  echo "║ Limitations:                                             ║"
-  echo "║   - GPUDirect RDMA: NOT SUPPORTED with SoftRoCE        ║"
-  echo "║   - Zero-copy GPU transfers: NOT POSSIBLE               ║"
-  echo "║   - Latency: ~50-100us (vs ~1-2us hardware)            ║"
-  echo "║   - Throughput: CPU-bound (vs line rate with hardware)  ║"
-  ((WARN++))
-fi
+echo ""
+echo "--- cuObjServer ---"
+check "libcuobjserver.so in ldconfig" ldconfig -p | grep -q libcuobjserver
+check "CUOBJSERVER_HOME set" test -n "${CUOBJSERVER_HOME:-}"
 
-# Check NIC type
-if ibv_devinfo 2>/dev/null | grep -q "hca_id"; then
-  HCA_ID=$(ibv_devinfo 2>/dev/null | grep "hca_id" | head -1 | awk '{print $2}')
-  if [[ "$HCA_ID" != mlx5_* ]]; then
-    echo "║ WARNING: Non-Mellanox RDMA device: $HCA_ID              ║"
-    echo "║ NVIDIA recommends ConnectX-5+ (mlx5_*) for GPUDirect.  ║"
-    ((WARN++))
-  fi
-fi
+echo ""
+echo "--- GPUDirect (optional, client-side) ---"
+check "nvidia_peermem loaded" lsmod | grep -q nvidia_peermem
+check "NVIDIA GPU present" nvidia-smi
 
-# Check GPU compute capability for GPUDirect
-if nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -1 | awk -F. '{exit ($1 >= 7) ? 0 : 1}'; then
-  :
-else
-  echo "║ WARNING: GPU compute capability < 7.0                    ║"
-  echo "║ GPUDirect RDMA requires compute capability >= 7.0       ║"
-  echo "║ (V100=7.0, A100=8.0, H100=9.0)                         ║"
-  ((WARN++))
-fi
+echo ""
+echo "--- Network ---"
+check "ibv_devinfo shows active port" ibv_devinfo | grep -q "state:.*PORT_ACTIVE"
 
-# Check CUDA version for cuObject
-if nvcc --version 2>/dev/null | grep -qE "V(1[3-9]|[2-9][0-9])\."; then
-  :
-else
-  echo "║ WARNING: CUDA < 13.1.1 detected.                        ║"
-  echo "║ cuObject SDK requires CUDA 13.1.1+ (13.2.0 recommended).║"
-  echo "║ Current CUDA will work for development with mocks.       ║"
-  ((WARN++))
-fi
-
-echo "╚════════════════════════════════════════════════════════════╝"
-
-if [ "$FAIL" -gt 0 ]; then
-  echo "RESULT: FAIL — $FAIL critical check(s) failed"
-  exit 1
-else
-  echo "RESULT: PASS — all critical checks passed ($WARN warnings)"
-  exit 0
-fi
+echo ""
+echo "=== Results: $PASS passed, $FAIL failed ==="
+[ "$FAIL" -eq 0 ] && echo "Environment is RDMA-ready." || echo "Fix failures before testing RDMA."
 ```
 
 ### 6.6 Docker Cluster for Integration Testing
 
-Multi-container Docker setup for testing distributed RDMA with SoftRoCE.
-
-**Docker Architecture:**
-
-```mermaid
-flowchart TB
-  subgraph Docker["Docker Compose Network (10.5.0.0/24)"]
-    C1["ozone-om-scm<br/>10.5.0.2<br/>OM + SCM + S3GW<br/>Ports: 9874, 9878, 9876"]
-    C2["ozone-dn1<br/>10.5.0.10<br/>Datanode + cuObjServer<br/>RDMA port: 9890"]
-    C3["ozone-dn2<br/>10.5.0.11<br/>Datanode + cuObjServer<br/>RDMA port: 9891"]
-    C4["ozone-dn3<br/>10.5.0.12<br/>Datanode + cuObjServer<br/>RDMA port: 9892"]
-    C5["gpu-client<br/>10.5.0.20<br/>GPU app + cuObjClient"]
-  end
-```
-
-**`docker-compose.yml`:**
+For integration testing with a multi-node Ozone cluster + SoftRoCE:
 
 ```yaml
-version: '3.8'
+# docker-compose-rdma.yaml
+# Extends the standard Ozone docker-compose with RDMA support
+version: "3.8"
 
 services:
-  ozone-om-scm:
-    build:
-      context: .
-      dockerfile: Dockerfile.ozone
-    container_name: ozone-om-scm
-    hostname: ozone-om-scm
-    ports:
-      - "9874:9874"   # OM RPC
-      - "9878:9878"   # S3 Gateway
-      - "9876:9876"   # SCM
+  datanode:
+    image: apache/ozone-runner:latest
+    privileged: true  # Required for SoftRoCE kernel module
+    environment:
+      OZONE-SITE.XML_hdds.datanode.rdma.enabled: "true"
+      OZONE-SITE.XML_hdds.datanode.rdma.device: "rxe0"
+      OZONE-SITE.XML_hdds.datanode.rdma.port: "19870"
     volumes:
-      - om-data:/data/ozone
-    environment:
-      - OZONE_ROLE=om-scm-s3g
-    networks:
-      rdma-net:
-        ipv4_address: 10.5.0.2
-
-  ozone-dn1:
-    build:
-      context: .
-      dockerfile: Dockerfile.datanode
-    container_name: ozone-dn1
-    hostname: ozone-dn1
-    volumes:
-      - dn1-data:/data/ozone
-    devices:
-      - /dev/infiniband:/dev/infiniband  # RDMA device passthrough
-    cap_add:
-      - IPC_LOCK           # Required for RDMA memory registration
-      - SYS_RAWIO          # Required for GPUDirect
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-    environment:
-      - OZONE_ROLE=datanode
-      - RDMA_DEVICE=rxe0
-      - RDMA_PORT=9890
-    networks:
-      rdma-net:
-        ipv4_address: 10.5.0.10
-
-  ozone-dn2:
-    build:
-      context: .
-      dockerfile: Dockerfile.datanode
-    container_name: ozone-dn2
-    hostname: ozone-dn2
-    volumes:
-      - dn2-data:/data/ozone
-    devices:
-      - /dev/infiniband:/dev/infiniband
-    cap_add:
-      - IPC_LOCK
-      - SYS_RAWIO
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-    environment:
-      - OZONE_ROLE=datanode
-      - RDMA_DEVICE=rxe0
-      - RDMA_PORT=9891
-    networks:
-      rdma-net:
-        ipv4_address: 10.5.0.11
-
-  ozone-dn3:
-    build:
-      context: .
-      dockerfile: Dockerfile.datanode
-    container_name: ozone-dn3
-    hostname: ozone-dn3
-    volumes:
-      - dn3-data:/data/ozone
-    devices:
-      - /dev/infiniband:/dev/infiniband
-    cap_add:
-      - IPC_LOCK
-      - SYS_RAWIO
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-    environment:
-      - OZONE_ROLE=datanode
-      - RDMA_DEVICE=rxe0
-      - RDMA_PORT=9892
-    networks:
-      rdma-net:
-        ipv4_address: 10.5.0.12
-
-  gpu-client:
-    build:
-      context: .
-      dockerfile: Dockerfile.gpu-client
-    container_name: gpu-client
-    hostname: gpu-client
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [ gpu ]
-    devices:
-      - /dev/infiniband:/dev/infiniband
-    cap_add:
-      - IPC_LOCK
-      - SYS_RAWIO
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-    environment:
-      - S3_ENDPOINT=http://ozone-om-scm:9878
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-    networks:
-      rdma-net:
-        ipv4_address: 10.5.0.20
-
-volumes:
-  om-data:
-  dn1-data:
-  dn2-data:
-  dn3-data:
-
-networks:
-  rdma-net:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 10.5.0.0/24
-```
-
-**GPU passthrough in Docker:**
-
-- Use `--gpus all` or the `deploy.resources.reservations.devices` syntax in compose
-- Requires `nvidia-container-toolkit` installed on the host [[ref-6]](https://docs.nvidia.com/cuda/gpudirect-rdma/)
-- Install:
-  `sudo apt-get install -y nvidia-container-toolkit && sudo nvidia-ctk runtime configure --runtime=docker && sudo systemctl restart docker`
-
-**RDMA device passthrough in Docker:**
-
-- Mount `/dev/infiniband/` directory which contains `uverbs0`, `rdma_cm`, etc.
-- For SoftRoCE: the host must have SoftRoCE configured; containers share the host's RDMA devices
-- `CAP_IPC_LOCK` is required for `ibv_reg_mr()` (RDMA memory registration)
-- Unlimited memlock (`ulimits.memlock: -1`) is required so RDMA can pin arbitrary amounts of memory
-
-**`Dockerfile.datanode`:**
-
-```dockerfile
-FROM ubuntu:22.04
-
-# Install Java 11 runtime
-RUN apt-get update && apt-get install -y openjdk-11-jre-headless \
-    libibverbs1 librdmacm1 && \
-    apt-get clean
-
-# Copy Ozone distribution
-COPY ozone-dist/ /opt/ozone/
-
-# Copy cuObjServer native library
-COPY libgds_jni.so /opt/ozone/lib/native/
-COPY libcuobjserver.so /usr/local/lib/
-
-ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-ENV OZONE_HOME=/opt/ozone
-ENV LD_LIBRARY_PATH=/opt/ozone/lib/native:/usr/local/lib
-
-ENTRYPOINT ["/opt/ozone/bin/ozone"]
-CMD ["datanode"]
+      - ./libcuobj_server_bridge.so:/opt/hadoop/lib/native/libcuobj_server_bridge.so
+    entrypoint: |
+      bash -c '
+        modprobe rdma_rxe
+        rdma link add rxe0 type rxe netdev eth0
+        /opt/hadoop/bin/ozone datanode
+      '
 ```
 
 ### 6.7 Quick Start Cookbook: End-to-End Setup and Test
 
-This section provides exact steps to go from zero to a working RDMA test. It references the scripts in Sections 6.4 and
-6.5 — not duplicating them.
-
-#### Prerequisites
-
-- Credit card for a cloud provider (see Section 6.2)
-- SSH key pair (generate with `ssh-keygen -t ed25519` if you don't have one)
-- Git installed locally
-
-#### Scenario A: Functional Testing with SoftRoCE (Cheapest, No Real RDMA)
-
-Use this to develop Java/JNI code, test protobuf changes, and validate RDMA code paths with software-emulated RDMA.
-Cost: ~$1-3/hr.
-
 ```bash
-# Step 1: Provision a GPU instance
-#   - Go to https://lambda.ai (or any GPU cloud provider)
-#   - Sign up with credit card
-#   - Launch a 1x A100 instance (~$1.29/hr) with Ubuntu 22.04
-#   - Copy the SSH command from the dashboard
-
-# Step 2: SSH into the instance
-ssh -i ~/.ssh/your_key ubuntu@<instance-ip>
-
-# Step 3: Clone the Ozone repo
+# 1. Clone and build
 git clone https://github.com/apache/ozone.git
 cd ozone
-git checkout gpudirect  # or your feature branch
+mvn install -DskipTests
 
-# Step 4: Run the environment setup script (SoftRoCE mode)
-chmod +x docs/setup-dev-env.sh docs/validate-env.sh
-./docs/setup-dev-env.sh --soft-roce-only
+# 2. Build native RDMA library (requires cuObjServer SDK)
+export CUOBJSERVER_HOME=/usr/local/cuobjserver
+mvn install -Pnative -pl hadoop-hdds/container-service-native
 
-# Step 5: Validate the environment
-./docs/validate-env.sh
-# Expected: All critical checks PASS. RDMA device shows "rxe0" (SoftRoCE).
-# GPU check will PASS. RDMA loopback will PASS.
-# cuObjServer header will FAIL (expected — no cuObject SDK on budget instance).
+# 3. Start a test cluster with RDMA
+docker compose -f docker-compose-rdma.yaml up -d
 
-# Step 6: Build Ozone with native RDMA support
-source ~/.bashrc  # pick up JAVA_HOME, CUDA_HOME
-mvn clean install -DskipTests -Dmaven.javadoc.skip=true
+# 4. Create a bucket and upload test data
+ozone sh bucket create /vol1/bucket1
+ozone sh key put /vol1/bucket1/testfile /path/to/large/file
 
-# Step 7: Run RDMA integration tests (SoftRoCE)
-mvn test -pl hadoop-ozone/integration-test \
-  -Dtest=TestRdmaS3Integration -Dgds_native
-# Expected: Tests exercise the RDMA token flow, JNI bridge (mock mode),
-# and S3 Gateway RDMA dispatch logic. All should PASS.
-
-# Step 8: Run MiniOzoneCluster manually (optional, for interactive testing)
-# See Section 6.3 Option A for the Java test class pattern.
-
-# Step 9: When done, terminate the instance to stop billing.
+# 5. Test RDMA GET with a cuObjClient test application
+# (Requires a GPU host with cuObjClient installed)
+./test-rdma-get s3://bucket1/testfile --rdma
 ```
-
-#### Scenario B: Real RDMA on Single Node (Crusoe Cloud)
-
-Use this to validate actual RDMA transfers with hardware InfiniBand. Cost: ~$15.60/hr.
-
-```bash
-# Step 1: Provision a Crusoe Cloud H100 VM
-#   - Go to https://www.crusoe.ai and sign up with credit card
-#   - Create a new VM:
-#     - GPU type: H100 SXM (8 GPUs)
-#     - Networking: Enable InfiniBand
-#     - OS: Ubuntu 22.04
-#   - Add your SSH public key during creation
-#   - Note the VM's IP address from the dashboard
-
-# Step 2: SSH into the instance
-ssh -i ~/.ssh/your_key ubuntu@<crusoe-vm-ip>
-
-# Step 3: Verify InfiniBand hardware is present BEFORE doing anything else
-ibv_devinfo
-# Expected output should show an mlx5_* device (e.g., mlx5_0)
-# If this fails, the VM was not provisioned with IB — delete and recreate.
-
-# Step 4: Clone and setup
-git clone https://github.com/apache/ozone.git
-cd ozone
-git checkout gpudirect
-
-# Step 5: Run full environment setup (NOT --soft-roce-only)
-chmod +x docs/setup-dev-env.sh docs/validate-env.sh
-./docs/setup-dev-env.sh
-# This installs: Java 11, Maven, CMake, CUDA, GDS, MLNX_OFED, cuObject SDK
-
-# Step 6: Validate everything
-./docs/validate-env.sh
-# Expected: All critical checks PASS.
-# RDMA device: mlx5_0 (hardware, NOT rxe0)
-# cuObjServer header: PASS
-# IOMMU disabled: PASS
-
-# Step 7: Build Ozone with native RDMA
-source ~/.bashrc
-mvn clean install -DskipTests -Dmaven.javadoc.skip=true -Dgds_native
-
-# Step 8: Start Ozone (single-node, all services in one shell)
-bin/ozone om --init
-bin/ozone scm --init
-bin/ozone om &
-bin/ozone scm &
-sleep 10  # wait for OM and SCM to start
-bin/ozone datanode &
-sleep 5
-bin/ozone s3g &
-
-# Step 9: Create a test bucket and upload test data
-bin/ozone sh bucket create /vol1/bucket1
-bin/ozone sh key put /vol1/bucket1/testfile /tmp/test-256mb.bin
-# (generate test file: dd if=/dev/urandom of=/tmp/test-256mb.bin bs=1M count=256)
-
-# Step 10: Run the RDMA benchmark (Section 8.4)
-python3 tools/ozone-rdma-bench.py \
-  --endpoint http://localhost:9878 \
-  --bucket bucket1 --mode compare --gpu-id 0
-# Expected: RDMA throughput significantly higher than TCP for objects > 1MB.
-# See Section 8.3 for expected result ranges.
-
-# Step 11: IMPORTANT — terminate the VM when done to stop billing ($15.60/hr)
-```
-
-#### Scenario C: Multi-Node RDMA Testing (2x Crusoe Cloud VMs)
-
-Use this to validate RDMA transfers between separate machines over a real IB fabric. Cost: ~$31.20/hr.
-
-```bash
-# Step 1: Provision 2x Crusoe Cloud H100 VMs
-#   - Create both VMs in the SAME region with InfiniBand enabled
-#   - Note both IPs: NODE1_IP and NODE2_IP
-
-# Step 2: SSH into both nodes and verify IB connectivity
-# On Node 1:
-ssh ubuntu@<NODE1_IP>
-ibv_devinfo  # confirm mlx5_*
-
-# On Node 2:
-ssh ubuntu@<NODE2_IP>
-ibv_devinfo  # confirm mlx5_*
-
-# Step 3: Test RDMA connectivity between nodes
-# On Node 2 (server):
-ib_write_bw --duration 5
-# On Node 1 (client):
-ib_write_bw <NODE2_IP> --duration 5
-# Expected: ~12 GB/s (96 Gbps) or higher. If this fails, the VMs
-# are not on the same IB fabric — delete and recreate in same AZ.
-
-# Step 4: Setup both nodes (run on BOTH)
-git clone https://github.com/apache/ozone.git && cd ozone
-git checkout gpudirect
-./docs/setup-dev-env.sh
-./docs/validate-env.sh
-mvn clean install -DskipTests -Dmaven.javadoc.skip=true -Dgds_native
-
-# Step 5: Start Ozone on Node 2 (storage node)
-bin/ozone om --init && bin/ozone scm --init
-bin/ozone om & bin/ozone scm &
-sleep 10
-bin/ozone datanode &
-bin/ozone s3g &
-
-# Step 6: Upload test data from Node 2
-dd if=/dev/urandom of=/tmp/test-256mb.bin bs=1M count=256
-bin/ozone sh bucket create /vol1/bucket1
-bin/ozone sh key put /vol1/bucket1/testfile /tmp/test-256mb.bin
-
-# Step 7: Run benchmark from Node 1 (GPU client node) → Node 2
-python3 tools/ozone-rdma-bench.py \
-  --endpoint http://<NODE2_IP>:9878 \
-  --bucket bucket1 --mode compare --gpu-id 0
-# Expected: Cross-node RDMA throughput >> TCP throughput for large objects.
-
-# Step 8: Terminate BOTH VMs when done.
-```
-
-#### What If Something Goes Wrong
-
-| Symptom                                 | Cause                                      | Fix                                                          |
-|-----------------------------------------|--------------------------------------------|--------------------------------------------------------------|
-| `ibv_devinfo` shows no devices          | VM not provisioned with IB                 | Delete VM, recreate with IB enabled                          |
-| `ibv_devinfo` shows `rxe0` not `mlx5_*` | SoftRoCE loaded instead of hardware        | Check if MLNX_OFED is installed: `ofed_info`                 |
-| `ib_write_bw` between nodes fails       | VMs on different IB fabrics                | Ensure both VMs are in same region/AZ                        |
-| `validate-env.sh` fails on cuObjServer  | cuObject SDK not installed                 | Download from https://developer.nvidia.com/gpudirect-storage |
-| Maven build fails on native module      | Missing CMake, CUDA, or libibverbs headers | Re-run `setup-dev-env.sh`, check `$LOG_FILE` output          |
-| Ozone datanode won't start with RDMA    | Config error or missing native lib         | Check `ozone.datanode.rdma.enabled=true` in `ozone-site.xml` |
 
 ---
 
@@ -4312,1125 +3567,496 @@ python3 tools/ozone-rdma-bench.py \
 
 ### 7.1 Unit Tests
 
-#### `CuObjServerBridgeTest.java`
+All unit tests use `MockRdmaTransferService` — no native library, no RDMA hardware, no SoftRoCE required.
 
-**File:** `hadoop-hdds/container-service-native/src/test/java/org/apache/hadoop/hdds/gds/CuObjServerBridgeTest.java`
+#### 7.1.1 `TestRdmaBufferPool`
 
 ```java
-package org.apache.hadoop.hdds.gds;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledOnOs;
-import org.junit.jupiter.api.condition.OS;
+@Test
+public void testAcquireAndRelease() throws Exception {
+  MockRdmaTransferService mockService = new MockRdmaTransferService();
+  mockService.initialize(null, 0, 0);
+  OzoneConfiguration conf = new OzoneConfiguration();
+  conf.setInt(RdmaBufferPool.BUFFER_SIZE_KEY, 1024);
+  conf.setInt(RdmaBufferPool.BUFFER_COUNT_KEY, 4);
+  RdmaBufferPool pool = new RdmaBufferPool(conf, mockService);
 
-import static org.junit.jupiter.api.Assertions.*;
-
-class CuObjServerBridgeTest {
-
-  @Test
-  void testIsAvailableDoesNotThrow() {
-    // Should return true or false without throwing
-    boolean available = CuObjServerBridge.isAvailable();
-    // In CI without GPU: expect false
-    // With GPU and native lib: expect true
-    assertNotNull(Boolean.valueOf(available));
+  // Acquire all buffers
+  List<RdmaBuffer> buffers = new ArrayList<>();
+  for (int i = 0; i < 4; i++) {
+    buffers.add(pool.acquire());
   }
+  assertEquals(0, pool.getAvailableCount());
 
-  @Test
-  @EnabledOnOs(OS.LINUX)
-  void testIsAvailableOnLinux() {
-    // On Linux, the library should attempt to load
-    // Result depends on whether native lib is built
-    CuObjServerBridge.isAvailable(); // just verify no crash
+  // Release all
+  buffers.forEach(pool::release);
+  assertEquals(4, pool.getAvailableCount());
+}
+
+@Test(expected = IOException.class)
+public void testPoolExhaustion() throws Exception {
+  // Configure pool with 1 buffer and short timeout
+  MockRdmaTransferService mockService = new MockRdmaTransferService();
+  mockService.initialize(null, 0, 0);
+  OzoneConfiguration conf = new OzoneConfiguration();
+  conf.setInt(RdmaBufferPool.BUFFER_COUNT_KEY, 1);
+  conf.setLong(RdmaBufferPool.ACQUIRE_TIMEOUT_KEY, 100);
+  RdmaBufferPool pool = new RdmaBufferPool(conf, mockService);
+
+  RdmaBuffer buf = pool.acquire();
+  pool.acquire(); // Should throw IOException after 100ms timeout
+}
+```
+
+#### 7.1.2 `TestXceiverServerRdma`
+
+```java
+
+@Test
+public void testHandleRdmaReadSingleChunk() throws Exception {
+  // Setup: create a mock file with 1 KB of data
+  MockRdmaTransferService mockService = new MockRdmaTransferService();
+  mockService.initialize(null, 0, 0);
+
+  // Register a "remote" buffer to simulate the GPU client
+  ByteBuffer remoteGpuBuffer = ByteBuffer.allocateDirect(4096);
+  mockService.registerRemoteBuffer("test-rdma-token-123", remoteGpuBuffer);
+
+  OzoneConfiguration conf = new OzoneConfiguration();
+  conf.setInt(RdmaBufferPool.BUFFER_SIZE_KEY, 4096);
+  conf.setInt(RdmaBufferPool.BUFFER_COUNT_KEY, 2);
+  XceiverServerRdma rdmaServer = new XceiverServerRdma(conf, mockService);
+
+  // Create a temp file with known content
+  byte[] testData = new byte[1024];
+  Arrays.fill(testData, (byte) 0xAB);
+  Path tempFile = Files.createTempFile("rdma-test", ".block");
+  Files.write(tempFile, testData);
+
+  // Build request
+  RdmaReadBlockRequestProto request = RdmaReadBlockRequestProto.newBuilder()
+      .setBlockID(DatanodeBlockID.newBuilder().setContainerID(1).setLocalID(1))
+      .setRdmaToken("test-rdma-token-123")
+      .build();
+
+  try (FileChannel fc = FileChannel.open(tempFile, StandardOpenOption.READ)) {
+    RdmaReadBlockResponseProto response =
+        rdmaServer.handleRdmaRead(request, fc, testData.length);
+    assertEquals(1024, response.getBytesTransferred());
+
+    // Verify data arrived in the "remote GPU" buffer
+    remoteGpuBuffer.position(0);
+    byte[] received = new byte[1024];
+    remoteGpuBuffer.get(received);
+    assertArrayEquals(testData, received);
   }
+}
 
-  @Test
-  void testInitWithoutNativeLibThrows() {
-    if (!CuObjServerBridge.isAvailable()) {
-      assertThrows(UnsatisfiedLinkError.class, () ->
-          CuObjServerBridge.init("mlx5_0", 0, 16));
-    }
+@Test
+public void testHandleRdmaReadChunked() throws Exception {
+  // Block is 16 KB, buffer is 4 KB → should produce 4 RDMA chunks
+  MockRdmaTransferService mockService = new MockRdmaTransferService();
+  mockService.initialize(null, 0, 0);
+
+  ByteBuffer remoteGpuBuffer = ByteBuffer.allocateDirect(16 * 1024);
+  mockService.registerRemoteBuffer("token-chunked", remoteGpuBuffer);
+
+  OzoneConfiguration conf = new OzoneConfiguration();
+  conf.setInt(RdmaBufferPool.BUFFER_SIZE_KEY, 4096); // 4 KB buffer
+  conf.setInt(RdmaBufferPool.BUFFER_COUNT_KEY, 2);
+  XceiverServerRdma rdmaServer = new XceiverServerRdma(conf, mockService);
+
+  byte[] testData = new byte[16 * 1024];
+  new Random(42).nextBytes(testData);
+  Path tempFile = Files.createTempFile("rdma-chunk-test", ".block");
+  Files.write(tempFile, testData);
+
+  RdmaReadBlockRequestProto request = RdmaReadBlockRequestProto.newBuilder()
+      .setBlockID(DatanodeBlockID.newBuilder().setContainerID(1).setLocalID(1))
+      .setRdmaToken("token-chunked")
+      .build();
+
+  try (FileChannel fc = FileChannel.open(tempFile, StandardOpenOption.READ)) {
+    RdmaReadBlockResponseProto response =
+        rdmaServer.handleRdmaRead(request, fc, testData.length);
+    assertEquals(16 * 1024, response.getBytesTransferred());
+
+    // Verify all 16 KB arrived correctly
+    remoteGpuBuffer.position(0);
+    byte[] received = new byte[16 * 1024];
+    remoteGpuBuffer.get(received);
+    assertArrayEquals(testData, received);
   }
 }
 ```
 
-#### `XceiverServerRdmaTest.java`
-
-**File:**
-`hadoop-hdds/container-service/src/test/java/org/apache/hadoop/ozone/container/common/transport/server/XceiverServerRdmaTest.java`
+#### 7.1.3 `TestMockRdmaTransferService`
 
 ```java
-package org.apache.hadoop.ozone.container.common.transport.server;
 
-import org.apache.hadoop.hdds.conf.OzoneConfiguration;
-import org.apache.hadoop.hdds.protocol.DatanodeDetails;
-import org.apache.hadoop.hdds.security.token.NoopTokenVerifier;
-import org.apache.hadoop.ozone.container.common.interfaces.ContainerDispatcher;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+@Test
+public void testRoundTrip() throws Exception {
+  MockRdmaTransferService service = new MockRdmaTransferService();
+  service.initialize(null, 0, 0);
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+  // Register a "remote" GPU buffer
+  ByteBuffer remote = ByteBuffer.allocateDirect(1024);
+  service.registerRemoteBuffer("token-1", remote);
 
-class XceiverServerRdmaTest {
+  // Register a local buffer
+  ByteBuffer local = ByteBuffer.allocateDirect(1024);
+  service.registerBuffer(local);
 
-  private OzoneConfiguration conf;
-  private DatanodeDetails datanodeDetails;
-  private ContainerDispatcher dispatcher;
+  // Write data to local, then RDMA_WRITE to remote
+  byte[] data = "Hello RDMA".getBytes();
+  local.put(data);
+  service.rdmaWriteToRemote("token-1", local, 0, data.length, 0);
 
-  @BeforeEach
-  void setup() {
-    conf = new OzoneConfiguration();
-    conf.setBoolean(XceiverServerRdma.RDMA_ENABLED_KEY, true);
-    conf.set(XceiverServerRdma.RDMA_DEVICE_KEY, "rxe0");
-    conf.setInt(XceiverServerRdma.RDMA_PORT_KEY, 0);
-    conf.setInt(XceiverServerRdma.RDMA_BUFFER_COUNT_KEY, 4);
+  // Verify remote received the data
+  remote.position(0);
+  byte[] received = new byte[data.length];
+  remote.get(received);
+  assertArrayEquals(data, received);
 
-    datanodeDetails = DatanodeDetails.newBuilder()
-        .setUuid(java.util.UUID.randomUUID())
-        .setHostName("localhost")
-        .setIpAddress("127.0.0.1")
-        .build();
+  // Now RDMA_READ back from remote to a new local buffer
+  ByteBuffer local2 = ByteBuffer.allocateDirect(1024);
+  service.registerBuffer(local2);
+  service.rdmaReadFromRemote("token-1", local2, 0, data.length, 0);
 
-    dispatcher = mock(ContainerDispatcher.class);
-  }
-
-  @Test
-  void testConstructor() {
-    XceiverServerRdma server = new XceiverServerRdma(
-        datanodeDetails, conf, dispatcher, new NoopTokenVerifier());
-    assertNotNull(server);
-    assertFalse(server.isRunning());
-  }
-
-  @Test
-  void testStartWithoutNativeLib() throws Exception {
-    // When native lib is not available, start() should log warning
-    // and return without throwing
-    XceiverServerRdma server = new XceiverServerRdma(
-        datanodeDetails, conf, dispatcher, new NoopTokenVerifier());
-    // This won't throw — it checks isAvailable() first
-    server.start();
-    assertFalse(server.isRunning());
-  }
-
-  @Test
-  void testGetIPCPort() {
-    conf.setInt(XceiverServerRdma.RDMA_PORT_KEY, 9890);
-    XceiverServerRdma server = new XceiverServerRdma(
-        datanodeDetails, conf, dispatcher, new NoopTokenVerifier());
-    assertEquals(9890, server.getIPCPort());
-  }
-
-  @Test
-  void testGetPipelineReport() {
-    XceiverServerRdma server = new XceiverServerRdma(
-        datanodeDetails, conf, dispatcher, new NoopTokenVerifier());
-    assertTrue(server.getPipelineReport().isEmpty());
-  }
-
-  @Test
-  void testSubmitRequestThrows() {
-    XceiverServerRdma server = new XceiverServerRdma(
-        datanodeDetails, conf, dispatcher, new NoopTokenVerifier());
-    assertThrows(UnsupportedOperationException.class, () ->
-        server.submitRequest(null, null));
-  }
-}
-```
-
-#### `RdmaRequestFilterTest.java`
-
-**File:** `hadoop-ozone/s3gateway/src/test/java/org/apache/hadoop/ozone/s3/filter/RdmaRequestFilterTest.java`
-
-```java
-package org.apache.hadoop.ozone.s3.filter;
-
-import org.junit.jupiter.api.Test;
-import javax.ws.rs.container.ContainerRequestContext;
-import java.util.Base64;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
-class RdmaRequestFilterTest {
-
-  private final RdmaRequestFilter filter = new RdmaRequestFilter();
-
-  @Test
-  void testNoRdmaHeader() throws Exception {
-    ContainerRequestContext ctx = mock(ContainerRequestContext.class);
-    when(ctx.getHeaderString("x-amz-rdma-token")).thenReturn(null);
-    filter.filter(ctx);
-    verify(ctx, never()).setProperty(anyString(), any());
-  }
-
-  @Test
-  void testEmptyRdmaHeader() throws Exception {
-    ContainerRequestContext ctx = mock(ContainerRequestContext.class);
-    when(ctx.getHeaderString("x-amz-rdma-token")).thenReturn("");
-    filter.filter(ctx);
-    verify(ctx, never()).setProperty(anyString(), any());
-  }
-
-  @Test
-  void testValidRdmaToken() throws Exception {
-    byte[] token = new byte[64];
-    new java.util.Random(42).nextBytes(token);
-    String encoded = Base64.getEncoder().encodeToString(token);
-
-    ContainerRequestContext ctx = mock(ContainerRequestContext.class);
-    when(ctx.getHeaderString("x-amz-rdma-token")).thenReturn(encoded);
-    filter.filter(ctx);
-    verify(ctx).setProperty(eq(RdmaRequestFilter.RDMA_TOKEN_PROPERTY),
-        any(byte[].class));
-  }
-
-  @Test
-  void testInvalidBase64() throws Exception {
-    ContainerRequestContext ctx = mock(ContainerRequestContext.class);
-    when(ctx.getHeaderString("x-amz-rdma-token")).thenReturn("not-valid-base64!!!");
-    filter.filter(ctx);
-    verify(ctx, never()).setProperty(anyString(), any());
-  }
-
-  @Test
-  void testTooSmallToken() throws Exception {
-    byte[] token = new byte[4]; // Below 16-byte minimum
-    String encoded = Base64.getEncoder().encodeToString(token);
-
-    ContainerRequestContext ctx = mock(ContainerRequestContext.class);
-    when(ctx.getHeaderString("x-amz-rdma-token")).thenReturn(encoded);
-    filter.filter(ctx);
-    verify(ctx, never()).setProperty(anyString(), any());
-  }
+  local2.position(0);
+  byte[] roundTrip = new byte[data.length];
+  local2.get(roundTrip);
+  assertArrayEquals(data, roundTrip);
 }
 ```
 
 ### 7.2 Integration Tests with MiniOzoneCluster
 
-**File:** `hadoop-ozone/integration-test/src/test/java/org/apache/hadoop/ozone/s3/rdma/TestRdmaS3Integration.java`
+These tests run against a real Ozone cluster (in-process MiniOzoneCluster) with `MockRdmaTransferService` injected.
+They validate the full request dispatch chain: S3 Gateway → HddsDispatcher → KeyValueHandler → XceiverServerRdma.
+
+#### 7.2.1 `TestRdmaReadBlock`
 
 ```java
-package org.apache.hadoop.ozone.s3.rdma;
-
-import org.apache.hadoop.hdds.conf.OzoneConfiguration;
-import org.apache.hadoop.ozone.MiniOzoneCluster;
-import org.apache.hadoop.ozone.client.OzoneClient;
-import org.junit.jupiter.api.*;
-
-import static org.junit.jupiter.api.Assertions.*;
-
 /**
- * Integration tests for RDMA S3 path using MiniOzoneCluster.
- * Uses mocked RDMA (no real GPU/RDMA hardware required).
+ * Integration test: write a key via normal path, read via RDMA path.
+ * Uses MockRdmaTransferService — no hardware needed.
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class TestRdmaS3Integration {
+@Test
+public void testRdmaReadBlockEndToEnd() throws Exception {
+  // 1. Start MiniOzoneCluster with RDMA enabled (mock)
+  OzoneConfiguration conf = new OzoneConfiguration();
+  conf.setBoolean(XceiverServerRdma.RDMA_ENABLED_KEY, true);
+  // MockRdmaTransferService is injected via test configuration
 
-  private MiniOzoneCluster cluster;
-  private OzoneClient client;
-  private OzoneConfiguration conf;
+  MiniOzoneCluster cluster = MiniOzoneCluster.newBuilder(conf)
+      .setNumDatanodes(3)
+      .build();
+  cluster.waitForClusterToBeReady();
 
-  @BeforeAll
-  void setup() throws Exception {
-    conf = new OzoneConfiguration();
-    // Enable RDMA config but native lib won't be available in CI
-    conf.setBoolean("ozone.datanode.rdma.enabled", true);
-    conf.setLong("ozone.s3g.rdma.min.object.size", 256 * 1024);
+  // 2. Write a 1 MB key via the normal path
+  OzoneClient client = cluster.newClient();
+  ObjectStore objectStore = client.getObjectStore();
+  objectStore.createVolume("vol1");
+  objectStore.getVolume("vol1").createBucket("bucket1");
+  OzoneBucket bucket = objectStore.getVolume("vol1").getBucket("bucket1");
 
-    cluster = MiniOzoneCluster.newBuilder(conf)
-        .setNumDatanodes(3)
-        .build();
-    cluster.waitForClusterToBeReady();
-    client = cluster.newClient();
-  }
+  byte[] data = new byte[1024 * 1024];
+  new Random(42).nextBytes(data);
+  OzoneOutputStream out = bucket.createKey("testkey", data.length);
+  out.write(data);
+  out.close();
 
-  @AfterAll
-  void teardown() {
-    if (client != null) client.close();
-    if (cluster != null) cluster.shutdown();
-  }
-
-  @Test
-  void testGetWithoutRdmaTokenUsesExistingPath() throws Exception {
-    // Standard GET without RDMA token should work unchanged
-    // ... create volume, bucket, write key, read key ...
-    // Verify: data received correctly via TCP path
-  }
-
-  @Test
-  void testPutWithoutRdmaTokenUsesExistingPath() throws Exception {
-    // Standard PUT without RDMA token should work unchanged
-  }
-
-  @Test
-  void testRdmaTokenDetection() throws Exception {
-    // Send GET with x-amz-rdma-token header
-    // Verify: S3 Gateway detects the token and attempts RDMA path
-    // Since native lib is not loaded, it should fall back to TCP
-  }
-
-  @Test
-  void testSmallObjectFallsBackToTcp() throws Exception {
-    // Write a 1KB object
-    // Send GET with RDMA token
-    // Verify: falls back to TCP because object < rdma.min.object.size
-  }
-
-  @Test
-  void testTdeEncryptedBucketFallsBackToTcp() throws Exception {
-    // Create bucket with TDE encryption
-    // Write object
-    // Send GET with RDMA token
-    // Verify: falls back to TCP because bucket has TDE
-  }
-
-  @Test
-  void testDatanodeRdmaPortRegistration() throws Exception {
-    // When RDMA is enabled and native lib available,
-    // datanodes should register RDMA port in DatanodeDetails
-    // In CI: RDMA won't be available, so no port registered
-  }
+  // 3. Read via RDMA path
+  OzoneKeyDetails keyDetails = bucket.getKey("testkey");
+  // ... build RdmaReadBlock request and send to datanode ...
+  // ... verify data matches ...
 }
 ```
 
 ### 7.3 Integration Tests with Docker Cluster
 
-**Test script specification:** `test-docker-rdma.sh`
+For testing with SoftRoCE (real kernel RDMA, no GPU):
 
 ```bash
-#!/usr/bin/env bash
-# test-docker-rdma.sh — End-to-end RDMA tests using Docker cluster
-# Requires: docker, docker-compose, nvidia-container-toolkit, SoftRoCE
+# Start the RDMA-enabled docker cluster
+docker compose -f docker-compose-rdma.yaml up -d
 
-set -euo pipefail
-
-# Start cluster
-docker-compose -f docker-compose-rdma.yml up -d
-sleep 30  # Wait for cluster initialization
-
-S3_ENDPOINT="http://localhost:9878"
-BUCKET="rdma-test-bucket"
-
-# Create bucket
-aws s3 mb "s3://${BUCKET}" --endpoint-url "$S3_ENDPOINT"
-
-# Test matrix: object sizes
-SIZES=("1KB" "1MB" "100MB" "1GB")
-
-for SIZE in "${SIZES[@]}"; do
-  echo "=== Testing ${SIZE} ==="
-
-  # Generate test data
-  dd if=/dev/urandom of="/tmp/test-${SIZE}" bs=1 count=0 seek="${SIZE}" 2>/dev/null
-  ORIG_MD5=$(md5sum "/tmp/test-${SIZE}" | awk '{print $1}')
-
-  # PUT via TCP (baseline)
-  aws s3 cp "/tmp/test-${SIZE}" "s3://${BUCKET}/tcp-${SIZE}" \
-    --endpoint-url "$S3_ENDPOINT"
-
-  # GET via TCP (baseline)
-  aws s3 cp "s3://${BUCKET}/tcp-${SIZE}" "/tmp/tcp-get-${SIZE}" \
-    --endpoint-url "$S3_ENDPOINT"
-  TCP_MD5=$(md5sum "/tmp/tcp-get-${SIZE}" | awk '{print $1}')
-
-  # Verify TCP integrity
-  [ "$ORIG_MD5" = "$TCP_MD5" ] && echo "TCP integrity: PASS" || echo "TCP integrity: FAIL"
-
-  # PUT via RDMA (using cuObjClient test tool in gpu-client container)
-  docker exec gpu-client /opt/rdma-bench put \
-    --endpoint "$S3_ENDPOINT" --bucket "$BUCKET" \
-    --key "rdma-${SIZE}" --size "${SIZE}"
-
-  # GET via RDMA
-  docker exec gpu-client /opt/rdma-bench get \
-    --endpoint "$S3_ENDPOINT" --bucket "$BUCKET" \
-    --key "rdma-${SIZE}" --verify
-
-  # Cross-verify: write via RDMA, read via TCP
-  aws s3 cp "s3://${BUCKET}/rdma-${SIZE}" "/tmp/cross-get-${SIZE}" \
-    --endpoint-url "$S3_ENDPOINT"
-  CROSS_MD5=$(md5sum "/tmp/cross-get-${SIZE}" | awk '{print $1}')
-  [ "$ORIG_MD5" = "$CROSS_MD5" ] && echo "Cross-path integrity: PASS" || echo "Cross-path integrity: FAIL"
-done
-
-# Check datanode RDMA metrics
-docker exec ozone-dn1 curl -s http://localhost:9882/metrics | \
-  grep rdma_transfers || echo "No RDMA metrics found"
-
-# Cleanup
-docker-compose -f docker-compose-rdma.yml down
-
-echo "=== Tests Complete ==="
+# Run the RDMA integration test suite
+mvn verify -pl hadoop-ozone/integration-test \
+  -Dtest=TestRdmaIntegration \
+  -Dozone.rdma.test.enabled=true
 ```
 
-**When to use each test approach:**
+### 7.4 End-to-End Tests with Real GPU Hardware
 
-| Approach          | Use Case                           |   RDMA   |      Speed       |    CI-Compatible    |
-|-------------------|------------------------------------|:--------:|:----------------:|:-------------------:|
-| MiniOzoneCluster  | Unit/integration, IDE, mocked RDMA |  Mocked  |  Fast (seconds)  |         Yes         |
-| Docker + SoftRoCE | End-to-end with real code paths    | SoftRoCE | Medium (minutes) | Yes (with SoftRoCE) |
-| Real Hardware     | Performance validation             | Real HW  |  Slow (minutes)  |  No (needs GPU+IB)  |
+These tests require a real GPU + RDMA NIC environment (see Section 6.2 for cloud providers).
 
-### 7.4 End-to-End RDMA Tests (Requires Hardware)
+```bash
+# Prerequisites:
+# - cuObjClient installed on test client (GPU host)
+# - cuObjServer SDK installed on datanodes
+# - RDMA fabric between client and datanodes
+# - Ozone cluster running with hdds.datanode.rdma.enabled=true
 
-**Test specification for real GPU + RDMA:**
-
-1. **Environment:** 2-node setup (1 GPU client + 1 Ozone cluster with 3 datanodes)
-2. **Tests:**
-  - Write 1GB GPU buffer → Ozone via RDMA PUT
-  - Read back via RDMA GET → verify data matches (GPU-side checksum)
-  - Write via RDMA → read via TCP → verify integrity (cross-path)
-  - Write via TCP → read via RDMA → verify integrity
-  - Large file (>4GiB) via Range GET chunking
-  - Concurrent: 4 GPU processes, 2 GPUs, simultaneous transfers
-  - Failover: kill datanode, verify retry on replica
-
-3. **Verification that data is in GPU memory:**
-   ```bash
-   # During transfer, check GPU memory usage
-   nvidia-smi --query-gpu=memory.used --format=csv,noheader
-   # Should increase by ~1GB during transfer
-
-   # In test code, use cudaMemGetInfo() to verify
-   ```
-
-### 7.5 MiniOzone RDMA Integration Test Pattern
-
-**Mock `CuObjServerBridge` for CI:**
-
-```java
-/**
- * Mock implementation of CuObjServerBridge for testing without GPU/RDMA.
- * Records all calls for assertion.
- */
-public class MockCuObjServerBridge {
-
-  private static final List<String> calls = new ArrayList<>();
-  private static final Map<Long, ByteBuffer> registeredBuffers = new HashMap<>();
-  private static long nextHandle = 1;
-  private static boolean available = true;
-
-  public static void setAvailable(boolean avail) {
-    available = avail;
-  }
-
-  public static boolean isAvailable() {
-    return available;
-  }
-
-  public static long init(String device, int port, int maxConn) {
-    calls.add("init(" + device + "," + port + "," + maxConn + ")");
-    return nextHandle++;
-  }
-
-  public static void shutdown(long handle) {
-    calls.add("shutdown(" + handle + ")");
-  }
-
-  public static long registerBuffer(long handle, ByteBuffer buffer) {
-    long mr = nextHandle++;
-    registeredBuffers.put(mr, buffer);
-    calls.add("registerBuffer(" + handle + "," + buffer.capacity() + ")");
-    return mr;
-  }
-
-  public static int rdmaWriteToRemote(long handle, byte[] token,
-      ByteBuffer buf, int localOff, long destOff, int len) {
-    calls.add("rdmaWrite(" + len + " bytes to offset " + destOff + ")");
-    return len;  // pretend success
-  }
-
-  public static int rdmaReadFromRemote(long handle, byte[] token,
-      ByteBuffer buf, int localOff, long srcOff, int len) {
-    calls.add("rdmaRead(" + len + " bytes from offset " + srcOff + ")");
-    // Fill buffer with deterministic test data
-    for (int i = 0; i < len && i < buf.remaining(); i++) {
-      buf.put(localOff + i, (byte) (i & 0xFF));
-    }
-    return len;
-  }
-
-  public static List<String> getCalls() {
-    return calls;
-  }
-
-  public static void reset() {
-    calls.clear();
-    registeredBuffers.clear();
-  }
-}
+# Run the GPU-to-Ozone E2E test
+python3 test_rdma_e2e.py \
+  --s3-endpoint http://ozone-s3g:9878 \
+  --bucket test-rdma \
+  --object-size 256MB \
+  --gpu-id 0
 ```
+
+### 7.5 Test Matrix
+
+| Test Level        | RDMA Service               | Hardware         | What It Validates                                 |
+|-------------------|----------------------------|------------------|---------------------------------------------------|
+| Unit tests        | `MockRdmaTransferService`  | None             | Buffer pool, chunking, dispatch logic             |
+| MiniOzoneCluster  | `MockRdmaTransferService`  | None             | Full dispatch chain, protobuf, token validation   |
+| Docker + SoftRoCE | `CuObjRdmaTransferService` | SoftRoCE (CPU)   | JNI bridge, kernel RDMA path, buffer registration |
+| GPU cloud         | `CuObjRdmaTransferService` | GPU + InfiniBand | Full GPUDirect RDMA, performance validation       |
 
 ---
 
-## 8. Performance Benchmarking and Verification
+## 8. Benchmarking
 
-### 8.1 Benchmark Architecture
+### 8.1 Benchmark Tool
 
-```mermaid
-flowchart TB
-  subgraph Client["GPU Client Node"]
-    Bench["ozone-rdma-bench<br/>(Python benchmark tool)"]
-    boto3["boto3 S3 Client<br/>(TCP baseline)"]
-    cuObjC["cuObjClient<br/>(RDMA path)"]
-    Metrics_C["Client Metrics:<br/>- Per-op latency<br/>- Throughput<br/>- GPU mem bandwidth"]
-    Bench --> boto3
-    Bench --> cuObjC
-    Bench --> Metrics_C
-  end
-
-  subgraph Gateway["S3 Gateway"]
-    GW["ObjectEndpoint"]
-    Metrics_GW["Gateway Metrics:<br/>- Request count<br/>- RDMA vs TCP count<br/>- CPU utilization"]
-    GW --- Metrics_GW
-  end
-
-  subgraph Datanodes["Datanodes"]
-    DN["XceiverServerRdma +<br/>XceiverServerGrpc"]
-    Metrics_DN["Datanode Metrics:<br/>- RDMA transfer count<br/>- RDMA bytes transferred<br/>- Disk I/O time<br/>- CPU utilization"]
-    DN --- Metrics_DN
-  end
-
-  boto3 -->|" TCP "| GW
-  cuObjC -->|" HTTP control "| GW
-  GW -->|" gRPC "| DN
-  DN -.->|" RDMA data "| cuObjC
-```
-
-### 8.2 Benchmark Tool: `ozone-rdma-bench`
-
-**Structure:**
-
-```python
-#!/usr/bin/env python3
-"""
-ozone-rdma-bench — Benchmark tool for Ozone RDMA vs TCP performance.
-
-Usage:
-  ozone-rdma-bench --mode={baseline-write,baseline-read,rdma-write,rdma-read,compare}
-                   --endpoint=URL --bucket=NAME
-                   [--num-objects=N] [--object-sizes=SIZES]
-                   [--gpu-id=ID] [--concurrent=N]
-                   [--output={table,csv,json}] [--verify]
-"""
-
-import argparse
-import time
-import statistics
-import csv
-import json
-import threading
-from dataclasses import dataclass, field
-from typing import List, Dict
-
-import boto3
-# import cuobjclient  # NVIDIA cuObject Python bindings (when available)
-
-@dataclass
-class BenchmarkResult:
-    mode: str
-    object_size: int
-    num_objects: int
-    latencies_ns: List[int] = field(default_factory=list)
-
-    @property
-    def throughput_mbps(self) -> float:
-        total_bytes = self.object_size * self.num_objects
-        total_seconds = sum(self.latencies_ns) / 1e9
-        return (total_bytes / (1024 * 1024)) / total_seconds if total_seconds > 0 else 0
-
-    @property
-    def p50_ms(self) -> float:
-        sorted_lat = sorted(self.latencies_ns)
-        idx = len(sorted_lat) // 2
-        return sorted_lat[idx] / 1e6 if sorted_lat else 0
-
-    @property
-    def p95_ms(self) -> float:
-        sorted_lat = sorted(self.latencies_ns)
-        idx = int(len(sorted_lat) * 0.95)
-        return sorted_lat[idx] / 1e6 if sorted_lat else 0
-
-    @property
-    def p99_ms(self) -> float:
-        sorted_lat = sorted(self.latencies_ns)
-        idx = int(len(sorted_lat) * 0.99)
-        return sorted_lat[idx] / 1e6 if sorted_lat else 0
-
-
-class OzoneRdmaBench:
-    def __init__(self, args):
-        self.endpoint = args.endpoint
-        self.bucket = args.bucket
-        self.num_objects = args.num_objects
-        self.object_sizes = self._parse_sizes(args.object_sizes)
-        self.gpu_id = args.gpu_id
-        self.concurrent = args.concurrent
-        self.verify = args.verify
-        self.output_format = args.output
-
-        self.s3_client = boto3.client('s3',
-            endpoint_url=self.endpoint,
-            aws_access_key_id='anykey',
-            aws_secret_access_key='anysecret')
-
-    @staticmethod
-    def _parse_sizes(sizes_str: str) -> List[int]:
-        """Parse size strings like '64KB,1MB,100MB,1GB' to bytes."""
-        result = []
-        for s in sizes_str.split(','):
-            s = s.strip().upper()
-            multipliers = {'KB': 1024, 'MB': 1024**2, 'GB': 1024**3}
-            for suffix, mult in multipliers.items():
-                if s.endswith(suffix):
-                    result.append(int(s[:-len(suffix)]) * mult)
-                    break
-            else:
-                result.append(int(s))
-        return result
-
-    def run_baseline_write(self, object_size: int) -> BenchmarkResult:
-        """Write objects using standard boto3 S3 client (TCP path)."""
-        result = BenchmarkResult('baseline-write', object_size, self.num_objects)
-        data = b'\x42' * object_size
-
-        for i in range(self.num_objects):
-            key = f"bench/tcp-write-{object_size}-{i}"
-            start = time.perf_counter_ns()
-            self.s3_client.put_object(Bucket=self.bucket, Key=key, Body=data)
-            elapsed = time.perf_counter_ns() - start
-            result.latencies_ns.append(elapsed)
-
-        return result
-
-    def run_baseline_read(self, object_size: int) -> BenchmarkResult:
-        """Read objects using standard boto3 S3 client (TCP path)."""
-        result = BenchmarkResult('baseline-read', object_size, self.num_objects)
-
-        for i in range(self.num_objects):
-            key = f"bench/tcp-write-{object_size}-{i}"
-            start = time.perf_counter_ns()
-            resp = self.s3_client.get_object(Bucket=self.bucket, Key=key)
-            data = resp['Body'].read()
-            elapsed = time.perf_counter_ns() - start
-            result.latencies_ns.append(elapsed)
-
-            if self.verify:
-                assert len(data) == object_size, \
-                    f"Size mismatch: {len(data)} != {object_size}"
-
-        return result
-
-    def run_rdma_write(self, object_size: int) -> BenchmarkResult:
-        """Write objects using cuObjClient (RDMA path)."""
-        result = BenchmarkResult('rdma-write', object_size, self.num_objects)
-
-        # TODO: Implement with cuObjClient Python bindings
-        # cuobj = cuobjclient.Client(endpoint=self.endpoint, gpu_id=self.gpu_id)
-        # gpu_buf = cuobj.alloc(object_size)
-        # cuobj.fill(gpu_buf, 0x42)  # fill with test pattern
-        #
-        # for i in range(self.num_objects):
-        #     key = f"bench/rdma-write-{object_size}-{i}"
-        #     start = time.perf_counter_ns()
-        #     cuobj.put(self.bucket, key, gpu_buf, object_size)
-        #     elapsed = time.perf_counter_ns() - start
-        #     result.latencies_ns.append(elapsed)
-
-        return result
-
-    def run_rdma_read(self, object_size: int) -> BenchmarkResult:
-        """Read objects using cuObjClient (RDMA path)."""
-        result = BenchmarkResult('rdma-read', object_size, self.num_objects)
-
-        # TODO: Implement with cuObjClient Python bindings
-        # cuobj = cuobjclient.Client(endpoint=self.endpoint, gpu_id=self.gpu_id)
-        # gpu_buf = cuobj.alloc(object_size)
-        #
-        # for i in range(self.num_objects):
-        #     key = f"bench/tcp-write-{object_size}-{i}"
-        #     start = time.perf_counter_ns()
-        #     cuobj.get(self.bucket, key, gpu_buf)
-        #     elapsed = time.perf_counter_ns() - start
-        #     result.latencies_ns.append(elapsed)
-
-        return result
-
-    def run_compare(self) -> Dict[int, Dict[str, BenchmarkResult]]:
-        """Run all four modes and produce comparison."""
-        results = {}
-        for size in self.object_sizes:
-            size_results = {}
-
-            # Write baseline data first
-            size_results['baseline-write'] = self.run_baseline_write(size)
-            size_results['baseline-read'] = self.run_baseline_read(size)
-            size_results['rdma-write'] = self.run_rdma_write(size)
-            size_results['rdma-read'] = self.run_rdma_read(size)
-
-            results[size] = size_results
-
-        return results
-
-    def print_results(self, results):
-        """Print formatted comparison table."""
-        print(f"\n{'='*90}")
-        print(f"{'Object Size':>12} | {'Mode':>16} | {'Throughput':>12} | "
-              f"{'p50':>8} | {'p95':>8} | {'p99':>8}")
-        print(f"{'':>12} | {'':>16} | {'(MB/s)':>12} | "
-              f"{'(ms)':>8} | {'(ms)':>8} | {'(ms)':>8}")
-        print(f"{'-'*90}")
-
-        for size in sorted(results.keys()):
-            size_label = self._format_size(size)
-            for mode, result in sorted(results[size].items()):
-                if result.latencies_ns:
-                    print(f"{size_label:>12} | {mode:>16} | "
-                          f"{result.throughput_mbps:>12.1f} | "
-                          f"{result.p50_ms:>8.2f} | "
-                          f"{result.p95_ms:>8.2f} | "
-                          f"{result.p99_ms:>8.2f}")
-            print(f"{'-'*90}")
-
-    @staticmethod
-    def _format_size(size_bytes: int) -> str:
-        if size_bytes >= 1024**3:
-            return f"{size_bytes // (1024**3)} GB"
-        elif size_bytes >= 1024**2:
-            return f"{size_bytes // (1024**2)} MB"
-        elif size_bytes >= 1024:
-            return f"{size_bytes // 1024} KB"
-        return f"{size_bytes} B"
-
-
-def main():
-    parser = argparse.ArgumentParser(description='Ozone RDMA Benchmark')
-    parser.add_argument('--endpoint', required=True, help='S3 Gateway URL')
-    parser.add_argument('--bucket', required=True, help='Bucket name')
-    parser.add_argument('--mode', default='compare',
-        choices=['baseline-write', 'baseline-read',
-                 'rdma-write', 'rdma-read', 'compare'])
-    parser.add_argument('--num-objects', type=int, default=100)
-    parser.add_argument('--object-sizes', default='64KB,1MB,10MB,100MB,1GB')
-    parser.add_argument('--gpu-id', type=int, default=0)
-    parser.add_argument('--concurrent', type=int, default=1)
-    parser.add_argument('--output', default='table',
-        choices=['table', 'csv', 'json'])
-    parser.add_argument('--verify', action='store_true')
-
-    args = parser.parse_args()
-    bench = OzoneRdmaBench(args)
-
-    if args.mode == 'compare':
-        results = bench.run_compare()
-        bench.print_results(results)
-    else:
-        for size in bench.object_sizes:
-            method = getattr(bench, f"run_{args.mode.replace('-', '_')}")
-            result = method(size)
-            print(f"{bench._format_size(size)}: "
-                  f"{result.throughput_mbps:.1f} MB/s, "
-                  f"p50={result.p50_ms:.2f}ms")
-
-
-if __name__ == '__main__':
-    main()
-```
-
-### 8.3 Expected Results
-
-Based on NVIDIA published benchmarks for MinIO +
-cuObject [[ref-10]](https://www.min.io/blog/minio-aistor-with-nvidia-gpudirect-r-rdma-for-s3-compatible-storage-unlocking-performance-for-ai-factory-workloads)
-and general RDMA performance characteristics:
-
-| Object Size | TCP Throughput | RDMA Throughput |       Speedup        | Notes                          |
-|:-----------:|:--------------:|:---------------:|:--------------------:|--------------------------------|
-|    64 KB    |   ~500 MB/s    |    ~200 MB/s    |  **0.4×** (slower)   | RDMA overhead dominates        |
-|   256 KB    |   ~1.5 GB/s    |    ~1.5 GB/s    | **1.0×** (crossover) | Break-even point               |
-|    1 MB     |    ~2 GB/s     |     ~4 GB/s     |        **2×**        | RDMA advantage emerges         |
-|    10 MB    |    ~3 GB/s     |     ~8 GB/s     |       **2.7×**       | RDMA NIC bandwidth utilization |
-|   100 MB    |   ~3.5 GB/s    |    ~12 GB/s     |       **3.4×**       | Near wire speed for RDMA       |
-|    1 GB     |   ~3.5 GB/s    |    ~20 GB/s     |       **5.7×**       | Full InfiniBand bandwidth      |
-
-**Notes:**
-
-- TCP throughput limited by CPU overhead (copies, TCP stack, Java GC)
-- RDMA throughput approaches NIC line rate for large objects
-- These numbers assume HDR InfiniBand (200 Gbps) and NVMe with 3+ GB/s read
-- Actual results depend on: NIC speed, NVMe speed, number of datanodes, block size
-- CPU utilization: RDMA reduces gateway CPU by 30-60% (no data copy), datanode CPU by 10-20% (NIC handles transport)
-
-### 8.4 Complete Benchmark Script: `run-benchmark.sh`
+A standalone benchmark tool to measure RDMA vs TCP throughput:
 
 ```bash
-#!/usr/bin/env bash
-# run-benchmark.sh — Full autonomous benchmark run
-set -euo pipefail
+# Benchmark: RDMA GET throughput
+ozone rdma-bench get \
+  --s3-endpoint http://ozone-s3g:9878 \
+  --bucket bench-bucket \
+  --object-size 256MB \
+  --iterations 100 \
+  --threads 8 \
+  --rdma  # Use RDMA path (omit for TCP baseline)
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPORT_DIR="${SCRIPT_DIR}/benchmark-results/$(date +%Y%m%d-%H%M%S)"
-mkdir -p "$REPORT_DIR"
-
-# Step 1: Validate environment
-echo "=== Step 1: Validating environment ==="
-"${SCRIPT_DIR}/validate-env.sh" || {
-  echo "Environment validation failed. Fix issues and retry."
-  exit 1
-}
-
-# Step 2: Start Ozone cluster
-echo "=== Step 2: Starting Ozone cluster ==="
-CLUSTER_MODE="${CLUSTER_MODE:-docker}"  # "docker" or "mini"
-
-if [ "$CLUSTER_MODE" = "docker" ]; then
-  docker-compose -f "${SCRIPT_DIR}/docker-compose-rdma.yml" up -d
-  sleep 45  # Wait for cluster
-  S3_ENDPOINT="http://localhost:9878"
-else
-  # Start MiniOzoneCluster via test runner
-  echo "Using MiniOzoneCluster — run via Maven test"
-  S3_ENDPOINT="http://localhost:9878"
-fi
-
-# Step 3: Create test bucket
-echo "=== Step 3: Creating test bucket ==="
-aws s3 mb s3://rdma-bench --endpoint-url "$S3_ENDPOINT" 2>/dev/null || true
-
-# Step 4: Run benchmark
-echo "=== Step 4: Running benchmark ==="
-python3 "${SCRIPT_DIR}/ozone-rdma-bench.py" \
-  --endpoint "$S3_ENDPOINT" \
-  --bucket rdma-bench \
-  --mode compare \
-  --num-objects 50 \
-  --object-sizes "64KB,256KB,1MB,10MB,100MB,1GB" \
-  --verify \
-  --output table | tee "${REPORT_DIR}/results.txt"
-
-# Step 5: Cross-path integrity check
-echo "=== Step 5: Cross-path integrity ==="
-# Write via RDMA, read via TCP, compare checksums (and vice versa)
-python3 "${SCRIPT_DIR}/ozone-rdma-bench.py" \
-  --endpoint "$S3_ENDPOINT" \
-  --bucket rdma-bench \
-  --mode rdma-write \
-  --num-objects 10 \
-  --object-sizes "1MB,100MB"
-
-for SIZE in 1MB 100MB; do
-  for i in $(seq 0 9); do
-    # Read RDMA-written object via TCP
-    aws s3 cp "s3://rdma-bench/bench/rdma-write-${SIZE}-${i}" \
-      "/tmp/cross-${SIZE}-${i}" --endpoint-url "$S3_ENDPOINT"
-  done
-done
-echo "Cross-path integrity check: PASS"
-
-# Step 6: Collect metrics
-echo "=== Step 6: Collecting metrics ==="
-if [ "$CLUSTER_MODE" = "docker" ]; then
-  for dn in ozone-dn1 ozone-dn2 ozone-dn3; do
-    docker exec "$dn" curl -s http://localhost:9882/metrics \
-      > "${REPORT_DIR}/metrics-${dn}.json" 2>/dev/null || true
-  done
-fi
-
-# Step 7: Teardown
-echo "=== Step 7: Teardown ==="
-if [ "$CLUSTER_MODE" = "docker" ]; then
-  docker-compose -f "${SCRIPT_DIR}/docker-compose-rdma.yml" down
-fi
-
-echo ""
-echo "=== Benchmark Complete ==="
-echo "Results saved to: ${REPORT_DIR}"
-exit 0
+# Expected output:
+# Throughput: 23.5 GiB/s (RDMA, 8 threads, 256 MB objects)
+# Latency p50: 10.8 ms, p99: 15.2 ms
+# CPU utilization: 12% (vs 78% for TCP)
 ```
 
-### 8.5 Regression Test Script: `ci-rdma-test.sh`
+### 8.2 Expected Performance Targets
 
-```bash
-#!/usr/bin/env bash
-# ci-rdma-test.sh — CI-friendly RDMA regression test (no GPU required)
-# Runs with mocked RDMA using MiniOzoneCluster
-# Target: < 5 minutes, exit 0 on pass
-set -euo pipefail
+Based on NVIDIA's published MinIO benchmarks [[ref-10]](#10-references) and RDMA fundamentals:
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-OZONE_ROOT="${SCRIPT_DIR}/../../.."
+| Metric                              | TCP Baseline     | RDMA Target   | Notes                                |
+|-------------------------------------|------------------|---------------|--------------------------------------|
+| Single-stream throughput            | ~2 GiB/s         | ~12 GiB/s     | 200 Gbps NIC, single thread          |
+| Multi-stream throughput (8 threads) | ~8 GiB/s         | ~24 GiB/s     | Near line-rate on 200 Gbps           |
+| Latency (256 MB object)             | ~128 ms          | ~22 ms        | Eliminates TCP overhead + CPU copies |
+| CPU utilization                     | ~80%             | ~15%          | RDMA offloads data movement to NIC   |
+| GPU memory utilization              | 0% (CPU staging) | 100% (direct) | No bounce through CPU memory         |
 
-echo "=== CI RDMA Regression Test ==="
-echo "Time: $(date)"
+### 8.3 Metrics to Collect
 
-# Run RDMA-specific unit tests
-echo "--- Unit Tests ---"
-cd "$OZONE_ROOT"
-mvn test -pl hadoop-hdds/container-service-native \
-  -Dtest="CuObjServerBridgeTest" \
-  -DfailIfNoTests=false \
-  -q 2>&1 | tail -5
+During benchmarks, collect:
 
-mvn test -pl hadoop-hdds/container-service \
-  -Dtest="XceiverServerRdmaTest" \
-  -DfailIfNoTests=false \
-  -q 2>&1 | tail -5
-
-mvn test -pl hadoop-ozone/s3gateway \
-  -Dtest="RdmaRequestFilterTest" \
-  -DfailIfNoTests=false \
-  -q 2>&1 | tail -5
-
-# Run integration tests
-echo "--- Integration Tests ---"
-mvn test -pl hadoop-ozone/integration-test \
-  -Dtest="TestRdmaS3Integration" \
-  -DfailIfNoTests=false \
-  -q 2>&1 | tail -10
-
-echo ""
-echo "=== CI RDMA Test: PASSED ==="
-exit 0
-```
+1. **Throughput**: Bytes/second per thread, aggregate
+2. **Latency**: p50, p95, p99 per operation
+3. **CPU**: `%user`, `%system`, `%softirq` on datanodes (RDMA should reduce all three)
+4. **NIC counters**: `rdma_read_bytes`, `rdma_write_bytes` from `ethtool -S`
+5. **Buffer pool**: Available count, acquire wait time, exhaustion events
+6. **RDMA errors**: `ibv_devinfo` error counters, retransmit counts
 
 ---
 
 ## 9. Configuration Reference
 
-| Config Key                                     | Default           | Type         | Component  | Description                                                             |
-|------------------------------------------------|-------------------|--------------|------------|-------------------------------------------------------------------------|
-| `ozone.datanode.rdma.enabled`                  | `false`           | boolean      | Datanode   | Enable RDMA transport on datanodes                                      |
-| `ozone.datanode.rdma.port`                     | `9890`            | int          | Datanode   | RDMA listener port (0 = auto-assign)                                    |
-| `ozone.datanode.rdma.device`                   | `mlx5_0`          | string       | Datanode   | RDMA device name (e.g., `mlx5_0`, `rxe0`)                               |
-| `ozone.datanode.rdma.buffer.size`              | `4194304` (4 MB)  | int (bytes)  | Datanode   | Size of each pre-allocated RDMA buffer                                  |
-| `ozone.datanode.rdma.buffer.count`             | `64`              | int          | Datanode   | Number of pre-allocated RDMA buffers                                    |
-| `ozone.datanode.rdma.max.concurrent.transfers` | `32`              | int          | Datanode   | Max concurrent RDMA operations per datanode                             |
-| `ozone.s3g.rdma.min.object.size`               | `262144` (256 KB) | long (bytes) | S3 Gateway | Minimum object size for RDMA path; smaller objects use TCP              |
-| `ozone.s3g.rdma.allow.encrypted.buckets`       | `false`           | boolean      | S3 Gateway | Allow RDMA for TDE-encrypted buckets (transfers encrypted bytes to GPU) |
+All configuration keys introduced by this spec, in one place:
+
+| Key                                            | Default           | Type    | Description                                                     |
+|------------------------------------------------|-------------------|---------|-----------------------------------------------------------------|
+| `hdds.datanode.rdma.enabled`                   | `false`           | boolean | Master switch: enable RDMA engine on datanode                   |
+| `hdds.datanode.rdma.device`                    | (auto)            | string  | RDMA NIC device name (e.g., `mlx5_0`). Auto-detects if omitted. |
+| `hdds.datanode.rdma.port`                      | `19870`           | int     | cuObjServer DC transport listen port                            |
+| `hdds.datanode.rdma.max.connections`           | `32`              | int     | Maximum concurrent RDMA connections                             |
+| `hdds.datanode.rdma.buffer.size`               | `4194304` (4 MiB) | int     | Size of each RDMA buffer in the pool                            |
+| `hdds.datanode.rdma.buffer.count`              | `64`              | int     | Number of pre-allocated RDMA buffers                            |
+| `hdds.datanode.rdma.buffer.acquire.timeout.ms` | `5000`            | long    | Max time to wait for a buffer from the pool                     |
+| `ozone.s3g.rdma.min.object.size`               | `1048576` (1 MiB) | long    | Minimum object size for RDMA (smaller → TCP)                    |
+
+**Memory footprint:** `buffer.size × buffer.count = 4 MiB × 64 = 256 MiB` pinned memory per datanode (default).
+
+**Capacity planning guidance:**
+
+| Datanode RAM | NVMe Drives | Recommended `buffer.count` | Total Pinned Memory | Concurrent Transfers |
+|--------------|-------------|----------------------------|---------------------|----------------------|
+| 64 GB        | 4           | 32                         | 128 MiB             | 32                   |
+| 256 GB       | 12          | 128                        | 512 MiB             | 128                  |
+| 512 GB       | 24          | 256                        | 1 GiB               | 256                  |
+
+Scale `buffer.count` with the number of NVMe drives (each drive can saturate ~3-6 GiB/s, and each RDMA transfer
+reads from one drive). The NIC bandwidth (200 Gbps = ~25 GiB/s) is the upper bound.
 
 ---
 
-## 10. CUDA Toolkit and cuObject SDK Versions
+## 10. References
 
-| Component                           | Version    | Release Date | Notes                                                                                                                                               |
-|-------------------------------------|------------|--------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
-| **CUDA Toolkit (recommended)**      | **13.2.0** | March 2026   | Latest available. Includes cuObject client library. [[ref-20]](https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html)                  |
-| CUDA Toolkit (minimum for cuObject) | 13.1.1     | January 2026 | First version to include cuObject client. [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html)                                  |
-| cuObject Client Library             | 1.0.0      | January 2026 | Ships with CUDA Toolkit 13.1.1+. [[ref-2]](https://docs.nvidia.com/gpudirect-storage/cuobject/cuobject-client-release-notes/index.html)             |
-| cuObject Server Library             | 1.0.0      | January 2026 | Separate download from NVIDIA Developer portal. [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf) |
-| MLNX_OFED                           | 24.10 LTS  | October 2024 | Required for ConnectX-5+ RDMA. [[ref-8]](https://docs.nvidia.com/networking/display/nvidia-mlnx-ofed-documentation-v24-10-2-1-8-0-lts)              |
-
-**Which version should we use?** **CUDA Toolkit 13.2.0.** Reasons:
-
-1. It includes the cuObject client library (available since 13.1.1)
-2. It contains bug fixes and performance improvements over 13.1.1
-3. NVIDIA recommends the latest toolkit for new projects
-4. Both 13.1.1 and 13.2.0 are binary-compatible for the cuObject API
-
-**The cuObject Server library** is a separate package, not bundled with the CUDA Toolkit. It must be downloaded from the
-NVIDIA Developer portal. Both CUDA 13.1.1 and 13.2.0 are compatible with cuObject Server v1.0.0.
-
-**Important caveat**: cuObject is a v1.0.0 library (released January 2026). Public documentation is sparse — no full API
-reference guide exists as of April 2026 [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html). The
-actual header files (`cuobjserver.h`, `cuobjclient.h`) from the SDK packages are required for implementation. Some
-behavioral details in this spec are inferred from API signatures and NVIDIA forum
-posts [[ref-16]](https://forums.developer.nvidia.com/t/unable-to-reproduce-cuobject-example/360539), not from explicit
-documentation. These are flagged throughout and tracked in [Appendix A](#appendix-a-unverified-claims-tracked).
+| Ref      | Source                                | URL                                                                                                                                        |
+|----------|---------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
+| [ref-1]  | NVIDIA cuObject Documentation (main)  | https://docs.nvidia.com/gpudirect-storage/cuobject/index.html                                                                              |
+| [ref-2]  | NVIDIA cuObject Client Release Notes  | https://docs.nvidia.com/gpudirect-storage/cuobject/cuobject-client-release-notes/index.html                                                |
+| [ref-3]  | NVIDIA cuObject Server Release Notes  | https://docs.nvidia.com/gpudirect-storage/cuobject/cuobject-server-release-notes/                                                          |
+| [ref-4]  | NVIDIA cuObject PDF                   | https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject.pdf                                                                        |
+| [ref-5]  | NVIDIA cuFile/GDS API Reference       | https://docs.nvidia.com/gpudirect-storage/api-reference-guide/index.html                                                                   |
+| [ref-6]  | NVIDIA GPUDirect RDMA Documentation   | https://docs.nvidia.com/cuda/gpudirect-rdma/                                                                                               |
+| [ref-7]  | NVIDIA GPUDirect Storage Design Guide | https://docs.nvidia.com/gpudirect-storage/design-guide/index.html                                                                          |
+| [ref-8]  | NVIDIA Peer Memory (nvidia_peermem)   | https://docs.nvidia.com/cuda/gpudirect-rdma/#nvidia-peermem                                                                                |
+| [ref-9]  | Linux Kernel RDMA (ibverbs)           | https://man7.org/linux/man-pages/man7/rdma_cm.7.html                                                                                       |
+| [ref-10] | MinIO + NVIDIA GPUDirect RDMA Blog    | https://www.min.io/blog/minio-aistor-with-nvidia-gpudirect-r-rdma-for-s3-compatible-storage-unlocking-performance-for-ai-factory-workloads |
+| [ref-11] | Apache Ozone Documentation            | https://ozone.apache.org/docs/                                                                                                             |
+| [ref-12] | SoftRoCE Configuration Guide          | https://enterprise-support.nvidia.com/s/article/howto-configure-soft-roce                                                                  |
+| [ref-13] | CUDA Toolkit 13.2 Release Notes       | https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/                                                                                   |
+| [ref-14] | KvikIO (RAPIDS GPU I/O)               | https://github.com/rapidsai/kvikio                                                                                                         |
+| [ref-15] | NVIDIA cuObject Server Package        | https://developer.nvidia.com/cuobject-server (requires developer login)                                                                    |
+| [ref-16] | NVIDIA Developer Forums — cuObject    | https://forums.developer.nvidia.com/c/gpudirect/gpudirect-storage/                                                                         |
 
 ---
 
-## 11. Future Implementation (Phase 2)
+## Appendix A: Unverified Claims and Known Unknowns
 
-This section documents every shortcut taken in Phase 1, why it was deferred, and exactly what is needed for Phase 2. *
-*This is not optional backlog — it represents known limitations that must be addressed for production readiness.**
+This appendix lists claims in the spec that are based on inference, RDMA conventions, or incomplete documentation
+rather than verified facts. Each item notes what is known, what is inferred, and what must be verified.
 
-### 11.1 Scatter-Gather Support
+### A.1 cuObjServer Initialization and Shutdown API
 
-**What**: cuObjServer supports scatter-gather I/O via `getRDMABufferFromSgList()`, with up to 10 entries per
-operation [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf). A single
-RDMA operation can write to non-contiguous GPU memory regions.
+**Status:** Unknown
+**What we know:** `libcuobjserver.so` exists as a separate package [[ref-3]](#10-references). The server does not
+require a GPU or CUDA [[ref-3]](#10-references).
+**What we don't know:** The actual init/shutdown function names and signatures. The C++ code in Section 4.6 uses
+a hypothetical `cuObjServer` constructor and `delete`. This MUST be verified against `cuobjserver.h`.
+**Impact:** The JNI `nativeInit()` and `nativeShutdown()` will not compile without the real API.
 
-**Phase 1 limitation**: Contiguous buffers only — one `(address, length)` pair per RDMA operation.
+### A.2 `handleGetObject()` and `handlePutObject()` Parameter Lists
 
-**Why deferred** — three reasons:
+**Status:** Partially known
+**What we know:** The function names exist [[ref-3]](#10-references). `handleGetObject()` performs RDMA_WRITE (server →
+client), `handlePutObject()` performs RDMA_READ (client → server). Max 1 GiB per call [[ref-3]](#10-references).
+**What we don't know:** The exact C++ parameter list. The spec infers: `(localPtr, size, rdmaToken, tokenLen,
+remoteOffset)` based on RDMA conventions. The actual API may use a struct, a builder pattern, or different
+parameter order.
+**Impact:** The JNI `nativeRdmaWrite()` and `nativeRdmaRead()` parameter mapping will need adjustment.
 
-1. **JNI complexity**: The current JNI bridge passes a single `ByteBuffer` and offset. Scatter-gather requires passing
-   arrays of addresses and lengths. Managing memory lifetime for each entry across the JNI boundary is error-prone and
-   adds complexity to `CuObjServerBridge.cpp`.
-2. **Protobuf changes**: `RdmaReadBlockRequestProto` uses single `destOffset + length` fields. Scatter-gather needs a
-   `repeated` field for SG descriptors (list of `{gpu_address, length}` pairs).
-3. **Client coordination**: The RDMA token currently encodes a single contiguous region. Scatter-gather tokens must
-   encode multiple regions, and the S3 Gateway must match Ozone blocks to GPU memory regions — a mapping that doesn't
-   exist today.
+### A.3 `registerBuffer()` Return Type
 
-**What's needed for Phase 2**:
+**Status:** Unknown
+**What we know:** The function name exists [[ref-3]](#10-references). It takes `(const void *ptr, size_t size)`.
+**What we don't know:** What it returns. The spec assumes an opaque handle (cast to `jlong`). It may return a
+memory registration object, a boolean, or void.
+**Impact:** Affects the `nativeRegisterBuffer()` return value handling.
 
-- New JNI method: `rdmaWriteScatterGather(handle, token, localBuffer, sgDescriptors[], count)`
-- New protobuf: `repeated ScatterGatherEntry` in `RdmaReadBlockRequestProto`
-- Updated RDMA token parsing to handle multi-region tokens
-- Testing with non-contiguous GPU memory layouts (strided tensors)
-- Estimated effort: 2–3 weeks
+### A.4 Buffer Deregistration API
 
-### 11.2 Asynchronous Server-Side Transfers
+**Status:** Unknown
+**What we know:** Memory registration exists, so deregistration logically must exist.
+**What we don't know:** The actual function name. Could be `deregisterBuffer()`, `unregisterBuffer()`,
+`freeBuffer()`, or a method on a returned registration object.
+**Impact:** Affects `nativeDeregisterBuffer()`.
 
-**What**: cuObjServer supports async RDMA operations with completion
-polling [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf). This
-enables **pipelining** disk reads and RDMA transfers on the datanode.
+### A.5 RDMA Token Wire Format
 
-**Phase 1 limitation**: Synchronous — read block from disk, then RDMA transfer, sequentially. Disk and NIC are never
-busy simultaneously.
+**Status:** Speculative
+**What we know:** The token is hex-encoded and passed via `x-amz-rdma-token` HTTP header [[ref-1]](#10-references).
+The cuObjClient generates it; the cuObjServer consumes it.
+**What we don't know:** The internal structure. The spec shows a speculative struct (Section 3 of the research doc)
+based on RDMA conventions (rkey, vaddr, length, DC transport fields). The actual format is opaque to Ozone — the
+datanode passes it through without parsing.
+**Impact:** None for Ozone implementation — the token is treated as an opaque string.
 
-**Why deferred**: Synchronous mode is simpler to implement and debug. The performance difference only matters for large
-multi-block reads where disk I/O and RDMA times overlap.
+### A.6 DC Transport Support in SoftRoCE
 
-**What's needed for Phase 2**:
+**Status:** Uncertain
+**What we know:** SoftRoCE (`rdma_rxe`) supports Reliable Connection (RC) transport. DC (Dynamic Connected) transport
+is an NVIDIA/Mellanox extension.
+**What we don't know:** Whether `rdma_rxe` in modern kernels (5.15+) supports DC transport, or whether cuObjServer
+falls back to RC when DC is unavailable.
+**Impact:** If SoftRoCE doesn't support DC, development testing with real cuObjServer on SoftRoCE won't work.
+Use `MockRdmaTransferService` instead.
 
-- Use async `handleGetObject()` to initiate RDMA transfer
-- While RDMA is in-flight, start reading the next chunk from disk into a second buffer
-- Poll for RDMA completion using cuObjServer's polling API
-- Double-buffering on the datanode side (two RDMA buffers per concurrent transfer)
-- No protocol or gateway changes needed — purely datanode-internal
-- Expected improvement: ~30–50% throughput increase for sequential reads of multi-block objects
-- Estimated effort: 2 weeks
+### A.7 `cuMemObjGetDescriptor()` and `cuMemObjPutDescriptor()` Existence
 
-### 11.3 GPU-Side Decryption for TDE Buckets
+**Status:** Confirmed to exist (corrected from v1.1 spec)
+**What we know:** These functions exist in the cuObjClient library [[ref-1]](#10-references). They have a 4 GiB
+per-call limit [[ref-1]](#10-references). They register GPU memory buffers and produce RDMA descriptors.
+**What we don't know:** Full signatures.
+**Note:** The v1.1 spec's Appendix A incorrectly stated these functions "don't exist." They do exist. The 4 GiB limit
+claim is correct and is referenced in the cuObject documentation [[ref-1]](#10-references).
 
-**What**: Ozone TDE (Transparent Data Encryption) encrypts data at rest per-bucket. RDMA transfers encrypted bytes to
-GPU — unusable without decryption.
+### A.8 Ratis Replication with RDMA-Received Data
 
-**Phase 1 limitation**: TDE-encrypted buckets fall back to TCP. RDMA is not used.
+**Status:** Design decision, not verified
+**What we know:** The write path in Section 4.14.3 has the primary datanode RDMA_READ data from the GPU, then
+replicate to followers via the existing Ratis TCP pipeline.
+**What we don't know:** Whether this is the optimal approach. Alternatives:
 
-**Why deferred**: GPU-side AES-CTR decryption requires:
+- All three replicas RDMA_READ from the GPU independently (requires 3× RDMA bandwidth)
+- Primary RDMA_READs, then RDMA_WRITEs to followers (requires all datanodes to have `cuObjServer`)
+- Primary RDMA_READs, followers use Ratis data streaming (existing implementation)
+  **Impact:** The chosen approach (primary RDMA + Ratis TCP to followers) is correct for Phase 1 but limits write
+  throughput to the Ratis TCP speed for replication.
 
-1. A CUDA AES-CTR kernel (or NVIDIA's `libcusecrecy` if available)
-2. Secure key delivery from Ozone KMS to the GPU node
-3. Key management integration
-4. Security review
+### A.9 `allocHostBuffer()` Semantics
 
-**What's needed for Phase 2**:
-
-- CUDA AES-CTR decryption kernel
-- Key delivery mechanism: Ozone KMS → S3 Gateway → cuObjClient (via HTTP response header or side channel)
-- Config: `ozone.s3g.rdma.allow.encrypted.buckets=true`
-- Security audit of key handling on GPU nodes
-- Estimated effort: 4–6 weeks (including security review)
-
-### 11.4 Multi-GPU-Aware Request Routing
-
-**What**: Route S3 requests to datanodes topologically closest to the requesting GPU's NIC.
-
-**Phase 1 limitation**: S3 Gateway picks datanodes based on existing pipeline logic, without considering GPU-NIC
-affinity.
-
-**Why deferred**: cuObjClient's RDMA token already encodes the correct NIC information. The NIC hardware handles GPU-NIC
-routing internally via GDS dynamic routing [[ref-6]](https://docs.nvidia.com/cuda/gpudirect-rdma/). Gateway-side
-optimization provides marginal benefit because the RDMA fabric handles topology routing at the network level.
-
-**What's needed for Phase 2 (if metrics show benefit)**:
-
-- Expose GPU-NIC topology hints in the RDMA token or a separate header
-- S3 Gateway uses topology hints when selecting which datanode replica to read from
-- Only beneficial in large multi-rack deployments
-- Estimated effort: 1–2 weeks
-
-### 11.5 Large Transfer Pipelining
-
-**What**: For blocks larger than the RDMA buffer size (4 MB default), pipeline disk-read and RDMA-transfer of
-consecutive chunks.
-
-**Phase 1 limitation**: Each 4 MB chunk is read from disk, then RDMA-transferred, sequentially.
-
-**Why deferred**: Requires double-buffering on the datanode (two RDMA buffers per transfer) and async I/O coordination.
-Related to [Section 11.2](#112-asynchronous-server-side-transfers).
-
-**What's needed for Phase 2**:
-
-- Allocate two RDMA buffers per concurrent transfer
-- While chunk N is being RDMA-transferred from buffer A, read chunk N+1 from disk into buffer B
-- Swap buffers and repeat
-- Expected improvement: ~50% throughput increase for large blocks
-- Estimated effort: 1–2 weeks (after async transfers are implemented)
-
-### 11.6 Multipart Upload via RDMA
-
-**What**: S3 Multipart Upload for large objects. cuObject supports `UPLOAD_PART` as an RDMA
-operation [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html).
-
-**Phase 1 limitation**: Multipart uploads use the TCP path. Only single-object PUT and GET use RDMA.
-
-**Why deferred**: Multipart upload involves state management (upload ID, part tracking, final assembly) that adds
-complexity to RDMA orchestration in the S3 Gateway.
-
-**What's needed for Phase 2**:
-
-- Extend `ObjectEndpoint` multipart handlers to detect RDMA tokens
-- Each part is an independent RDMA transfer (same mechanics as single PUT)
-- Complete/abort multipart assembly path remains unchanged (OM-side)
-- Estimated effort: 2–3 weeks
-
-### 11.7 Erasure Coded Data RDMA
-
-**What**: Ozone supports Erasure Coding (EC) as an alternative to replication. EC data is striped across datanodes.
-
-**Phase 1 limitation**: RDMA transfers only support replicated (RATIS) data. EC blocks use TCP.
-
-**Why deferred**: EC reads require assembling data from multiple stripes across datanodes, potentially with
-reconstruction from parity. RDMA orchestration for EC is significantly more complex than for replicated data.
-
-**What's needed for Phase 2**:
-
-- RDMA-aware EC block reconstruction on the S3 Gateway
-- Parallel RDMA reads from multiple stripe datanodes into contiguous GPU memory
-- Parity reconstruction (if degraded) on datanode CPU before RDMA transfer
-- Estimated effort: 4–6 weeks
+**Status:** Partially known
+**What we know:** The function exists [[ref-3]](#10-references) and allocates pinned (page-locked) CPU memory suitable
+for RDMA operations.
+**What we don't know:** Whether it returns `void*` or a wrapper object. Whether it requires prior initialization.
+Whether allocated memory must be freed with a specific function or can be freed with `free()`.
+**Impact:** Affects the `RdmaBufferPool` allocation path (currently uses `ByteBuffer.allocateDirect()` as fallback).
 
 ---
 
-## 12. References Appendix
+## Appendix B: Phase 2 Deferred Items
 
-All technical claims in this spec are traced to sources below. Where a claim cites `[ref-N]`, the source provides the
-specific evidence. Where a claim is inferred rather than explicitly documented, this is noted inline and tracked
-in [Appendix A](#appendix-a-unverified-claims-tracked).
+Items explicitly deferred from Phase 1 to reduce scope and risk:
 
-|   Ref    | Source                               | What It Covers                                                                                                                 | URL                                                                                                                                        |
-|:--------:|--------------------------------------|--------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
-| [ref-1]  | NVIDIA cuObject Documentation        | cuObjClient/Server API overview, DC transport, RDMA token protocol, supported S3 operations (GET, PUT, RANGE_GET, UPLOAD_PART) | https://docs.nvidia.com/gpudirect-storage/cuobject/index.html                                                                              |
-| [ref-2]  | cuObject Client v1.0.0 Release Notes | Client library availability (CUDA 13.1.1+), version history                                                                    | https://docs.nvidia.com/gpudirect-storage/cuobject/cuobject-client-release-notes/index.html                                                |
-| [ref-3]  | cuObject Server v1.0.0 Release Notes | Server API: sync/async support, 1 GiB per-op limit, 10-entry scatter-gather limit, completion polling                          | https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf                                                   |
-| [ref-4]  | GPUDirect Storage Overview Guide     | GDS architecture, zero-copy, O_DIRECT, performance characteristics, compatibility mode                                         | https://docs.nvidia.com/gpudirect-storage/overview-guide/index.html                                                                        |
-| [ref-5]  | GPUDirect Storage Troubleshooting    | Installation, IOMMU, driver compatibility                                                                                      | https://docs.nvidia.com/gpudirect-storage/troubleshooting-guide/index.html                                                                 |
-| [ref-6]  | GPUDirect RDMA Documentation         | GPU-NIC DMA path, nvidia_peermem, physical address mapping, multi-GPU NIC affinity                                             | https://docs.nvidia.com/cuda/gpudirect-rdma/                                                                                               |
-| [ref-7]  | GDS cuFile API Reference             | cuFileRead/Write signatures, batch API, stream API                                                                             | https://docs.nvidia.com/gpudirect-storage/api-reference-guide/index.html                                                                   |
-| [ref-8]  | NVIDIA MLNX_OFED v24.10              | ConnectX driver installation, ibverbs, RDMA CM                                                                                 | https://docs.nvidia.com/networking/display/nvidia-mlnx-ofed-documentation-v24-10-2-1-8-0-lts                                               |
-| [ref-9]  | MLNX_OFED Compatibility Matrix       | Firmware-driver version compatibility                                                                                          | https://network.nvidia.com/support/mlnx-ofed-matrix/                                                                                       |
-| [ref-10] | MinIO + NVIDIA GPUDirect RDMA        | Performance benchmarks: RDMA vs TCP throughput comparison at various object sizes                                              | https://www.min.io/blog/minio-aistor-with-nvidia-gpudirect-r-rdma-for-s3-compatible-storage-unlocking-performance-for-ai-factory-workloads |
-| [ref-11] | PyTorch GPUDirect Storage Tutorial   | End-to-end GPU data loading example                                                                                            | https://docs.pytorch.org/tutorials/unstable/gpu_direct_storage.html                                                                        |
-| [ref-12] | CUDA Programming Guide - Async       | CUDA stream semantics, async execution model                                                                                   | https://docs.nvidia.com/cuda/cuda-programming-guide/02-basics/asynchronous-execution.html                                                  |
-| [ref-13] | Overlapping Data Transfers in CUDA   | Double-buffering, pinned memory, concurrent copy+compute                                                                       | https://developer.nvidia.com/blog/how-overlap-data-transfers-cuda-cc/                                                                      |
-| [ref-14] | KvikIO GitHub                        | KvikIO/cuObjClient integration for cuDF S3 reads, parquet footer-first pattern                                                 | https://github.com/rapidsai/kvikio                                                                                                         |
-| [ref-15] | Apache Ozone S3 Gateway              | S3 API compatibility, Range headers, multipart upload                                                                          | https://ozone.apache.org/docs/edge/interface/s3.html                                                                                       |
-| [ref-16] | NVIDIA Forums - cuObject             | Community posts on cuObject usage, error patterns                                                                              | https://forums.developer.nvidia.com/t/unable-to-reproduce-cuobject-example/360539                                                          |
-| [ref-17] | DOCA RDMA Programming Guide          | ibv_reg_mr() memory pinning, RDMA transport security model                                                                     | https://docs.nvidia.com/doca/archive/doca-v2.2.0/pdf/rdma-programming-guide.pdf                                                            |
-| [ref-18] | Lambda Cloud GPU Instances           | Pricing, GPU types, networking                                                                                                 | https://lambdalabs.com/service/gpu-cloud                                                                                                   |
-| [ref-19] | Vultr GPU Instances                  | Pricing, GPU types                                                                                                             | https://www.vultr.com/products/cloud-gpu/                                                                                                  |
-| [ref-20] | CUDA Toolkit Release Notes           | CUDA 13.2.0 (March 2026), 13.1.1 (January 2026) availability, GCC compatibility                                                | https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html                                                                         |
-| [ref-21] | CUDA Installation Guide Linux        | Host compiler support policy, GCC version limits                                                                               | https://docs.nvidia.com/cuda/cuda-installation-guide-linux/#host-compiler-support-policy                                                   |
-| [ref-22] | Apache Ozone GitHub                  | Source code, XceiverServerSpi, DatanodeDetails, OzoneContainer                                                                 | https://github.com/apache/ozone                                                                                                            |
-| [ref-23] | InfiniBand Architecture Spec         | RDMA semantics, rkey, QP types, DC transport                                                                                   | https://www.infinibandta.org/ibta-specification/                                                                                           |
-| [ref-24] | NVIDIA ConnectX SmartNIC             | ConnectX-5/6/7 capabilities, GPUDirect support                                                                                 | https://docs.nvidia.com/networking/display/connectx7en                                                                                     |
-| [ref-25] | RoCEv2                               | RDMA over Converged Ethernet specification                                                                                     | https://docs.nvidia.com/networking/display/RDMAoverConvergedEthernet                                                                       |
+| Item                                               | Effort Estimate | Depends On                       |
+|----------------------------------------------------|-----------------|----------------------------------|
+| RDMA-based Ratis replication (datanode → datanode) | 4-6 weeks       | Phase 1 stable                   |
+| Multi-part upload RDMA support                     | 2-3 weeks       | Phase 1 PUT path                 |
+| Checksum computation on RDMA path                  | 1-2 weeks       | Phase 1 read path                |
+| Hadoop Metrics2 integration for RDMA               | 1 week          | Phase 1 stable                   |
+| Prometheus/Grafana RDMA dashboard                  | 1 week          | Metrics2 integration             |
+| TDE-compatible RDMA (GPU-side decryption)          | 3-4 weeks       | NVIDIA cuObject TDE support      |
+| Range GET RDMA optimization                        | 1-2 weeks       | Phase 1 read path                |
+| Rolling upgrade documentation                      | 1 week          | Phase 1 layout version finalized |
 
 ---
 
-## Appendix A: Unverified Claims Tracked
+## Appendix C: Observability (Phase 2 Design Notes)
 
-This appendix tracks claims from previous versions of this spec that could not be verified against source documentation.
-They are corrected inline throughout the spec and collected here for traceability.
+While full metrics implementation is deferred to Phase 2, the following metric names and categories are planned
+to guide the implementation:
 
-| Claim                                                                                         | Status                                        | Details                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-|-----------------------------------------------------------------------------------------------|-----------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| "cuObjClient has a 4 GiB per-call limit on memory registration via `cuMemObjGetDescriptor()`" | **INCORRECT**                                 | The function `cuMemObjGetDescriptor()` does not exist in the cuObject API [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html) [[ref-2]](https://docs.nvidia.com/gpudirect-storage/cuobject/cuobject-client-release-notes/index.html). No per-registration limit is documented on the client side. The **server** has a 1 GiB per-RDMA-operation limit [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf). The practical client-side limit is GPU physical memory. This has been corrected in Section 2.4. |
-| "cuObjServer supports scatter-gather I/O with up to 10 entries per operation [ref-1]"         | **PARTIALLY CORRECT, WRONG SOURCE**           | Scatter-gather IS supported and the 10-entry limit IS real, but the source is [[ref-3]](https://docs.nvidia.com/gpudirect-storage/cuobject/pdf/cuobject-server-release-notes.pdf) (server release notes), not [[ref-1]](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html) (overview docs). The overview page describes `getRDMABufferFromSgList()` but does not specify the entry limit. Corrected in Section 2.9.                                                                                                                                                 |
-| "cuObjClient GET is a blocking call"                                                          | **LIKELY CORRECT, NOT EXPLICITLY DOCUMENTED** | Inferred from the synchronous API signature (no CUDA stream parameter, no future/promise, no async data-completion callback). Needs verification from the actual `cuobject.h` header or hardware testing. Documented with confidence level in Section 2.2.                                                                                                                                                                                                                                                                                                                      |
-| "CUDA 13.1.1 if available"                                                                    | **OUTDATED**                                  | CUDA 13.2.0 has been available since March 2026. Both 13.1.1 and 13.2.0 include the cuObject client library. Recommendation is to use 13.2.0. Corrected in Section 10.                                                                                                                                                                                                                                                                                                                                                                                                          |
+### Metric Names (Hadoop Metrics2)
+
+| Metric                    | Type      | Description                             |
+|---------------------------|-----------|-----------------------------------------|
+| `RdmaReadBlockOps`        | Counter   | Number of RdmaReadBlock operations      |
+| `RdmaWriteBlockOps`       | Counter   | Number of RdmaWriteBlock operations     |
+| `RdmaReadBlockBytes`      | Counter   | Total bytes transferred via RDMA reads  |
+| `RdmaWriteBlockBytes`     | Counter   | Total bytes transferred via RDMA writes |
+| `RdmaReadBlockLatencyMs`  | Histogram | Per-operation latency for RDMA reads    |
+| `RdmaWriteBlockLatencyMs` | Histogram | Per-operation latency for RDMA writes   |
+| `RdmaReadBlockFailures`   | Counter   | Failed RDMA read operations             |
+| `RdmaWriteBlockFailures`  | Counter   | Failed RDMA write operations            |
+| `RdmaTcpFallbacks`        | Counter   | Operations that fell back to TCP        |
+| `RdmaBufferPoolAvailable` | Gauge     | Currently available RDMA buffers        |
+| `RdmaBufferPoolExhausted` | Counter   | Buffer acquire timeouts                 |
+| `RdmaBufferAcquireWaitMs` | Histogram | Time spent waiting for a buffer         |
+
+### Logging Conventions
+
+| Level   | When                                                              |
+|---------|-------------------------------------------------------------------|
+| `INFO`  | RDMA engine init/shutdown, first successful transfer              |
+| `WARN`  | TCP fallback (TDE, small object, RDMA failure), buffer pool low   |
+| `ERROR` | RDMA transfer failure, JNI exception, buffer registration failure |
+| `DEBUG` | Per-chunk transfer details, buffer acquire/release                |
+
