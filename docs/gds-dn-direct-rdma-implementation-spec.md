@@ -1,9 +1,9 @@
 # DN-Direct RDMA Implementation Specification for Apache Ozone
 ## Phase 1: Read Path — Dual-Mode: GPU Memory and Host-Memory RDMA Transfers
 
-**Version:** 8.0
+**Version:** 9.0
 **Date:** 2026-04-13
-**Status:** Draft
+**Status:** Draft — Validated and corrected for AI implementation
 **Target Branch:** `master` (Apache Ozone `2.2.0-SNAPSHOT`)
 **Scope:** Phase 1 — S3 GET (Read Path) Only — GPU and Host-Memory Client Modes
 
@@ -23,7 +23,7 @@ replaces real hardware. An implementing AI or engineer should read this section 
 | `ContainerCommandResponseProto` highest field = 25 (`readBlock`) | **VERIFIED** | Field inspection |
 | `Port.Name` enum values (10 values, no RDMA yet) | **VERIFIED** | `DatanodeDetails.java` |
 | `OzoneContainer.java` initializes `readChannel` (gRPC) and `writeChannel` (Ratis) | **VERIFIED** | Constructor at lines 237-251 |
-| `KeyValueHandler.dispatchRequest()` handles all current Type cases | **VERIFIED** | Lines 326-372 |
+| `KeyValueHandler.dispatchRequest()` has Type switch for container operations | **VERIFIED** | Lines 326-374 (note: ReadBlock is NOT in this switch — it is handled via a separate read path) |
 | `ObjectEndpoint.handleGetRequest()` exists with streaming response | **VERIFIED** | Lines 404-522 |
 | `HddsDispatcher` is at `common/impl/HddsDispatcher.java` (NOT `common/helpers/`) | **VERIFIED** | grep result |
 | `container-service-native/` module does NOT exist yet | **VERIFIED** | directory listing |
@@ -33,12 +33,18 @@ replaces real hardware. An implementing AI or engineer should read this section 
 | Claim | Status | Evidence |
 |---|---|---|
 | `cuObjServer::handleGetObject()` signature with 9 parameters | **VERIFIED** | [ref-18] cuObjServer API Reference |
-| `cuMemObjGetDescriptor()`, `cuMemObjGetRDMAToken()` exist | **VERIFIED** | [ref-17] cuObjClient API Reference |
+| `cuMemObjGetDescriptor()`, `cuMemObjGetRDMAToken()` are **member functions of `cuObjClient`** | **VERIFIED** | [ref-17] cuObjClient API Reference |
+| `cuMemObjGetRDMAToken()` takes `char** desc_str_out` (not `char*`) | **VERIFIED** | [ref-17] — free with `cuMemObjPutRDMAToken()` |
+| `cuObjOpType_t` enum values: `CUOBJ_GET = 0`, `CUOBJ_PUT = 1` (not `CUOBJ_OP_GET`) | **VERIFIED** | [ref-17] |
 | `cuObjMemoryType_t` enum: SYSTEM=0, CUDA_MANAGED=1, CUDA_DEVICE=2 | **VERIFIED** | [ref-17] |
 | `allocHostBuffer()`, `registerBuffer()`, `deRegisterBuffer()` APIs | **VERIFIED** | [ref-18] |
 | `allocateChannelId()`, `freeChannelId()` APIs | **VERIFIED** | [ref-18] |
 | CUDA Toolkit 13.1.1+ exists | **VERIFIED** | NVIDIA release notes; "13.1.1" = CUDA 13.1 Update 1 |
 | cuObjServer does not require GPU on server side | **VERIFIED** | [ref-3] release notes |
+| `allocHostBuffer()` returns 4 KB aligned buffer, freed with `free()` | **VERIFIED** | [ref-18] |
+| Max operation size: 1 GiB per `handleGetObject`/`handlePutObject` | **VERIFIED** | [ref-18] |
+| Max scatter-gather entries: 10 per `registerBuffer(sglist)` | **VERIFIED** | [ref-18] |
+| Max memory registration: 4 GiB per `cuMemObjGetDescriptor()` | **VERIFIED** | [ref-17] |
 
 ### Unverified / Needs Empirical Testing
 
@@ -47,23 +53,25 @@ replaces real hardware. An implementing AI or engineer should read this section 
 | cuObjClient can initialize without a physical GPU for `CUOBJ_MEMORY_SYSTEM` | **NEEDS TESTING** | Medium — release notes imply GPU optional "for GPU memory operations" [ref-2], but CUDA runtime behavior without GPU driver is unconfirmed |
 | SoftRoCE supports cuObjServer DC transport | **UNCERTAIN** | Medium — SoftRoCE may not support DC (Dynamically Connected) transport. Use MockRdmaTransferService for dev |
 | cuObjServer SDK availability without enterprise agreement | **UNCERTAIN** | High — SDK download page requires NVIDIA developer account; unclear if it requires enterprise licensing |
+| Crusoe IB availability in us-east1-a at time of provisioning | **NEEDS CONFIRMATION** | Low — Crusoe docs note "certain VM types in certain regions are currently restricted and may not be available for immediate provisioning." Confirm availability before planning a test session. |
 
 ### Simulation vs Real Hardware Matrix
 
-| Component | Local Dev (Mock) | Local + SoftRoCE | Cloud GPU VM (Crusoe) |
+| Component | Local Dev (Mock) | Local + SoftRoCE | Cloud GPU VM (Crusoe `a100-80gb-sxm-ib.8x`) |
 |---|---|---|---|
 | RDMA Transfer Engine | **SIMULATED** — `MockRdmaTransferService` copies data in JVM heap | **SIMULATED** — SoftRoCE emulates RDMA in CPU, no NIC DMA | **REAL** — cuObjServer + ConnectX NIC hardware DMA |
-| GPU Memory | **NONE** — mock uses heap ByteBuffer | **NONE** — SoftRoCE uses host memory | **REAL** — NVIDIA H100/A100 VRAM |
-| InfiniBand / RoCE NIC | **NONE** | **SIMULATED** — rdma_rxe kernel module | **REAL** — ConnectX-6/7 InfiniBand HCA |
+| GPU Memory | **NONE** — mock uses heap ByteBuffer | **NONE** — SoftRoCE uses host memory | **REAL** — NVIDIA A100 80GB VRAM (or H100 on `h100-80gb-sxm-ib.8x`) |
+| InfiniBand / RoCE NIC | **NONE** | **SIMULATED** — rdma_rxe kernel module | **REAL** — ConnectX-6 InfiniBand HCA (8 HCAs, 200 Gbps each) |
 | cuObjServer Library | **NOT USED** | **REAL** (if native built) | **REAL** |
 | Disk I/O | **REAL** — FileChannel reads temp files | **REAL** | **REAL** — NVMe SSD |
 | Protobuf / gRPC Dispatch | **REAL** | **REAL** | **REAL** |
 | Block Token Validation | **REAL** | **REAL** | **REAL** |
 | Performance Numbers | **MEANINGLESS** — measures JVM memcpy speed | **MISLEADING** — measures CPU-emulated RDMA | **REPRESENTATIVE** — measures actual NIC DMA throughput |
+| Cost | Free | Free | **$15.60/hr** (A100 IB) or **$31.20/hr** (H100 IB) |
 
 ### Known Hallucinations Fixed in This Version
 
-| Item | v7.0 Status | v8.0 Fix |
+| Item | v7.0/v8.0 Status | v9.0 Fix |
 |---|---|---|
 | `pip install cuobjclient` Python package | **HALLUCINATED** — no such package on PyPI | Fixed: cuObjClient is C++ only. Python bindings may exist in SDK but not on PyPI. E2E tests now use C++ test client as primary, Python as aspirational. |
 | Vultr `vcg-a100-1c-12g-6vram` instance type | **HALLUCINATED** — impossible specs, Vultr doesn't expose ibverbs | Fixed: removed from recommendations |
@@ -72,6 +80,11 @@ replaces real hardware. An implementing AI or engineer should read this section 
 | Azure HBv3 is "immediate credit card access" | **INCORRECT** — requires quota approval (default quota is 0 for HPC VMs) | Fixed: noted quota requirement |
 | Sections 4.4-4.16 "see v6.0" | **INCOMPLETE** — implementation code was missing | Fixed: all code inlined in this document |
 | HddsDispatcher path `common/helpers/` | **INCORRECT** — actual path is `common/impl/` | Fixed |
+| `pip install crusoe-cli` for Crusoe CLI | **HALLUCINATED** — no such PyPI package exists | Fixed: Crusoe CLI is a compiled binary installed via `brew install crusoecloud/cli/crusoe` (macOS) or `sudo apt install crusoe` (Debian/Ubuntu via Fury repo). See https://github.com/crusoecloud/cli |
+| Crusoe H100 at $1.95/GPU/hr | **INCORRECT** — H100 is $3.90/GPU/hr as of April 2026. $1.95 is the A100 price | Fixed: updated pricing throughout. Recommend A100 IB ($15.60/hr) for development, H100 IB ($31.20/hr) for benchmarking |
+| Crusoe single-GPU H100 with InfiniBand | **INCORRECT** — all InfiniBand instances are 8-GPU minimum (e.g., `h100-80gb-sxm-ib.8x`) | Fixed: updated instance types, removed references to single-GPU IB instances |
+| `cuMemObjGetRDMAToken(ptr, size, 0, CUOBJ_OP_GET, rdma_token)` | **INCORRECT API** — `CUOBJ_OP_GET` doesn't exist (enum value is `CUOBJ_GET`); function takes `char** desc_str_out` not `char*`; these are member functions of `cuObjClient`, not free functions | Fixed: corrected all client examples to use verified API signatures from [ref-17] |
+| KeyValueHandler.dispatchRequest() lines 326-372 | **MINOR** — actual range is 326-374 | Fixed: updated line reference |
 
 ---
 
@@ -289,11 +302,13 @@ into GPU device memory, bypassing the CPU entirely.
 **Use cases:** AI/ML training data loading (PyTorch, TensorFlow), GPU analytics (RAPIDS cuDF),
 inference serving, any workflow where data is consumed by GPU kernels.
 
-**Memory registration flow:**
+**Memory registration flow (all methods are cuObjClient member functions [ref-17]):**
 ```
-cudaMalloc(ptr, size)
-  -> cuMemObjGetDescriptor(ptr, size)  // registers GPU memory for RDMA [ref-17]
-  -> cuMemObjGetRDMAToken(ptr, ..., &token)  // generates x-amz-rdma-token [ref-17]
+cuObjClient client(ops, CUOBJ_PROTO_RDMA_DC_V1)
+cudaMalloc(&ptr, size)
+  -> client.cuMemObjGetDescriptor(ptr, size)    // registers GPU memory for RDMA [ref-17]
+  -> client.cuMemObjGetRDMAToken(ptr, size, 0,  // generates x-amz-rdma-token [ref-17]
+       CUOBJ_GET, &token_str)                    // token_str is char** output
 ```
 
 #### 1.2.2 Host-Memory Mode (CUOBJ_MEMORY_SYSTEM)
@@ -310,12 +325,14 @@ bypassing the kernel network stack and achieving near-line-rate throughput.
 **Use cases:** CPU-based analytics (Spark, Presto, Trino), ETL pipelines, data preprocessing,
 any workload that benefits from high-throughput storage I/O without GPU compute.
 
-**Memory registration flow:**
+**Memory registration flow (all methods are cuObjClient member functions [ref-17]):**
 ```
-posix_memalign(ptr, 4096, size)  // or malloc + mlock
-  -> cuMemObjGetDescriptor(ptr, size)  // registers host memory [ref-17]
+cuObjClient client(ops, CUOBJ_PROTO_RDMA_DC_V1)
+posix_memalign(&ptr, 4096, size)  // or malloc + mlock
+  -> client.cuMemObjGetDescriptor(ptr, size)    // registers host memory [ref-17]
     // cuObjClient detects CUOBJ_MEMORY_SYSTEM via getMemoryType() [ref-17]
-  -> cuMemObjGetRDMAToken(ptr, ..., &token)  // generates x-amz-rdma-token [ref-17]
+  -> client.cuMemObjGetRDMAToken(ptr, size, 0,  // generates x-amz-rdma-token [ref-17]
+       CUOBJ_GET, &token_str)                    // token_str is char** output
 ```
 
 **Evidence for host-memory support:**
@@ -342,7 +359,7 @@ posix_memalign(ptr, 4096, size)  // or malloc + mlock
 | **Server-side code** | Identical | Identical |
 | **S3 Gateway code** | Identical | Identical |
 | **RDMA token format** | Same (cuObjClient generates) | Same (cuObjClient generates) |
-| **Cloud test environment** | Crusoe Cloud (GPU VMs with IB) | Azure HB-series (IB, no GPU, requires quota) |
+| **Cloud test environment** | Crusoe Cloud `a100-80gb-sxm-ib.8x` ($15.60/hr) | Same Crusoe instance (uses host memory path), or Azure HB-series (IB, no GPU, requires quota) |
 
 ### 1.3 Data Flow: S3 GET — GPU Mode
 
@@ -356,7 +373,7 @@ sequenceDiagram
   participant DN2 as Datanode 2
 
   App ->> cuObj: get("s3://bucket/key", gpuBuffer, size)
-  Note over cuObj: 1. cudaMalloc(gpuBuffer, size)<br/>2. cuMemObjGetDescriptor(ptr, size) [ref-17]<br/>   memType = CUOBJ_MEMORY_CUDA_DEVICE<br/>3. cuMemObjGetRDMAToken(...) [ref-17]
+  Note over cuObj: 1. cudaMalloc(gpuBuffer, size)<br/>2. client.cuMemObjGetDescriptor(ptr, size) [ref-17]<br/>   memType = CUOBJ_MEMORY_CUDA_DEVICE<br/>3. client.cuMemObjGetRDMAToken(ptr, size, 0,<br/>   CUOBJ_GET, &token) [ref-17]
 
   cuObj ->> GW: HTTP GET /bucket/key<br/>x-amz-rdma-token: (token)
 
@@ -394,7 +411,7 @@ sequenceDiagram
   participant DN2 as Datanode 2
 
   App ->> cuObj: get("s3://bucket/key", hostBuffer, size)
-  Note over cuObj: 1. posix_memalign(&hostBuffer, 4096, size)<br/>2. cuMemObjGetDescriptor(ptr, size) [ref-17]<br/>   memType = CUOBJ_MEMORY_SYSTEM<br/>3. cuMemObjGetRDMAToken(...) [ref-17]
+  Note over cuObj: 1. posix_memalign(&hostBuffer, 4096, size)<br/>2. client.cuMemObjGetDescriptor(ptr, size) [ref-17]<br/>   memType = CUOBJ_MEMORY_SYSTEM<br/>3. client.cuMemObjGetRDMAToken(ptr, size, 0,<br/>   CUOBJ_GET, &token) [ref-17]
 
   cuObj ->> GW: HTTP GET /bucket/key<br/>x-amz-rdma-token: (token)
 
@@ -574,56 +591,95 @@ Key per-operation limits from NVIDIA documentation:
 
 ### 2.10 Client Application Examples
 
-#### Example 1: GPU Mode — C++ Client (VERIFIED API)
+#### Example 1: GPU Mode — C++ Client (VERIFIED API against [ref-17])
 
 ```cpp
 #include <cuobjclient.h>
 #include <cuda_runtime.h>
 
+// User-defined callbacks invoked by cuObjClient during GET/PUT [ref-17]
+ssize_t my_get_callback(const void* handle, char* ptr, size_t size,
+    loff_t offset, const cufileRDMAInfo_t* rdma_info) {
+    // Communicate with cuObjServer using rdma_info->rdma_descr
+    // to perform the actual RDMA transfer via S3 Gateway
+    // Implementation depends on your HTTP/S3 client library
+    return size;  // return bytes retrieved
+}
+
 int main() {
-    // Allocate GPU memory
+    // 1. Create cuObjClient with callback ops [ref-17]
+    //    NOTE: cuMemObjGetDescriptor, cuMemObjGetRDMAToken, cuObjGet are all
+    //    MEMBER FUNCTIONS of cuObjClient — the client must be created first.
+    CUObjOps_t ops = { .get = my_get_callback, .put = nullptr };
+    cuObjClient client(ops, CUOBJ_PROTO_RDMA_DC_V1);
+
+    // 2. Allocate GPU memory
     void* gpu_buffer;
     cudaMalloc(&gpu_buffer, 256 * 1024 * 1024);
 
-    // Register for RDMA [ref-17]
-    cuMemObjGetDescriptor(gpu_buffer, 256 * 1024 * 1024);
-    // cuObjClient detects CUOBJ_MEMORY_CUDA_DEVICE
+    // 3. Register for RDMA [ref-17]
+    //    cuObjClient detects CUOBJ_MEMORY_CUDA_DEVICE via getMemoryType()
+    client.cuMemObjGetDescriptor(gpu_buffer, 256 * 1024 * 1024);
 
-    // Generate RDMA token [ref-17]
-    char rdma_token[4096];
-    cuMemObjGetRDMAToken(gpu_buffer, 256 * 1024 * 1024, 0,
-        CUOBJ_OP_GET, rdma_token);
+    // 4. Generate RDMA token [ref-17]
+    //    NOTE: cuMemObjGetRDMAToken allocates the string internally.
+    //    Output is char** (pointer-to-pointer). Use cuMemObjPutRDMAToken to free.
+    //    Enum value is CUOBJ_GET (not CUOBJ_OP_GET — that doesn't exist).
+    char* rdma_token = nullptr;
+    client.cuMemObjGetRDMAToken(gpu_buffer, 256 * 1024 * 1024, 0,
+        CUOBJ_GET, &rdma_token);
 
-    // GET via cuObjClient
-    cuObjClientOps ops = { .endpoint = "http://s3gw:9878" };
-    cuObjClient client(ops, CUOBJ_PROTO_RDMA_DC_V1);
-    cuObjContext ctx = client.cuObjOpen("bucket", "key");
+    // 5. GET via cuObjClient high-level API [ref-17]
+    //    This calls the get callback one or more times internally.
+    //    The rdma_token is used internally by the callback to coordinate
+    //    with cuObjServer on the datanode for RDMA_WRITE.
+    void* ctx = nullptr;  // user context pointer
     ssize_t bytes = client.cuObjGet(ctx, gpu_buffer, 256 * 1024 * 1024);
 
-    // gpu_buffer now contains the data — use with CUDA kernels
+    // 6. Cleanup
+    client.cuMemObjPutRDMAToken(rdma_token);  // free token string [ref-17]
+    client.cuMemObjPutDescriptor(gpu_buffer);  // deregister [ref-17]
     cudaFree(gpu_buffer);
 }
 ```
 
-#### Example 2: Host-Memory Mode — C++ Client (VERIFIED API)
+#### Example 2: Host-Memory Mode — C++ Client (VERIFIED API against [ref-17])
 
 ```cpp
 #include <cuobjclient.h>
 #include <cstdlib>
 
+// Same callback pattern as GPU mode — cuObjClient is mode-agnostic
+ssize_t my_get_callback(const void* handle, char* ptr, size_t size,
+    loff_t offset, const cufileRDMAInfo_t* rdma_info) {
+    return size;  // return bytes retrieved
+}
+
 int main() {
-    // Allocate page-aligned host memory
+    // 1. Create cuObjClient [ref-17]
+    CUObjOps_t ops = { .get = my_get_callback, .put = nullptr };
+    cuObjClient client(ops, CUOBJ_PROTO_RDMA_DC_V1);
+
+    // 2. Allocate page-aligned host memory (4 KB alignment recommended [ref-17])
     void* buffer;
     posix_memalign(&buffer, 4096, 256 * 1024 * 1024);
 
-    // Register for RDMA [ref-17] — cuObjClient detects CUOBJ_MEMORY_SYSTEM
-    cuMemObjGetDescriptor(buffer, 256 * 1024 * 1024);
+    // 3. Register for RDMA [ref-17]
+    //    cuObjClient detects CUOBJ_MEMORY_SYSTEM via getMemoryType()
+    client.cuMemObjGetDescriptor(buffer, 256 * 1024 * 1024);
 
-    // GET via cuObjClient — data arrives in host memory via RDMA_WRITE
-    cuObjClientOps ops = { .endpoint = "http://s3gw:9878" };
-    cuObjClient client(ops, CUOBJ_PROTO_RDMA_DC_V1);
-    cuObjContext ctx = client.cuObjOpen("bucket", "key");
+    // 4. Generate RDMA token [ref-17]
+    char* rdma_token = nullptr;
+    client.cuMemObjGetRDMAToken(buffer, 256 * 1024 * 1024, 0,
+        CUOBJ_GET, &rdma_token);
+
+    // 5. GET via cuObjClient — data arrives in host memory via RDMA_WRITE
+    void* ctx = nullptr;
     ssize_t bytes = client.cuObjGet(ctx, buffer, 256 * 1024 * 1024);
+
+    // 6. Cleanup
+    client.cuMemObjPutRDMAToken(rdma_token);
+    client.cuMemObjPutDescriptor(buffer);
 
     // buffer now contains the data — process with CPU
     process_parquet(buffer, bytes);
@@ -2313,7 +2369,8 @@ Custom libibverbs client (Phase 2) and DiSNI Java client (Phase 2) are deferred.
 |---|---|---|---|---|---|---|
 | **Local (no hardware)** | None | None | `MockRdmaTransferService` | Unit + integration | **FULL SIMULATION** — no RDMA at all | Free |
 | **Local + SoftRoCE** | SoftRoCE (software) | None | Real (if native built) | Functional RDMA | **PARTIAL SIMULATION** — RDMA verbs work but no NIC DMA | Free |
-| **Crusoe Cloud GPU VM** | **REAL** NIC (ConnectX IB) | **REAL** GPU | Real | Full E2E + GPU | **NONE** — everything is real hardware | ~$2-3/hr |
+| **Crusoe Cloud A100 IB** | **REAL** NIC (ConnectX-6 IB) | **REAL** GPU (8x A100) | Real | Full E2E + GPU | **NONE** — everything is real hardware | **$15.60/hr** |
+| **Crusoe Cloud H100 IB** | **REAL** NIC (ConnectX-7 IB) | **REAL** GPU (8x H100) | Real | Full E2E + GPU (benchmarking) | **NONE** — everything is real hardware | **$31.20/hr** |
 
 ### 7.2 SoftRoCE: Decision and Limitations
 
@@ -2338,13 +2395,21 @@ API in software — the kernel emulates RDMA operations using regular TCP/IP. **
 | Criterion | Status | Evidence |
 |---|---|---|
 | Credit card signup | **YES** | Self-service at console.crusoecloud.com |
-| Immediate access | **YES** | VM provisioning within minutes of account creation |
+| Immediate access | **YES** | VM provisioning ~90 seconds from API call |
 | Real RDMA ibverbs | **CONFIRMED** | Official support article: "How-To Validate InfiniBand Hardware and Test RDMA Connectivity for GPU VMs". Users run `ibv_devinfo`, `ib_write_bw`, `ib_read_bw`, perftest suite. |
 
-| Instance | GPUs | GPU Type | RDMA NIC | Speed | Cost |
-|---|---|---|---|---|---|
-| H100 VM (8-GPU) | 8x H100 SXM | H100 80GB | ConnectX-7 IB | 400 Gb/s per GPU | ~$1.95/GPU/hr (~$15.60/hr total) |
-| A100 VM (8-GPU) | 8x A100 SXM | A100 80GB | ConnectX-6 IB | 200 Gb/s per GPU | ~$1.30/GPU/hr (spot) |
+**IMPORTANT:** InfiniBand instances are **8-GPU minimum** (no single-GPU IB option). IB is only
+available in the `us-east1-a` region. The recommended VM image is `ubuntu22.04-nvidia-sxm-docker:latest`
+which comes with NVIDIA drivers and RDMA tools pre-installed.
+
+| Instance Type | GPUs | GPU Type | RDMA NIC | Speed | Cost/GPU/hr | Total Cost/hr |
+|---|---|---|---|---|---|---|
+| `a100-80gb-sxm-ib.8x` | 8x A100 SXM | A100 80GB | ConnectX-6 IB | 200 Gb/s per GPU | **$1.95** | **$15.60** |
+| `h100-80gb-sxm-ib.8x` | 8x H100 SXM | H100 80GB | ConnectX-7 IB | 400 Gb/s per GPU | $3.90 | $31.20 |
+| `h200-141gb-sxm-ib.8x` | 8x H200 SXM | H200 141GB | ConnectX-7 IB | 400 Gb/s per GPU | $4.29 | $34.32 |
+
+**Recommendation:** Use `a100-80gb-sxm-ib.8x` ($15.60/hr) for development and functional testing.
+Use `h100-80gb-sxm-ib.8x` ($31.20/hr) only for performance benchmarking.
 
 **Why Crusoe over alternatives:**
 - Lambda Labs single-GPU instances do NOT have InfiniBand (Ethernet only). IB requires cluster reservations.
@@ -2391,31 +2456,45 @@ This section provides exact instructions for getting a cloud cluster to test the
 #### Step 2: Provision a GPU VM with InfiniBand
 
 ```bash
-# Install Crusoe CLI (or use the web console)
-pip install crusoe-cli
+# Install Crusoe CLI
+# macOS:
+brew install crusoecloud/cli/crusoe
+# Debian/Ubuntu:
+#   curl -fsSL https://dl.fury.io/crusoecloud/apt/gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/crusoe.gpg
+#   echo "deb [signed-by=/usr/share/keyrings/crusoe.gpg] https://dl.fury.io/crusoecloud/apt/ /" | sudo tee /etc/apt/sources.list.d/crusoe.list
+#   sudo apt update && sudo apt install crusoe
+# Or download binary from: https://github.com/crusoecloud/cli/releases
+
 crusoe auth login
 
-# Create a VM with H100 GPU and InfiniBand
+# Create a VM with A100 GPU and InfiniBand (cheapest IB option at $15.60/hr)
+# IMPORTANT: InfiniBand requires 8-GPU instances. No single-GPU IB option exists.
+# IMPORTANT: InfiniBand is only available in us-east1-a.
+#
 # Use the web console at console.crusoecloud.com if CLI is unavailable:
 #   1. Click "Create VM"
-#   2. Select GPU type: H100 SXM (80GB)
-#   3. Select instance size: 1x H100 (smallest for dev)
-#   4. Select location: any available
+#   2. Select type: a100-80gb-sxm-ib.8x (8x A100 with IB)
+#   3. Select location: us-east1-a (only region with IB)
+#   4. Select image: ubuntu22.04-nvidia-sxm-docker:latest
 #   5. Add your SSH public key
 #   6. Click "Create"
 
-# Alternative: use the API/CLI
+# CLI method:
 crusoe compute vms create \
   --name ozone-rdma-dev \
-  --type h100-80gb-sxm \
+  --type a100-80gb-sxm-ib.8x \
+  --location us-east1-a \
+  --image ubuntu22.04-nvidia-sxm-docker:latest \
   --ssh-key "$(cat ~/.ssh/id_rsa.pub)" \
   --disk-size 200
 
 # Note the public IP address from the output
 ```
 
-> **Cost control:** H100 instances cost ~$2-3/GPU/hr. Shut down when not in use. A 4-hour
-> development session costs ~$8-12 for a single GPU instance.
+> **Cost control:** The `a100-80gb-sxm-ib.8x` instance costs $15.60/hr ($1.95/GPU x 8).
+> **Shut down the VM immediately when done — billing is per-hour while running.**
+> A 4-hour development session costs ~$62. Use `h100-80gb-sxm-ib.8x` ($31.20/hr) only
+> when benchmarking performance.
 
 #### Step 3: SSH into the VM and Validate Hardware
 
@@ -2425,18 +2504,21 @@ ssh ubuntu@<VM_PUBLIC_IP>
 
 # Verify GPU is present (REAL hardware)
 nvidia-smi
-# Expected: H100 SXM 80GB listed
+# Expected for a100-80gb-sxm-ib.8x: 8x A100 SXM 80GB listed
+# Expected for h100-80gb-sxm-ib.8x: 8x H100 SXM 80GB listed
 
 # Verify InfiniBand NIC is present (REAL hardware)
 ibv_devinfo
-# Expected: mlx5_0 or similar, state PORT_ACTIVE
+# Expected: mlx5_0 through mlx5_7 (8 HCAs, one per GPU), state PORT_ACTIVE
+# The recommended ubuntu22.04-nvidia-sxm-docker image has drivers pre-installed
 
-# Verify RDMA works (REAL hardware)
+# Verify RDMA works (REAL hardware) — loopback test
 # Terminal 1:
-ib_write_bw -d mlx5_0 &
-# Terminal 2:
-ib_write_bw -d mlx5_0 localhost
-# Expected: bandwidth numbers (e.g., ~24 GB/sec for 200 Gbps IB)
+ib_write_bw -d mlx5_1 -p 18515 &
+# Terminal 2 (same VM, tests local RDMA path):
+ib_write_bw -d mlx5_1 -p 18515 localhost
+# Expected for A100 IB: ~24 GB/sec (200 Gbps HDR InfiniBand)
+# Expected for H100 IB: ~48 GB/sec (400 Gbps NDR InfiniBand)
 
 # Verify nvidia_peermem for GPUDirect RDMA
 lsmod | grep nvidia_peermem
@@ -2507,8 +2589,11 @@ mvn test -pl hadoop-ozone/integration-test -Dtest=TestRdmaReadBlock
 # Stop Ozone
 bash cleanup-env.sh
 
-# IMPORTANT: Shut down or delete the VM via Crusoe console
+# IMPORTANT: Shut down or delete the VM via Crusoe console or CLI
 # The VM is billed per hour while running!
+crusoe compute vms stop ozone-rdma-dev
+# Or delete entirely:
+# crusoe compute vms delete ozone-rdma-dev
 ```
 
 ### 7.5 How to Run Ozone for Development
@@ -2756,12 +2841,16 @@ mvn test -pl hadoop-ozone/integration-test -Dtest=TestRdmaReadBlock  # Integrati
 
 ```bash
 # 1. Sign up at console.crusoecloud.com with credit card
-# 2. Create H100 VM instance, note public IP
-# 3. scp setup-gpu-env.sh ubuntu@<IP>:~/ && ssh ubuntu@<IP> 'bash setup-gpu-env.sh'
-# 4. ssh ubuntu@<IP> 'bash validate-env.sh'
-# 5. Build: export CUOBJSERVER_HOME=/usr/local/cuobjserver && mvn install -Pnative -DskipTests
-# 6. Start Ozone, upload test data, run tests (Section 7.4 Steps 5-6)
-# 7. SHUT DOWN VM when done to stop billing!
+# 2. Install CLI: brew install crusoecloud/cli/crusoe && crusoe auth login
+# 3. Create A100 IB VM (cheapest IB, $15.60/hr):
+#    crusoe compute vms create --name ozone-rdma-dev --type a100-80gb-sxm-ib.8x \
+#      --location us-east1-a --image ubuntu22.04-nvidia-sxm-docker:latest \
+#      --ssh-key "$(cat ~/.ssh/id_rsa.pub)" --disk-size 200
+# 4. scp setup-gpu-env.sh ubuntu@<IP>:~/ && ssh ubuntu@<IP> 'bash setup-gpu-env.sh'
+# 5. ssh ubuntu@<IP> 'bash validate-env.sh'
+# 6. Build: export CUOBJSERVER_HOME=/usr/local/cuobjserver && mvn install -Pnative -DskipTests
+# 7. Start Ozone, upload test data, run tests (Section 7.4 Steps 5-6)
+# 8. SHUT DOWN VM: crusoe compute vms stop ozone-rdma-dev
 ```
 
 ### 7.11 Ozone RDMA Configuration Template
@@ -3060,7 +3149,7 @@ cuObjClient API (Section 2.10 examples) running against a live Ozone cluster on 
 | Unit tests | `MockRdmaTransferService` | None | **FULL SIMULATION** | Buffer pool, chunking, dispatch, destOffset |
 | MiniOzoneCluster | `MockRdmaTransferService` | None | **FULL SIMULATION** | Full dispatch chain, protobuf, token validation |
 | Docker + SoftRoCE | `CuObjRdmaTransferService` | SoftRoCE | **PARTIAL SIMULATION** | JNI bridge, kernel RDMA verbs |
-| Crusoe Cloud | `CuObjRdmaTransferService` | GPU + IB | **NONE (all real)** | Full GPUDirect RDMA, GPU throughput |
+| Crusoe Cloud (`a100-80gb-sxm-ib.8x`) | `CuObjRdmaTransferService` | GPU + IB | **NONE (all real)** | Full GPUDirect RDMA, GPU throughput |
 
 ---
 
@@ -3139,7 +3228,10 @@ cuObjClient API (Section 2.10 examples) running against a live Ozone cluster on 
 | [ref-23] | Azure HPC VM Sizes (InfiniBand) | https://learn.microsoft.com/en-us/azure/virtual-machines/sizes-hpc |
 | [ref-24] | ibv_reg_mr man page (rdma-core) | https://github.com/linux-rdma/rdma-core/blob/master/libibverbs/man/ibv_reg_mr.3 |
 | [ref-25] | Azure InfiniBand Setup Guide | https://learn.microsoft.com/en-us/azure/virtual-machines/setup-infiniband |
-| [ref-26] | Crusoe Cloud InfiniBand Validation Guide | https://docs.crusoecloud.com (search: "InfiniBand RDMA Connectivity") |
+| [ref-26] | Crusoe Cloud InfiniBand Validation Guide | https://support.crusoecloud.com/hc/en-us/articles/38559194513691-How-To-Validate-InfiniBand-Hardware-and-Test-RDMA-Connectivity-for-GPU-VMs-in-Crusoe-Cloud |
+| [ref-27] | Crusoe Cloud VM Types and Pricing | https://www.crusoe.ai/cloud/pricing |
+| [ref-28] | Crusoe Cloud CLI (GitHub) | https://github.com/crusoecloud/cli |
+| [ref-29] | Crusoe Cloud InfiniBand Network Management | https://docs.crusoecloud.com/networking/infiniband/managing-infiniband-networks/index.html |
 
 ---
 
