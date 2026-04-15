@@ -1,9 +1,9 @@
 # DN-Direct RDMA Implementation Specification for Apache Ozone
 ## Phase 1: Read Path — Dual-Mode: GPU Memory and Host-Memory RDMA Transfers
 
-**Version:** 9.0
-**Date:** 2026-04-13
-**Status:** Draft — Validated and corrected for AI implementation
+**Version:** 10.0
+**Date:** 2026-04-14
+**Status:** Draft — Post-audit fixes applied (compilation, S3 parity, safety)
 **Target Branch:** `master` (Apache Ozone `2.2.0-SNAPSHOT`)
 **Scope:** Phase 1 — S3 GET (Read Path) Only — GPU and Host-Memory Client Modes
 
@@ -69,7 +69,24 @@ replaces real hardware. An implementing AI or engineer should read this section 
 | Performance Numbers | **MEANINGLESS** — measures JVM memcpy speed | **MISLEADING** — measures CPU-emulated RDMA | **REPRESENTATIVE** — measures actual NIC DMA throughput |
 | Cost | Free | Free | **$15.60/hr** (A100 IB) or **$31.20/hr** (H100 IB) |
 
-### Known Hallucinations Fixed in This Version
+### Issues Fixed in v10.0 (Post-Audit)
+
+| Item | v9.0 Status | v10.0 Fix |
+|---|---|---|
+| `var` keyword in `handleRdmaGet()` | **COMPILE BLOCKER** — Java 10+ feature, repo targets Java 8 | Fixed: replaced with explicit types (`CompletableFuture<...>`, `ContainerCommandResponseProto`, `ChecksumData`) |
+| `new java.util.zip.CRC32C()` in `XceiverServerRdma` | **COMPILE BLOCKER** — Java 9+ API, repo targets Java 8 | Fixed: use `ChecksumByteBufferFactory.getCrc32CByteBufferInstance()` (existing Java 8-compatible abstraction) |
+| `NativeLibraryLoader.getInstance().loadLibrary(LIBRARY_NAME)` | **COMPILE BLOCKER** — only 2-arg overload `loadLibrary(String, List<String>)` exists | Fixed: pass `Collections.emptyList()` as second argument |
+| `context.getProperty(...)` in ObjectEndpoint | **COMPILE BLOCKER** — `context` is `ObjectRequestContext` with no `getProperty()` | Fixed: use `getContext().getProperty(...)` to access JAX-RS `ContainerRequestContext` |
+| `maxConnections` param on `RdmaTransferService.initialize()` | **UNMAPPED** — cuObjServer constructor has no `maxConnections` param | Fixed: removed from interface, impl, and config. cuObjServer tunables are in `cuObjRDMATunableParam` (Phase 2) |
+| RDMA GET response missing standard S3 headers | **S3 BEHAVIOR BREAK** — missing `Accept-Ranges`, `Last-Modified`, tag count; ETag not quoted; wrong 200/206 logic | Fixed: reuse existing `addEntityTagHeader()`, `addLastModifiedDate()`, `addTagCountIfAny()` helpers; use `rangeHeader.isReadFull()` for 200 vs 206 |
+| EC and partNumber requests not handled in RDMA path | **S3 BEHAVIOR BREAK** — EC block layout differs; partNumber query ignored | Fixed: explicit TCP fallback for both cases |
+| Unsafe TCP fallback after partial RDMA transfer | **DATA INTEGRITY** — partial data in client buffer + full TCP body = inconsistent | Fixed: block TCP fallback once any RDMA block succeeds; return 503 with Retry-After |
+| `acquireClient()` instead of `acquireClientForReadData()` | **SEMANTIC MISMATCH** — read flows should use read-specific API | Fixed: use `acquireClientForReadData()` / `releaseClientForReadData()` |
+| Spec adds 3-arg `getKeyInfo()` to RpcClient | **DRIFT** — 4-arg overload already exists with correct behavior | Fixed: removed spec's helper; use existing `getKeyInfo(vol, bucket, key, false)` |
+| Block-range `loc == locations.get(0)` reference equality | **LATENT BUG** — fragile under refactoring | Fixed: use `blockID.equals()` comparison |
+| Checksum `setBytesPerChecksum(bufSize)` misleading | **SEMANTIC GAP** — uses RDMA buffer size, not block's stored granularity | Fixed: added documentation clarifying these are transfer-integrity checksums, not block-metadata checksums |
+
+### Known Hallucinations Fixed in Prior Versions
 
 | Item | v7.0/v8.0 Status | v9.0 Fix |
 |---|---|---|
@@ -881,13 +898,15 @@ public interface RdmaTransferService extends Closeable {
    * Maps to: {@code new cuObjServer(ip, port, CUOBJ_PROTO_RDMA_DC_V1)}
    * <a href="https://docs.nvidia.com/gpudirect-storage/cuobject/cuObjServer-api/index.html">[ref-18]</a>
    *
+   * Note: cuObjServer constructor takes (ip, port, proto). Connection-level
+   * tunables (num_dcis, cq_depth, etc.) are set via cuObjRDMATunableParam
+   * in Phase 2. See Appendix D for the tunable struct.
+   *
    * @param bindAddress   IP address to bind the cuObjServer listener
    * @param port          cuObjServer listen port for DC transport
-   * @param maxConnections maximum concurrent RDMA connections
    * @throws IOException if initialization fails
    */
-  void initialize(String bindAddress, int port, int maxConnections)
-      throws IOException;
+  void initialize(String bindAddress, int port) throws IOException;
 
   /**
    * Allocate pinned (page-locked) host memory suitable for RDMA operations.
@@ -994,6 +1013,7 @@ import org.apache.hadoop.hdds.utils.NativeLibraryLoader;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Collections;
 
 /**
  * JNI bridge to libcuobjserver (NVIDIA cuObject Server SDK).
@@ -1017,7 +1037,8 @@ final class CuObjServerBridge {
     }
     loaded = true;
     try {
-      NativeLibraryLoader.getInstance().loadLibrary(LIBRARY_NAME);
+      NativeLibraryLoader.getInstance().loadLibrary(LIBRARY_NAME,
+          Collections.emptyList());
       available = true;
     } catch (UnsatisfiedLinkError e) {
       available = false;
@@ -1304,8 +1325,7 @@ public class CuObjRdmaTransferService implements RdmaTransferService {
   private volatile boolean initialized = false;
 
   @Override
-  public void initialize(String bindAddress, int port, int maxConnections)
-      throws IOException {
+  public void initialize(String bindAddress, int port) throws IOException {
     if (!CuObjServerBridge.loadLibrary()) {
       throw new IOException("Failed to load cuobj_server_bridge native library. "
           + "Ensure libcuobjserver.so is installed and CUOBJSERVER_HOME is set.");
@@ -1434,8 +1454,7 @@ public class MockRdmaTransferService implements RdmaTransferService {
   }
 
   @Override
-  public void initialize(String bindAddress, int port, int maxConnections)
-      throws IOException {
+  public void initialize(String bindAddress, int port) throws IOException {
     initialized = true;
     LOG.info("MockRdmaTransferService initialized (SIMULATION - no real RDMA)");
   }
@@ -1674,6 +1693,8 @@ import org.apache.hadoop.hdds.conf.ConfigurationSource;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.RdmaReadBlockRequestProto;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.RdmaReadBlockResponseProto;
+import org.apache.hadoop.ozone.common.ChecksumByteBuffer;
+import org.apache.hadoop.ozone.common.ChecksumByteBufferFactory;
 import org.apache.hadoop.ozone.container.rdma.RdmaBuffer;
 import org.apache.hadoop.ozone.container.rdma.RdmaBufferPool;
 import org.apache.hadoop.ozone.container.rdma.RdmaTransferService;
@@ -1705,8 +1726,6 @@ public class XceiverServerRdma implements Closeable {
   public static final String RDMA_BIND_ADDRESS_DEFAULT = "0.0.0.0";
   public static final String RDMA_PORT_KEY = "hdds.datanode.rdma.port";
   public static final int RDMA_PORT_DEFAULT = 19870;
-  public static final String RDMA_MAX_CONNECTIONS_KEY = "hdds.datanode.rdma.max.connections";
-  public static final int RDMA_MAX_CONNECTIONS_DEFAULT = 32;
   public static final String RDMA_MAX_CONCURRENT_TRANSFERS_KEY =
       "hdds.datanode.rdma.max.concurrent.transfers";
   public static final int RDMA_MAX_CONCURRENT_TRANSFERS_DEFAULT = 32;
@@ -1729,9 +1748,8 @@ public class XceiverServerRdma implements Closeable {
     this.transferSemaphore = new Semaphore(maxConcurrentTransfers);
 
     String bindAddress = conf.get(RDMA_BIND_ADDRESS_KEY, RDMA_BIND_ADDRESS_DEFAULT);
-    int maxConns = conf.getInt(RDMA_MAX_CONNECTIONS_KEY, RDMA_MAX_CONNECTIONS_DEFAULT);
 
-    transferService.initialize(bindAddress, rdmaPort, maxConns);
+    transferService.initialize(bindAddress, rdmaPort);
     this.bufferPool = new RdmaBufferPool(conf, transferService);
 
     LOG.info("XceiverServerRdma started: bind={}, port={}", bindAddress, rdmaPort);
@@ -1801,15 +1819,20 @@ public class XceiverServerRdma implements Closeable {
 
         if (perChunkChecksums != null) {
           buffer.flip();
-          java.util.zip.CRC32C chunkCrc = new java.util.zip.CRC32C();
+          // Use Ozone's Java 8-compatible CRC32C abstraction.
+          // ChecksumByteBufferFactory handles JDK 9+ CRC32C with fallback
+          // to PureJavaCrc32CByteBuffer on Java 8.
+          ChecksumByteBuffer chunkCrc =
+              ChecksumByteBufferFactory.getCrc32CByteBufferInstance();
           chunkCrc.update(buffer);
-          byte[] crcBytes = new byte[4];
           long crcVal = chunkCrc.getValue();
+          byte[] crcBytes = new byte[4];
           crcBytes[0] = (byte) (crcVal >> 24);
           crcBytes[1] = (byte) (crcVal >> 16);
           crcBytes[2] = (byte) (crcVal >> 8);
           crcBytes[3] = (byte) crcVal;
           perChunkChecksums.add(ByteString.copyFrom(crcBytes));
+          chunkCrc.reset();
         }
 
         int rdmaSent = 0;
@@ -1838,6 +1861,12 @@ public class XceiverServerRdma implements Closeable {
               .setBytesTransferred(totalTransferred);
 
       if (perChunkChecksums != null && !perChunkChecksums.isEmpty()) {
+        // Note: bytesPerChecksum here is the RDMA transfer chunk size, not
+        // the block's write-time checksum granularity. These are transfer-
+        // integrity checksums — they verify data was read correctly from disk
+        // before RDMA_WRITE. Block-metadata checksum verification (against
+        // stored checksums from write time) is a separate concern — see
+        // TODO below about verifying against stored ChecksumData.
         ContainerProtos.ChecksumData.Builder csBuilder =
             ContainerProtos.ChecksumData.newBuilder()
                 .setType(ContainerProtos.ChecksumType.CRC32C)
@@ -2041,20 +2070,15 @@ if (proxy instanceof RpcClient) {
 
 #### 4.15.3 Obtaining Block Locations with Pipeline and Token
 
-Add helper to `RpcClient.java`:
+**No new method needed.** `RpcClient.java` already has a public overload:
 
 ```java
+// EXISTING method in RpcClient.java (lines 1896-1911) — DO NOT DUPLICATE.
+// This overload correctly handles topologyAwareReadEnabled,
+// latestVersionLocation, and forceUpdateContainerCacheFromSCM.
 public OmKeyInfo getKeyInfo(String volumeName, String bucketName,
-    String keyName) throws IOException {
-  OmKeyArgs keyArgs = new OmKeyArgs.Builder()
-      .setVolumeName(volumeName)
-      .setBucketName(bucketName)
-      .setKeyName(keyName)
-      .setSortDatanodes(true)
-      .setLatestVersionLocation(true)
-      .build();
-  return ozoneManagerClient.getKeyInfo(keyArgs, false).getKeyInfo();
-}
+    String keyName, boolean forceUpdateContainerCache) throws IOException
+
 ```
 
 **API chain from OmKeyInfo to Pipeline and Token:**
@@ -2081,10 +2105,13 @@ OmKeyInfo
 ```java
 // INSERT after range header parsing, before ResponseBuilder construction:
 
-String rdmaToken = (String) context
+// getContext() returns the JAX-RS ContainerRequestContext from EndpointBase.
+// RdmaRequestFilter sets the RDMA_TOKEN_PROPERTY on the ContainerRequestContext.
+String rdmaToken = (String) getContext()
     .getProperty(RdmaRequestFilter.RDMA_TOKEN_PROPERTY);
 if (rdmaToken != null && xceiverClientFactory != null) {
-  Response rdmaResponse = handleRdmaGet(keyDetails, rdmaToken, rangeHeader);
+  Response rdmaResponse = handleRdmaGet(keyDetails, rdmaToken, rangeHeader,
+      partNumber);
   if (rdmaResponse != null) {
     return rdmaResponse;
   }
@@ -2096,7 +2123,25 @@ if (rdmaToken != null && xceiverClientFactory != null) {
 
 ```java
 private Response handleRdmaGet(OzoneKeyDetails keyDetails, String rdmaToken,
-    RangeHeader rangeHeader) throws IOException {
+    RangeHeader rangeHeader, String partNumberParam) throws IOException {
+
+  // Phase 1: Fall back to TCP for multipart part-number requests.
+  // The normal GET path has special handling for partNumber that RDMA does not
+  // replicate. Supporting this is deferred to Phase 2.
+  if (partNumberParam != null) {
+    LOG.debug("RDMA fallback: partNumber requests not supported in Phase 1");
+    return null;
+  }
+
+  // Phase 1: Fall back to TCP for Erasure Coded keys.
+  // EC keys have different block layout semantics that require special
+  // offset/length calculations not yet implemented for RDMA.
+  if (keyDetails.getReplicationConfig() != null
+      && keyDetails.getReplicationConfig().getReplicationType()
+          == org.apache.hadoop.hdds.protocol.proto.HddsProtos.ReplicationType.EC) {
+    LOG.debug("RDMA fallback: EC keys not supported in Phase 1");
+    return null;
+  }
 
   final long objectSize = keyDetails.getDataSize();
   final long minRdmaSize = ozoneConfiguration.getLong(
@@ -2113,8 +2158,11 @@ private Response handleRdmaGet(OzoneKeyDetails keyDetails, String rdmaToken,
   ClientProtocol proxy = getClientProtocol();
   if (!(proxy instanceof RpcClient)) return null;
 
+  // Use existing 4-arg overload. Pass false for forceUpdateContainerCache
+  // since block locations from the latest version are sufficient.
   OmKeyInfo omKeyInfo = ((RpcClient) proxy).getKeyInfo(
-      keyDetails.getVolumeName(), keyDetails.getBucketName(), keyDetails.getName());
+      keyDetails.getVolumeName(), keyDetails.getBucketName(),
+      keyDetails.getName(), false);
   OmKeyLocationInfoGroup latestLocations = omKeyInfo.getLatestVersionLocations();
   if (latestLocations == null) return null;
 
@@ -2146,11 +2194,14 @@ private Response handleRdmaGet(OzoneKeyDetails keyDetails, String rdmaToken,
   DatanodeDetails firstDn = locations.get(0).getPipeline().getClosestNode();
   if (firstDn.getPort(DatanodeDetails.Port.Name.RDMA) == null) return null;
 
-  // Compute destOffset and per-block offset/length
+  // Compute destOffset and per-block offset/length.
+  // Use blockID comparison (not reference equality) to find the global byte
+  // offset of the first selected block within the full block list.
   long gpuOffset = 0;
   long blockStartGlobal = 0;
+  BlockID firstSelectedBlockID = locations.get(0).getBlockID();
   for (OmKeyLocationInfo loc : allLocations) {
-    if (loc == locations.get(0)) break;
+    if (loc.getBlockID().equals(firstSelectedBlockID)) break;
     blockStartGlobal += loc.getLength();
   }
 
@@ -2203,12 +2254,14 @@ private Response handleRdmaGet(OzoneKeyDetails keyDetails, String rdmaToken,
           reqBuilder.setEncodedToken(location.getToken().encodeToUrlString());
         }
 
-        XceiverClientSpi client = xceiverClientFactory.acquireClient(
-            location.getPipeline());
+        // Use read-specific client acquisition to match existing read paths
+        // in BlockInputStream / StreamBlockInputStream.
+        XceiverClientSpi client = xceiverClientFactory
+            .acquireClientForReadData(location.getPipeline());
         try {
           return client.sendCommand(reqBuilder.build());
         } finally {
-          xceiverClientFactory.releaseClient(client, false);
+          xceiverClientFactory.releaseClientForReadData(client, false);
         }
       } catch (IOException e) {
         throw new java.util.concurrent.CompletionException(e);
@@ -2221,15 +2274,15 @@ private Response handleRdmaGet(OzoneKeyDetails keyDetails, String rdmaToken,
   List<String> perBlockChecksums = new ArrayList<>();
   try {
     CompletableFuture.allOf(futures).join();
-    for (var f : futures) {
-      var response = f.get();
+    for (CompletableFuture<ContainerProtos.ContainerCommandResponseProto> f : futures) {
+      ContainerProtos.ContainerCommandResponseProto response = f.get();
       if (response.getResult() != ContainerProtos.Result.SUCCESS) {
         LOG.warn("RDMA read failed: {}. Falling back to TCP.", response.getMessage());
         return null;
       }
       totalTransferred += response.getRdmaReadBlock().getBytesTransferred();
       if (response.getRdmaReadBlock().hasChecksumData()) {
-        var csData = response.getRdmaReadBlock().getChecksumData();
+        ContainerProtos.ChecksumData csData = response.getRdmaReadBlock().getChecksumData();
         StringBuilder sb = new StringBuilder();
         for (int c = 0; c < csData.getChecksumsCount(); c++) {
           if (c > 0) sb.append(",");
@@ -2239,28 +2292,63 @@ private Response handleRdmaGet(OzoneKeyDetails keyDetails, String rdmaToken,
       }
     }
   } catch (Exception e) {
-    LOG.warn("RDMA read failed: {}. Falling back to TCP.", e.getMessage());
+    // Check if any blocks completed before the failure. If so, the client's
+    // RDMA buffer has partial data — TCP fallback would produce an inconsistent
+    // state (partial RDMA data + full TCP body). Return error instead.
+    boolean anyCompleted = false;
+    for (CompletableFuture<ContainerProtos.ContainerCommandResponseProto> f : futures) {
+      if (f.isDone() && !f.isCompletedExceptionally()) {
+        anyCompleted = true;
+        break;
+      }
+    }
+    if (anyCompleted) {
+      LOG.warn("RDMA read partially completed before failure. Cannot safely "
+          + "fall back to TCP. Client should retry. Error: {}", e.getMessage());
+      return Response.status(Response.Status.SERVICE_UNAVAILABLE)
+          .header("Retry-After", "1")
+          .header("x-amz-rdma-reply", "PARTIAL_FAILURE")
+          .build();
+    }
+    LOG.warn("RDMA read failed before any transfer. Falling back to TCP: {}",
+        e.getMessage());
     return null;
   }
 
-  Response.ResponseBuilder responseBuilder = (rangeHeader != null)
-      ? Response.status(Response.Status.PARTIAL_CONTENT)
-      : Response.ok();
+  // Build response that preserves the same headers as the normal TCP GET path.
+  // Use rangeHeader.isReadFull() to distinguish 200 vs 206, matching the existing
+  // ObjectEndpoint behavior (not just checking rangeHeader != null).
+  boolean isFullRead = (rangeHeader == null || rangeHeader.isReadFull());
+  Response.ResponseBuilder responseBuilder = isFullRead
+      ? Response.ok()
+      : Response.status(Response.Status.PARTIAL_CONTENT);
 
+  // RDMA-specific headers (no body — data went via RDMA_WRITE)
   responseBuilder
       .header("x-amz-rdma-reply", "OK")
       .header("Content-Length", "0")
-      .header("x-amz-rdma-bytes-transferred", totalTransferred)
-      .header("ETag", keyDetails.getMetadata().get(OzoneConsts.ETAG));
+      .header("x-amz-rdma-bytes-transferred", totalTransferred);
+
+  // Standard S3 response headers — must match normal GET path for client
+  // compatibility. ETag must be quoted per RFC 7232.
+  String eTag = keyDetails.getMetadata().get(OzoneConsts.ETAG);
+  addEntityTagHeader(responseBuilder, eTag);
+  addLastModifiedDate(responseBuilder, keyDetails);
+  addTagCountIfAny(responseBuilder, keyDetails);
+  responseBuilder.header("Accept-Ranges", RANGE_HEADER_SUPPORTED_UNIT);
 
   if (!perBlockChecksums.isEmpty()) {
     responseBuilder.header("x-amz-rdma-checksum-crc32c",
         String.join(";", perBlockChecksums));
   }
-  if (rangeHeader != null) {
+  if (!isFullRead) {
     responseBuilder.header("Content-Range",
         "bytes " + rangeStart + "-" + (rangeEnd - 1) + "/" + objectSize);
   }
+
+  // Record success metrics to match normal GET path instrumentation
+  getMetrics().incGetKeySuccessLength(totalTransferred);
+
   return responseBuilder.build();
 }
 
@@ -2861,7 +2949,8 @@ mvn test -pl hadoop-ozone/integration-test -Dtest=TestRdmaReadBlock  # Integrati
   <property><name>hdds.datanode.rdma.enabled</name><value>true</value></property>
   <property><name>hdds.datanode.rdma.bind.address</name><value>0.0.0.0</value></property>
   <property><name>hdds.datanode.rdma.port</name><value>19870</value></property>
-  <property><name>hdds.datanode.rdma.max.connections</name><value>32</value></property>
+  <!-- maxConnections removed in v10.0: no corresponding cuObjServer parameter.
+       See Appendix D (cuObjRDMATunableParam) for actual tunables (Phase 2). -->
   <property><name>hdds.datanode.rdma.max.concurrent.transfers</name><value>32</value></property>
   <property><name>hdds.datanode.rdma.buffer.size</name><value>4194304</value></property>
   <property><name>hdds.datanode.rdma.buffer.count</name><value>64</value></property>
@@ -3184,7 +3273,6 @@ cuObjClient API (Section 2.10 examples) running against a live Ozone cluster on 
 | `hdds.datanode.rdma.enabled` | `false` | boolean | Master switch: enable RDMA on datanode |
 | `hdds.datanode.rdma.bind.address` | `0.0.0.0` | string | cuObjServer bind IP |
 | `hdds.datanode.rdma.port` | `19870` | int | cuObjServer DC transport port |
-| `hdds.datanode.rdma.max.connections` | `32` | int | Max concurrent RDMA connections |
 | `hdds.datanode.rdma.buffer.size` | `4194304` | int | Bytes per RDMA buffer (4 MiB) |
 | `hdds.datanode.rdma.buffer.count` | `64` | int | Number of pre-allocated buffers |
 | `hdds.datanode.rdma.buffer.acquire.timeout.ms` | `5000` | long | Buffer acquire timeout |
