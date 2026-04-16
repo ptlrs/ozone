@@ -95,6 +95,15 @@ gaps, a partial-failure race, and several minor issues. v11.0 resolves each.
 | 15 | D.2 | Checksum computed on disk-read bytes and compared to itself — disk corruption undetected server-side | `handleRdmaRead` now loads stored `BlockData` via `getBlockManager().getBlock(kvContainer, blockID).getChunks()`, reads each stored chunk into the RDMA buffer, calls `Checksum.verifyChecksum(buffer, storedChunkChecksumData, 0)` BEFORE `rdmaWriteToRemote`. Disk rot raises `IOException` → `ContainerUtils.logAndReturnError` with no bytes transferred (§4.11, §4.14.3) |
 | 16 | D.3 | `bytesPerChecksum` was the RDMA buffer size (~4 MiB) — incomparable with stored (typical 1 MiB) metadata | RDMA response now returns the VERBATIM stored `ChecksumData` (type + bytesPerChecksum + CRC list) per transferred stored chunk via `repeated ChecksumData perChunkChecksum` in `RdmaReadBlockResponseProto` (§4.1.2, §4.11). `clientBufferOffset` lets the client map each entry back to its buffer region |
 
+**Self-audit findings caught in v11.0 during the v10→v11 rewrite** (caught
+before publication; included here for traceability):
+
+| # | Finding | v11.0 fix |
+|---|---|---|
+| S1 | First v11.0 draft returned `null` on any non-SUCCESS block response after `allOf().join()`, re-introducing the §D.1 partial-buffer bug (TCP fallback after partial RDMA_WRITE) | Main loop now counts `successCount` over ALL futures before deciding: `successCount == N` → success response, `successCount == 0` → `null` (safe TCP), `0 < successCount < N` → `handleRdmaFailure` → 503 PARTIAL_FAILURE (§4.15.5) |
+| S2 | First v11.0 draft changed `RDMA_DISPATCH_POOL` from `static final` to per-instance `final`. `ObjectEndpoint` is a JAX-RS resource and may be per-request-scoped, so a per-instance pool leaks threads on every request | Reverted to `private static final ExecutorService RDMA_DISPATCH_POOL` (§4.15.1) with a comment explaining why |
+| S3 | `handleRdmaFailure` counted "futures that completed normally" as "successful RDMA_WRITEs", which over-counts because a future can complete normally with `result != SUCCESS` | Split into two overloads: catch-path computes success count by inspecting `getNow(null).getResult() == SUCCESS`; main-loop path passes its already-computed `successCount` explicitly. `x-amz-rdma-partial-blocks-completed` now reports true success count (§4.15.5) |
+
 ### Issues Fixed in v10.0 (Post-v9.0 Audit)
 
 | Item | v9.0 Status | v10.0 Fix |
@@ -2283,10 +2292,10 @@ ContainerCommandResponseProto handleRdmaReadBlock(
 ```java
 private XceiverClientFactory xceiverClientFactory;
 
-// Private, final, per-endpoint-instance pool. Avoid a JVM-wide singleton so
-// test-injected configuration (different thread counts per MiniOzoneCluster
-// instance) works correctly.
-private final ExecutorService rdmaDispatchPool =
+// JVM-wide singleton pool. MUST be static — ObjectEndpoint is a JAX-RS
+// resource and may be instantiated per request; a per-instance pool would
+// leak threads on every request.
+private static final ExecutorService RDMA_DISPATCH_POOL =
     Executors.newFixedThreadPool(
         Math.max(4, Runtime.getRuntime().availableProcessors()),
         new ThreadFactoryBuilder()
@@ -2585,27 +2594,45 @@ private Response handleRdmaGet(OzoneKeyDetails keyDetails, String rdmaToken,
       } catch (IOException e) {
         throw new CompletionException(e);
       }
-    }, rdmaDispatchPool);
+    }, RDMA_DISPATCH_POOL);
   }
 
-  // Wait for all blocks. Two failure modes:
-  //   (a) Pre-transfer failure: no future has transitioned to a non-failed
-  //       completion. Return null so the TCP path can serve the request.
-  //   (b) Partial failure: at least one future is completed successfully,
-  //       meaning its server has (likely) already issued RDMA_WRITE. The
-  //       client's buffer has partial data; TCP fallback would produce an
-  //       inconsistent state. Return 503 PARTIAL_FAILURE.
+  // Wait for ALL blocks to complete (success OR failure) before deciding how
+  // to respond. Do NOT short-circuit on first non-SUCCESS — CompletableFuture
+  // .allOf().join() has already waited for every block, so earlier blocks may
+  // have completed RDMA_WRITE even if a later block fails. Short-circuiting
+  // with `return null` in that case would trigger TCP fallback on top of a
+  // partially-populated client buffer — the exact §D.1 bug we must avoid.
+  //
+  // Decision matrix:
+  //   successCount == total  -> build success response
+  //   successCount == 0      -> return null (safe TCP fallback; no block
+  //                             reached a successful RDMA_WRITE)
+  //   0 < successCount < N   -> handleRdmaFailure (PARTIAL_FAILURE 503; the
+  //                             client must invalidate its buffer and retry)
+  //
+  // "successCount" below counts responses whose RESULT was SUCCESS — not
+  // "futures that completed without throwing" (which would also include
+  // futures that returned a non-SUCCESS ContainerCommandResponseProto).
+  int successCount = 0;
   long totalTransferred = 0;
   final List<String> perBlockChecksums = new ArrayList<>();
+  String firstFailureMessage = null;
+  ContainerProtos.Result firstFailureResult = null;
   try {
     CompletableFuture.allOf(futures).join();
     for (CompletableFuture<ContainerProtos.ContainerCommandResponseProto> f : futures) {
       ContainerProtos.ContainerCommandResponseProto response = f.get();
       if (response.getResult() != ContainerProtos.Result.SUCCESS) {
-        LOG.warn("RDMA read failed with result {}: {}. Falling back to TCP.",
+        LOG.warn("RDMA block returned {}: {}",
             response.getResult(), response.getMessage());
-        return null;
+        if (firstFailureResult == null) {
+          firstFailureResult = response.getResult();
+          firstFailureMessage = response.getMessage();
+        }
+        continue;
       }
+      successCount++;
       totalTransferred +=
           response.getRdmaReadBlock().getBytesTransferred();
       ContainerProtos.RdmaReadBlockResponseProto rdmaBlockResponse =
@@ -2624,10 +2651,38 @@ private Response handleRdmaGet(OzoneKeyDetails keyDetails, String rdmaToken,
       }
     }
   } catch (ExecutionException | CompletionException e) {
+    // allOf.join() swallows per-future failure details and surfaces one
+    // exception; other futures may have completed successfully. Delegate
+    // the safe/unsafe decision to handleRdmaFailure using the actual
+    // success count computed from the future array.
     return handleRdmaFailure(futures, startNanos, e);
   } catch (InterruptedException e) {
     Thread.currentThread().interrupt();
     return handleRdmaFailure(futures, startNanos, e);
+  }
+
+  if (successCount < futures.length) {
+    if (successCount == 0) {
+      // No block reached a successful RDMA_WRITE — client buffer is
+      // untouched (or at worst has in-flight writes that will land in
+      // memory with contents matching the failed reads, but no block's
+      // dispatch confirmed success). Safe to fall back to TCP.
+      LOG.warn("RDMA read failed on all {} blocks (first error: {} / {}). "
+          + "Falling back to TCP.", futures.length, firstFailureResult,
+          firstFailureMessage);
+      return null;
+    }
+    // At least one block's RDMA_WRITE succeeded. TCP fallback would
+    // layer TCP-served bytes on top of partial RDMA data — inconsistent.
+    LOG.warn("RDMA read partially succeeded ({} of {} blocks; first error: "
+        + "{} / {}). Returning PARTIAL_FAILURE.",
+        successCount, futures.length, firstFailureResult,
+        firstFailureMessage);
+    return handleRdmaFailure(
+        futures, startNanos, successCount,
+        new IOException("RDMA partial failure: " + successCount + "/"
+            + futures.length + " blocks succeeded; first error: "
+            + firstFailureResult + " / " + firstFailureMessage));
   }
 
   // Success path. Replicate TCP response header construction + metrics.
@@ -2700,54 +2755,82 @@ private Response handleRdmaGet(OzoneKeyDetails keyDetails, String rdmaToken,
 }
 
 /**
- * Handle a fatal dispatch failure. Distinguishes pre-transfer failure
- * (return null, let TCP retry the request) from partial failure (at least
- * one datanode already RDMA_WRITE-ed, so the client's buffer has partial
- * data — return 503 with an explicit "you must re-register a fresh buffer
- * and retry" contract to the client).
+ * Handle a fatal dispatch failure discovered in the catch block (an
+ * exception escaped {@code allOf().join()} or {@code f.get()}). The
+ * success count is computed here by re-inspecting each future because the
+ * caller's main-loop counting was cut short by the exception.
  *
- * Partial-failure protocol:
+ * <p>Only counts futures whose response had {@code result == SUCCESS}.
+ * A "done normally" future may have returned a non-SUCCESS response
+ * (e.g., RDMA_TRANSFER_FAILED) — those are NOT counted as transferred.
+ *
+ * @see #handleRdmaFailure(CompletableFuture[], long, int, Exception) for
+ *     the explicit-success-count overload used when the main loop already
+ *     computed the success count (no need to re-inspect the futures).
+ *
+ * Partial-failure protocol (both overloads):
  *   - x-amz-rdma-reply: PARTIAL_FAILURE
  *   - Retry-After: 1 (SHOULD, not MUST — clients may retry sooner)
- *   - x-amz-rdma-partial-bytes: number of RDMA blocks that reported success
- *     before the failure, for client-side telemetry only
+ *   - x-amz-rdma-partial-blocks-completed: N (client-side telemetry only)
  *
- * The client contract on receiving PARTIAL_FAILURE is:
+ * The client contract on receiving PARTIAL_FAILURE:
  *   1. MUST NOT trust any bytes in the previously registered buffer —
  *      in-flight RDMA_WRITEs may still arrive after the 503 is read.
  *   2. MUST de-register the previous buffer before reusing its memory.
- *   3. MUST register a fresh buffer (new rkey) and re-issue the GET with a
- *      new x-amz-rdma-token. The gateway cannot guarantee stale writes will
- *      target the old rkey rather than the new one.
+ *   3. MUST register a fresh buffer (new rkey) and re-issue the GET with
+ *      a new x-amz-rdma-token. The gateway cannot guarantee stale writes
+ *      will target the old rkey rather than the new one.
  *
  * Rationale: CompletableFuture.cancel(true) does NOT interrupt the
- * underlying computation in cuObjServer; the RDMA_WRITE can complete after
- * the 503 is returned. Requiring a new rkey makes the race harmless.
+ * underlying computation in cuObjServer; a server's RDMA_WRITE can
+ * complete after the 503 is returned. Requiring a new rkey makes the
+ * race harmless (a stale RDMA_WRITE lands in a buffer the client has
+ * already invalidated).
  */
 private Response handleRdmaFailure(
     CompletableFuture<ContainerProtos.ContainerCommandResponseProto>[] futures,
     long startNanos,
     Exception cause) {
-  int completedCount = 0;
+  int successCount = 0;
   for (CompletableFuture<ContainerProtos.ContainerCommandResponseProto> f : futures) {
-    if (f.isDone() && !f.isCompletedExceptionally()) {
-      completedCount++;
+    if (!f.isDone() || f.isCompletedExceptionally()) {
+      continue;
+    }
+    // Safe: isDone && !isCompletedExceptionally => get() will not throw.
+    try {
+      ContainerProtos.ContainerCommandResponseProto resp = f.getNow(null);
+      if (resp != null
+          && resp.getResult() == ContainerProtos.Result.SUCCESS) {
+        successCount++;
+      }
+    } catch (CompletionException ignored) {
+      // Race: future transitioned between isDone() and getNow(). Treat as
+      // non-success.
     }
   }
-  if (completedCount == 0) {
-    LOG.warn("RDMA read failed before any transfer. Falling back to TCP: {}",
-        cause.getMessage());
+  return handleRdmaFailure(futures, startNanos, successCount, cause);
+}
+
+private Response handleRdmaFailure(
+    CompletableFuture<ContainerProtos.ContainerCommandResponseProto>[] futures,
+    long startNanos,
+    int successCount,
+    Exception cause) {
+  if (successCount == 0) {
+    LOG.warn("RDMA read failed before any successful block transfer. "
+        + "Falling back to TCP: {}", cause.getMessage());
     return null;
   }
-  LOG.warn("RDMA read partially completed ({} of {} blocks) before failure. "
+  LOG.warn("RDMA read partially succeeded ({} of {} blocks) before failure. "
       + "Cannot safely fall back to TCP. Client must re-register buffer and "
-      + "retry. Error: {}", completedCount, futures.length, cause.getMessage());
-  // Update failure metric since we're returning an error, not null.
+      + "retry. Error: {}", successCount, futures.length, cause.getMessage());
+  // Update failure metric since we're returning an error (not returning
+  // null to trigger TCP fallback, and not throwing to the caller's catch).
   getMetrics().updateGetKeyFailureStats(startNanos);
   return Response.status(Response.Status.SERVICE_UNAVAILABLE)
       .header("Retry-After", "1")
       .header("x-amz-rdma-reply", "PARTIAL_FAILURE")
-      .header("x-amz-rdma-partial-blocks-completed", completedCount)
+      .header("x-amz-rdma-partial-blocks-completed", successCount)
       .header(HttpHeaders.CONTENT_LENGTH, 0)
       .build();
 }
