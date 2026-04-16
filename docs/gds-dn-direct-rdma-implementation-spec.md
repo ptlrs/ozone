@@ -1,9 +1,10 @@
 # DN-Direct RDMA Implementation Specification for Apache Ozone
 ## Phase 1: Read Path — Dual-Mode: GPU Memory and Host-Memory RDMA Transfers
 
-**Version:** 10.0
-**Date:** 2026-04-14
-**Status:** Draft — Post-audit fixes applied (compilation, S3 parity, safety)
+**Version:** 11.0
+**Date:** 2026-04-16
+**Status:** Draft — v10.0 audit fixes applied (compile blockers, full S3 parity,
+server-side stored-checksum verification, partial-failure client contract).
 **Target Branch:** `master` (Apache Ozone `2.2.0-SNAPSHOT`)
 **Scope:** Phase 1 — S3 GET (Read Path) Only — GPU and Host-Memory Client Modes
 
@@ -24,7 +25,7 @@ replaces real hardware. An implementing AI or engineer should read this section 
 | `Port.Name` enum values (10 values, no RDMA yet) | **VERIFIED** | `DatanodeDetails.java` |
 | `OzoneContainer.java` initializes `readChannel` (gRPC) and `writeChannel` (Ratis) | **VERIFIED** | Constructor at lines 237-251 |
 | `KeyValueHandler.dispatchRequest()` has Type switch for container operations | **VERIFIED** | Lines 326-374 (note: ReadBlock is NOT in this switch — it is handled via a separate read path) |
-| `ObjectEndpoint.handleGetRequest()` exists with streaming response | **VERIFIED** | Lines 404-522 |
+| `ObjectEndpoint.handleGetRequest()` exists with streaming response | **VERIFIED** | Lines 403-522 |
 | `HddsDispatcher` is at `common/impl/HddsDispatcher.java` (NOT `common/helpers/`) | **VERIFIED** | grep result |
 | `container-service-native/` module does NOT exist yet | **VERIFIED** | directory listing |
 
@@ -69,7 +70,32 @@ replaces real hardware. An implementing AI or engineer should read this section 
 | Performance Numbers | **MEANINGLESS** — measures JVM memcpy speed | **MISLEADING** — measures CPU-emulated RDMA | **REPRESENTATIVE** — measures actual NIC DMA throughput |
 | Cost | Free | Free | **$15.60/hr** (A100 IB) or **$31.20/hr** (H100 IB) |
 
-### Issues Fixed in v10.0 (Post-Audit)
+### Issues Fixed in v11.0 (Post-v10.0 Audit)
+
+The v10.0 audit (`docs/gds-dn-direct-rdma-implementation-spec-audit-v10.md`)
+identified 9 compile blockers, ~14 S3 response-parity gaps, 2 data-integrity
+gaps, a partial-failure race, and several minor issues. v11.0 resolves each.
+
+| # | Audit ref | v10.0 state | v11.0 fix |
+|---|---|---|---|
+| 1 | A.1 | `ChecksumByteBufferFactory.getCrc32CByteBufferInstance()` — method does not exist | Replaced with stored-checksum verification using `Checksum.verifyChecksum(ByteBuffer, ChecksumData, int)` (§4.11). The hand-rolled CRC scheme is removed entirely; §3.8 rewritten to describe real end-to-end verification |
+| 2 | A.2 | `ContainerUtils.getErrorResponse(request, Result, String)` — method does not exist | All three call sites replaced with `ContainerCommandResponseBuilders.getContainerCommandResponse(request, result, msg).build()` or `ContainerUtils.logAndReturnError(LOG, new StorageContainerException(...), request)` (§4.14.3) |
+| 3 | A.3 | `NativeLibraryLoader.loadLibrary(...)` return value ignored inside a try/catch for `UnsatisfiedLinkError` — loader never throws; `available` was set to `true` even on failure | Assign the returned boolean to `available`; removed dead catch (§4.5). Added required `rocks-native` pom dependency note to §4.3 |
+| 4 | A.4 | `addEntityTagHeader(ResponseBuilder, OzoneKey)` was being passed a `String` — compile error and missed `x-amz-mp-parts-count` emission | Call `addEntityTagHeader(responseBuilder, keyDetails)` with the `OzoneKey`; manual `ETAG` extraction removed (§4.15.5) |
+| 5 | A.5 | Direct access to `EndpointBase.ozoneConfiguration` (private field) | All reads use `getOzoneConfiguration()` (§4.15.5) |
+| 6 | A.6 | `var response = xcClient.sendCommand(...)` in §8.2 | Replaced with `ContainerProtos.ContainerCommandResponseProto response = ...` (§8.2) |
+| 7 | A.7 | `mockService.initialize(null, 0, 0)` — 3-arg form not matching the 2-arg interface | All five call sites now use `initialize(null, 0)` (§8.1) |
+| 8 | A.8 | `handleRdmaReadBlock(ContainerCommandRequestProto, Container)` — peer handlers take `KeyValueContainer` | Signature changed to `handleRdmaReadBlock(ContainerCommandRequestProto, KeyValueContainer kvContainer)`, cast dropped (§4.14.2, §4.14.3) |
+| 9 | A.9 | §4.13 "add case to HddsDispatcher Type switch" — no such switch exists | §4.13 rewritten to state that HddsDispatcher requires no changes; the RdmaReadBlock case lives in `KeyValueHandler.dispatchRequest()` (§4.14.2) |
+| 10 | E.1 | §8.2 used `acquireClient` / `releaseClient` | Changed to `acquireClientForReadData` / `releaseClientForReadData` to match §4.15.5 |
+| 11 | E.2 | Redundant `.setCmdType(...)` on success response | Removed — `getSuccessResponse(request)` already sets cmdType (§4.14.3) |
+| 12 | E.5 | `handleGetRequest` line range "404-522" — off by one | Corrected to `ObjectEndpoint.java:403-522` throughout |
+| 13 | C.1-C.9 | S3 response-parity gaps: action label, isFile, preconditions (these 3 are handled by the caller before the RDMA insertion point — documented, not re-duplicated); metrics (`updateGetKeyMetadataStats`, `updateGetKeySuccessStats`, `updateGetKeyFailureStats`), `perf.appendSizeBytes`, `perf.appendOpLatencyNanos`, `perf.appendMetaLatencyNanos`; range validation handled by caller; `overrideQueryParameter` loop; `ACCEPT_RANGE_HEADER`/`CONTENT_RANGE_HEADER`/`RANGE_HEADER_SUPPORTED_UNIT` constants; tag count header | §4.15.4 now passes `startNanos` and `perf` through. §4.15.5 records all success/failure metrics, applies `overrideQueryParameter` overrides, uses the same `addEntityTagHeader` / `addLastModifiedDate` / `addTagCountIfAny` helpers as the TCP path, uses S3Consts constants |
+| 14 | D.1 | Partial-failure remediation was a best-effort race: `CompletableFuture.cancel` is no-op for RDMA in-flight writes; client-side buffer invalidation undocumented | New `handleRdmaFailure(...)` method formalizes the 503 PARTIAL_FAILURE contract: client MUST re-register a fresh buffer with a new rkey; `x-amz-rdma-partial-blocks-completed` added for client telemetry; `updateGetKeyFailureStats` is now called on this path (§4.15.5) |
+| 15 | D.2 | Checksum computed on disk-read bytes and compared to itself — disk corruption undetected server-side | `handleRdmaRead` now loads stored `BlockData` via `getBlockManager().getBlock(kvContainer, blockID).getChunks()`, reads each stored chunk into the RDMA buffer, calls `Checksum.verifyChecksum(buffer, storedChunkChecksumData, 0)` BEFORE `rdmaWriteToRemote`. Disk rot raises `IOException` → `ContainerUtils.logAndReturnError` with no bytes transferred (§4.11, §4.14.3) |
+| 16 | D.3 | `bytesPerChecksum` was the RDMA buffer size (~4 MiB) — incomparable with stored (typical 1 MiB) metadata | RDMA response now returns the VERBATIM stored `ChecksumData` (type + bytesPerChecksum + CRC list) per transferred stored chunk via `repeated ChecksumData perChunkChecksum` in `RdmaReadBlockResponseProto` (§4.1.2, §4.11). `clientBufferOffset` lets the client map each entry back to its buffer region |
+
+### Issues Fixed in v10.0 (Post-v9.0 Audit)
 
 | Item | v9.0 Status | v10.0 Fix |
 |---|---|---|
@@ -193,7 +219,7 @@ Every cuObject API call in this spec links inline to its NVIDIA documentation re
   - [4.10 RdmaBuffer.java and RdmaBufferPool.java](#410-rdmabufferjava-and-rdmabufferpooljava)
   - [4.11 XceiverServerRdma.java](#411-xceiverserverrdmajava)
   - [4.12 OzoneContainer.java Modifications](#412-ozonecontainerjava-modifications)
-  - [4.13 HddsDispatcher Modifications](#413-hddsdispatcher-modifications)
+  - [4.13 HddsDispatcher — No changes required](#413-hddsdispatcher--no-changes-required)
   - [4.14 KeyValueHandler Modifications](#414-keyvaluehandler-modifications)
   - [4.15 S3 Gateway: ObjectEndpoint Modifications](#415-s3-gateway-objectendpoint-modifications)
   - [4.16 S3 Gateway: RdmaRequestFilter](#416-s3-gateway-rdmarequestfilter)
@@ -735,15 +761,57 @@ Block token validation uses the existing `HddsDispatcher.validateToken()` path.
 
 ### 3.8 Data Integrity and Checksum Strategy
 
-CRC32C checksums are computed on the datanode during the RDMA read path, before RDMA_WRITE.
+> **v11.0 change.** Earlier drafts computed a fresh CRC32C on the RDMA buffer
+> and returned it, without comparing against the block's stored (write-time)
+> checksums. That catches memory corruption between computation and RDMA_WRITE
+> but is silent on the important failure mode — disk rot / bit rot — because
+> the CRC is computed from, and compared to, bytes that came from the same
+> potentially-corrupt read. v11.0 switches to real end-to-end verification.
 
-#### Three Verification Points
+**The RDMA read path uses the block's write-time `ChecksumData`, identical to
+the TCP `readChunk` path.** No new CRC scheme, no RDMA-specific granularity.
 
-| Point | Where | Catches |
-|---|---|---|
-| 1. Server-side pre-transfer | `XceiverServerRdma.handleRdmaRead()` | Disk corruption, bit-rot |
-| 2. Server -> Gateway response | `RdmaReadBlockResponseProto.checksumData` | Aggregation verification |
-| 3. Gateway -> Client response | HTTP header `x-amz-rdma-checksum-crc32c` | Optional client-side E2E check |
+#### Verification Points
+
+| # | Where | What is compared | Catches |
+|---|---|---|---|
+| 1. | Datanode pre-RDMA_WRITE — `XceiverServerRdma.handleRdmaRead()` calls `Checksum.verifyChecksum(buffer, storedChunk.getChecksumData(), 0)` on every stored chunk BEFORE issuing RDMA_WRITE | Disk-read bytes vs. write-time CRC stored in `BlockData.chunks[i].checksumData` | Disk corruption, bit-rot, torn writes — bytes NEVER leave the datanode if a stored CRC doesn't match |
+| 2. | Client post-RDMA_WRITE (OPTIONAL, RECOMMENDED) — client re-computes CRC over what arrived in its RDMA buffer and compares to `RdmaReadBlockResponseProto.perChunkChecksum` | RDMA-buffer bytes vs. write-time CRC (same CRC as verification #1) | Memory/DMA corruption between NIC write and application read; stale RDMA_WRITE on a previously-used rkey |
+
+The verification granularity is the block's write-time `bytesPerChecksum`
+(typical 1 MiB) — not the RDMA buffer size. This is a real invariant:
+`Checksum.verifyChecksum(...)` internally computes CRCs at the stored
+granularity and iterates the stored CRC list.
+
+#### Wire-format implications
+
+- `RdmaReadBlockResponseProto.perChunkChecksum` is a **repeated** list of
+  `ChecksumData` entries, one per stored chunk transferred, in transfer
+  order. Each entry is the VERBATIM stored `ChecksumData` from
+  `BlockData.chunks[i]` — type + bytesPerChecksum + per-`bytesPerChecksum`
+  CRC list.
+- `RdmaReadBlockResponseProto.clientBufferOffset` is the client-buffer byte
+  position where the first stored chunk's bytes were DMA-ed; subsequent
+  stored-chunk segments are contiguous, each `storedChunk.getLen()` bytes
+  long. This lets the client re-verify without a second OM round-trip.
+- The `x-amz-rdma-checksum-crc32c` gateway response header is a `;`-separated
+  flattening of the per-block per-chunk CRCs, for CLI debugging /
+  client-side verification in languages that don't parse the gateway's
+  internal protobuf.
+
+#### Why NOT a transfer-integrity CRC
+
+A separate "CRC-of-RDMA-buffer-chunk" would verify that bytes weren't mangled
+between the Java byte[] and `cuObjServer::handleGetObject()` — but:
+
+- The RDMA path has no kernel-space hop where those bytes can get mangled
+  without also failing the already-present cuObjServer/libibverbs internal
+  accounting.
+- The stored-checksum verification (point #1 above) already runs over the
+  RDMA buffer's exact bytes, so any buffer corruption after read would be
+  caught too.
+- Maintaining a second CRC scheme adds API surface with no new failure mode
+  covered. We dropped it in v11.0.
 
 ---
 
@@ -792,7 +860,26 @@ message RdmaReadBlockRequestProto {
 
 message RdmaReadBlockResponseProto {
   required uint64 bytesTransferred = 1;
-  optional ChecksumData checksumData = 2;
+  // One entry per stored chunk transferred, in transfer order. Each entry is
+  // the block's WRITE-TIME checksum metadata (type + bytesPerChecksum + CRC
+  // list) — identical to what ReadChunkResponse returns for the same chunk.
+  //
+  // The server verifies each stored chunk's checksum against its on-disk
+  // bytes BEFORE it issues RDMA_WRITE (§D.2 of the v10.0 audit), so a
+  // successful response guarantees disk integrity at read time. The repeated
+  // list is returned so the CLIENT can optionally recompute CRCs on the
+  // bytes that arrived in its RDMA buffer — catching memory/DMA corruption
+  // between the NIC write and the client application.
+  //
+  // The list is empty only when the block was written with CHECKSUM_NONE.
+  repeated ChecksumData perChunkChecksum = 2;
+  // Byte offset within the client's registered RDMA buffer where the FIRST
+  // stored chunk's bytes were written. Subsequent entries in perChunkChecksum
+  // cover contiguous segments whose lengths are given by the stored chunk
+  // lengths in the block's BlockData. Together with perChunkChecksum, this
+  // lets the client seek into its RDMA buffer and re-verify each stored
+  // chunk without another OM round-trip.
+  optional uint64 clientBufferOffset = 3;
 }
 
 // Phase 2 (reserved)
@@ -864,6 +951,23 @@ hadoop-hdds/container-service-native/
     |       +-- cuobj_server_bridge.cc
     +-- test/java/...
 ```
+
+**Required pom dependencies.** `container-service-native/pom.xml` must declare
+dependencies on (at minimum):
+
+- `org.apache.ozone:hadoop-hdds-common` — for `ChecksumByteBufferFactory`,
+  `BlockID`, etc.
+- `org.apache.ozone:hadoop-hdds-container-service` — for container/key-value
+  handler types used by `XceiverServerRdma`.
+- `org.apache.ozone:hadoop-hdds-rocks-native` — **required** because
+  `CuObjServerBridge` reuses `org.apache.hadoop.hdds.utils.NativeLibraryLoader`,
+  which lives in the `rocks-native` module. The class is a generic JNI loader
+  despite the module name; this reuse is deliberate to avoid duplicating the
+  temp-copy-from-jar logic.
+
+Reusing a RocksDB-adjacent loader for a cuObjServer bridge is pragmatic but
+architecturally notable — if at some point `NativeLibraryLoader` is moved into a
+dedicated utility module, `container-service-native` should follow.
 
 ### 4.4 RdmaTransferService Interface
 
@@ -1036,13 +1140,12 @@ final class CuObjServerBridge {
       return available;
     }
     loaded = true;
-    try {
-      NativeLibraryLoader.getInstance().loadLibrary(LIBRARY_NAME,
-          Collections.emptyList());
-      available = true;
-    } catch (UnsatisfiedLinkError e) {
-      available = false;
-    }
+    // NativeLibraryLoader.loadLibrary(name, deps) returns boolean and never
+    // throws UnsatisfiedLinkError — it catches Throwable internally (see
+    // hadoop-hdds/rocks-native/.../NativeLibraryLoader.java:116-142). We MUST
+    // assign the return value; a thrown-exception pattern here is wrong.
+    available = NativeLibraryLoader.getInstance()
+        .loadLibrary(LIBRARY_NAME, Collections.emptyList());
     return available;
   }
 
@@ -1688,13 +1791,13 @@ public class RdmaBufferPoolExhaustedException extends IOException {
 ```java
 package org.apache.hadoop.ozone.container.common.transport.server;
 
-import com.google.protobuf.ByteString;
 import org.apache.hadoop.hdds.conf.ConfigurationSource;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.RdmaReadBlockRequestProto;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.RdmaReadBlockResponseProto;
-import org.apache.hadoop.ozone.common.ChecksumByteBuffer;
-import org.apache.hadoop.ozone.common.ChecksumByteBufferFactory;
+import org.apache.hadoop.ozone.common.Checksum;
+import org.apache.hadoop.ozone.common.ChecksumData;
+import org.apache.hadoop.ozone.common.OzoneChecksumException;
 import org.apache.hadoop.ozone.container.rdma.RdmaBuffer;
 import org.apache.hadoop.ozone.container.rdma.RdmaBufferPool;
 import org.apache.hadoop.ozone.container.rdma.RdmaTransferService;
@@ -1705,7 +1808,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -1756,14 +1858,40 @@ public class XceiverServerRdma implements Closeable {
   }
 
   /**
-   * Handle an RDMA read (S3 GET): read block data from disk and RDMA_WRITE to client.
+   * Handle an RDMA read (S3 GET): read block data from disk, verify its
+   * stored checksums, and RDMA_WRITE to client.
    *
-   * Data flow per chunk:
-   *   Disk -> FileChannel.read() -> RDMA buffer -> NIC DMA -> client memory
+   * Data flow per stored chunk:
+   *   Disk -> FileChannel.read() -> RDMA buffer
+   *   -> Checksum.verifyChecksum(buffer, storedChunk.getChecksumData())
+   *   -> NIC DMA -> client memory
    *   (1 CPU copy from disk to buffer; 0 CPU copies for RDMA transfer)
+   *
+   * Per stored chunk (typical 1–16 MiB granularity) we:
+   *   1. Read the whole stored chunk into the RDMA buffer.
+   *   2. Verify the bytes against the block's WRITE-TIME ChecksumData
+   *      (fails fast on disk corruption — bytes NEVER leave the server if
+   *      a stored CRC doesn't match).
+   *   3. RDMA_WRITE the requested-range subset of the chunk.
+   *   4. Append the stored ChecksumData to perChunkChecksum so the client
+   *      can optionally re-verify post-NIC-DMA.
+   *
+   * Requirement: RDMA buffer size (bufferPool.BUFFER_SIZE_KEY) must be >=
+   * the largest stored chunk. Reads that would span one stored chunk across
+   * multiple RDMA buffer reads are explicitly unsupported in Phase 1 — the
+   * method throws IOException if it encounters one, pointing the operator
+   * at the correct config.
+   *
+   * @param storedChunks  block's write-time chunks (from
+   *     BlockManager.getBlock(kvContainer, blockID).getChunks()), in order.
+   *     Must NOT be null. Pass an empty list only for blocks written with
+   *     CHECKSUM_NONE (integrity check is then skipped).
    */
   public RdmaReadBlockResponseProto handleRdmaRead(
-      RdmaReadBlockRequestProto request, FileChannel blockFile, long blockSize)
+      RdmaReadBlockRequestProto request,
+      FileChannel blockFile,
+      long blockSize,
+      List<ContainerProtos.ChunkInfo> storedChunks)
       throws IOException, InterruptedException {
 
     final String rdmaDescriptor = request.getRdmaToken();
@@ -1783,100 +1911,126 @@ public class XceiverServerRdma implements Closeable {
       throw new IOException("RDMA transfer semaphore exhausted");
     }
 
-    int channelId = transferService.allocateChannel();
-    RdmaBuffer rdmaBuffer = bufferPool.acquire();
+    final int channelId = transferService.allocateChannel();
+    final RdmaBuffer rdmaBuffer = bufferPool.acquire();
     try {
       final ByteBuffer buffer = rdmaBuffer.getBuffer();
       final int bufSize = buffer.capacity();
       long totalTransferred = 0;
-      long fileOffset = offset;
 
-      final boolean checksumEnabled = true;
-      final List<ByteString> perChunkChecksums = checksumEnabled
-          ? new ArrayList<>() : null;
+      final long rangeStart = offset;
+      final long rangeEnd = offset + transferLength;
       final long deadline = System.nanoTime()
           + TimeUnit.MILLISECONDS.toNanos(JAVA_SIDE_BLOCK_TIMEOUT_MS);
 
-      while (totalTransferred < transferLength) {
+      final RdmaReadBlockResponseProto.Builder responseBuilder =
+          RdmaReadBlockResponseProto.newBuilder();
+
+      for (ContainerProtos.ChunkInfo storedChunk : storedChunks) {
+        final long chunkStart = storedChunk.getOffset();
+        final long chunkEnd = chunkStart + storedChunk.getLen();
+
+        // Skip chunks entirely before the requested range.
+        if (chunkEnd <= rangeStart) {
+          continue;
+        }
+        // Stored chunks are ordered by offset; stop once past range.
+        if (chunkStart >= rangeEnd) {
+          break;
+        }
+
         if (System.nanoTime() > deadline) {
           throw new IOException("RDMA transfer timed out after "
-              + JAVA_SIDE_BLOCK_TIMEOUT_MS + "ms for block " + request.getBlockID());
+              + JAVA_SIDE_BLOCK_TIMEOUT_MS + "ms for block "
+              + request.getBlockID());
         }
 
-        long remaining = transferLength - totalTransferred;
-        int chunkSize = (int) Math.min(remaining, bufSize);
-        chunkSize = (int) Math.min(chunkSize, MAX_RDMA_OP_SIZE);
+        final int chunkLen = Math.toIntExact(storedChunk.getLen());
+        if (chunkLen > bufSize) {
+          throw new IOException("RDMA buffer size (" + bufSize
+              + " B) is smaller than a stored chunk (" + chunkLen
+              + " B). Raise " + RdmaBufferPool.BUFFER_SIZE_KEY
+              + " to at least the block's bytesPerChunk.");
+        }
+        if (chunkLen > MAX_RDMA_OP_SIZE) {
+          throw new IOException("Stored chunk (" + chunkLen
+              + " B) exceeds cuObjServer per-op limit (" + MAX_RDMA_OP_SIZE
+              + " B) — see [ref-18] max handleGetObject size.");
+        }
 
+        // Read the ENTIRE stored chunk so we can verify its stored checksum.
+        // The read is aligned to chunkStart (the block's write-time chunk
+        // boundary), which is always a bytesPerChecksum multiple.
         buffer.clear();
-        buffer.limit(chunkSize);
+        buffer.limit(chunkLen);
         int bytesRead = 0;
-        while (bytesRead < chunkSize) {
-          int n = blockFile.read(buffer, fileOffset + bytesRead);
-          if (n < 0) break;
+        while (bytesRead < chunkLen) {
+          int n = blockFile.read(buffer, chunkStart + bytesRead);
+          if (n < 0) {
+            break;
+          }
           bytesRead += n;
         }
-        if (bytesRead == 0) break;
-
-        if (perChunkChecksums != null) {
-          buffer.flip();
-          // Use Ozone's Java 8-compatible CRC32C abstraction.
-          // ChecksumByteBufferFactory handles JDK 9+ CRC32C with fallback
-          // to PureJavaCrc32CByteBuffer on Java 8.
-          ChecksumByteBuffer chunkCrc =
-              ChecksumByteBufferFactory.getCrc32CByteBufferInstance();
-          chunkCrc.update(buffer);
-          long crcVal = chunkCrc.getValue();
-          byte[] crcBytes = new byte[4];
-          crcBytes[0] = (byte) (crcVal >> 24);
-          crcBytes[1] = (byte) (crcVal >> 16);
-          crcBytes[2] = (byte) (crcVal >> 8);
-          crcBytes[3] = (byte) crcVal;
-          perChunkChecksums.add(ByteString.copyFrom(crcBytes));
-          chunkCrc.reset();
+        if (bytesRead != chunkLen) {
+          throw new IOException("Short read on stored chunk for block "
+              + request.getBlockID() + " at offset " + chunkStart
+              + ": expected " + chunkLen + " got " + bytesRead);
         }
 
-        int rdmaSent = 0;
-        while (rdmaSent < bytesRead) {
+        // Verify stored checksum BEFORE RDMA_WRITE. Parity with the TCP
+        // readChunk path (see ChunkUtils.readData + Checksum.verifyChecksum).
+        // Disk corruption MUST be caught at the datanode so bad bytes never
+        // DMA into client memory.
+        final ContainerProtos.ChecksumData storedCsProto =
+            storedChunk.getChecksumData();
+        if (storedCsProto.getType() != ContainerProtos.ChecksumType.NONE) {
+          buffer.flip();
+          try {
+            Checksum.verifyChecksum(
+                buffer, ChecksumData.getFromProtoBuf(storedCsProto), 0);
+          } catch (OzoneChecksumException e) {
+            throw new IOException(
+                "Stored-checksum verification FAILED for block "
+                    + request.getBlockID() + " chunk offset " + chunkStart
+                    + " — disk corruption suspected; RDMA_WRITE skipped",
+                e);
+          }
+          // Checksum.verifyChecksum mutates position/limit; restore for
+          // rdmaWriteToRemote's view of [0, chunkLen).
+          buffer.position(0).limit(chunkLen);
+        }
+
+        // Clip to the requested [rangeStart, rangeEnd) within this chunk.
+        final long clipFrom = Math.max(chunkStart, rangeStart);
+        final long clipTo = Math.min(chunkEnd, rangeEnd);
+        final long bufClipOffset = clipFrom - chunkStart;
+        final long bufClipLen = clipTo - clipFrom;
+
+        long rdmaSent = 0;
+        while (rdmaSent < bufClipLen) {
           long written = transferService.rdmaWriteToRemote(
               request.getBlockID().toString(),
               rdmaDescriptor,
               rdmaBuffer.getRegistrationHandle(),
-              rdmaSent,
+              bufClipOffset + rdmaSent,
               destOffset + totalTransferred + rdmaSent,
-              bytesRead - rdmaSent,
-              channelId
-          );
+              bufClipLen - rdmaSent,
+              channelId);
           if (written <= 0) {
             throw new IOException("handleGetObject returned " + written);
           }
-          rdmaSent += (int) written;
+          rdmaSent += written;
         }
 
-        totalTransferred += bytesRead;
-        fileOffset += bytesRead;
+        // Return the full stored checksum entry — client can re-verify its
+        // RDMA buffer against it (catching memory/DMA corruption between NIC
+        // write and the application read).
+        responseBuilder.addPerChunkChecksum(storedCsProto);
+        totalTransferred += bufClipLen;
       }
 
-      RdmaReadBlockResponseProto.Builder responseBuilder =
-          RdmaReadBlockResponseProto.newBuilder()
-              .setBytesTransferred(totalTransferred);
-
-      if (perChunkChecksums != null && !perChunkChecksums.isEmpty()) {
-        // Note: bytesPerChecksum here is the RDMA transfer chunk size, not
-        // the block's write-time checksum granularity. These are transfer-
-        // integrity checksums — they verify data was read correctly from disk
-        // before RDMA_WRITE. Block-metadata checksum verification (against
-        // stored checksums from write time) is a separate concern — see
-        // TODO below about verifying against stored ChecksumData.
-        ContainerProtos.ChecksumData.Builder csBuilder =
-            ContainerProtos.ChecksumData.newBuilder()
-                .setType(ContainerProtos.ChecksumType.CRC32C)
-                .setBytesPerChecksum(bufSize);
-        for (ByteString cs : perChunkChecksums) {
-          csBuilder.addChecksums(cs);
-        }
-        responseBuilder.setChecksumData(csBuilder.build());
-      }
-
+      responseBuilder.setBytesTransferred(totalTransferred);
+      responseBuilder.setClientBufferOffset(destOffset);
       return responseBuilder.build();
     } finally {
       bufferPool.release(rdmaBuffer);
@@ -1943,23 +2097,19 @@ public XceiverServerRdma getXceiverServerRdma() {
 }
 ```
 
-### 4.13 HddsDispatcher Modifications
+### 4.13 HddsDispatcher — No changes required
 
-**File:** `hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/impl/HddsDispatcher.java`
-
-> **IMPORTANT:** The correct path is `common/impl/HddsDispatcher.java`, NOT `common/helpers/`.
-> Verified via grep against the codebase.
-
-```java
-// In dispatchRequest(), add case to the Type switch:
-
-case RdmaReadBlock:
-  if (tokenVerifier != null) {
-    tokenVerifier.verify(request, encodedToken);
-  }
-  responseProto = handler.handleRdmaReadBlock(request, container);
-  break;
-```
+> **Important clarification (v11.0 audit correction).** `HddsDispatcher.dispatchRequest()`
+> (`common/impl/HddsDispatcher.java:205-371`) has **no per-request Type switch**. Token
+> verification already happens once per request at `validateToken(msg)` (line 245), and
+> container-type routing is done by `handler.handle(msg, container, dispatcherContext)`
+> (line 371), which delegates to `KeyValueHandler.dispatchRequest(...)` — *that* is where
+> the Type switch lives, and *that* is the correct insertion point for the RdmaReadBlock
+> case. See §4.14.2.
+>
+> Earlier drafts of this spec (v6.0–v10.0) described adding a case to a Type switch in
+> HddsDispatcher. That switch does not exist; the entries were misplaced. No
+> modifications to HddsDispatcher are required for Phase 1.
 
 ### 4.14 KeyValueHandler Modifications
 
@@ -1981,58 +2131,117 @@ public KeyValueHandler(/* existing params */, XceiverServerRdma xceiverServerRdm
 
 #### 4.14.2 Add dispatch case
 
+Insert a new case in `KeyValueHandler.dispatchRequest(...)` alongside the
+other read cases. The type-level switch is already exited via `return`, so
+no `break` is needed and no fall-through is possible.
+
 ```java
-// In dispatchRequest(), add:
+// In KeyValueHandler.dispatchRequest() (common/impl/KeyValueHandler.java,
+// switch around line 326). Caller passes `KeyValueContainer kvContainer`,
+// not `Container`, so the signature below takes KeyValueContainer directly
+// — matching peer handlers (handleGetBlock, handleReadChunk).
 case RdmaReadBlock:
-  return handleRdmaReadBlock(request, container);
+  return handler.handleRdmaReadBlock(request, kvContainer);
 ```
 
 #### 4.14.3 `handleRdmaReadBlock()`
 
+Imports needed by the method body:
+
+```java
+import static org.apache.hadoop.hdds.scm.protocolPB.ContainerCommandResponseBuilders.getContainerCommandResponse;
+import static org.apache.hadoop.hdds.scm.protocolPB.ContainerCommandResponseBuilders.getSuccessResponse;
+import static org.apache.hadoop.ozone.container.common.impl.ContainerLayoutVersion.FILE_PER_BLOCK;
+
+import org.apache.hadoop.hdds.client.BlockID;
+import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos;
+import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.ContainerCommandRequestProto;
+import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.ContainerCommandResponseProto;
+import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.RdmaReadBlockRequestProto;
+import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.RdmaReadBlockResponseProto;
+import org.apache.hadoop.hdds.scm.container.common.helpers.StorageContainerException;
+import org.apache.hadoop.ozone.container.common.helpers.BlockData;
+import org.apache.hadoop.ozone.container.common.helpers.ContainerUtils;
+import org.apache.hadoop.ozone.container.keyvalue.KeyValueContainer;
+import org.apache.hadoop.ozone.container.keyvalue.KeyValueContainerData;
+import org.apache.hadoop.ozone.container.keyvalue.helpers.BlockUtils;
+```
+
 ```java
 ContainerCommandResponseProto handleRdmaReadBlock(
-    ContainerCommandRequestProto request, Container container) {
+    ContainerCommandRequestProto request, KeyValueContainer kvContainer) {
 
   final RdmaReadBlockRequestProto rdmaRequest = request.getRdmaReadBlock();
 
+  // getContainerCommandResponse(request, result, msg).build() is the
+  // canonical way to produce an error response — see
+  // ContainerCommandResponseBuilders.java:65. It also sets cmdType from the
+  // request, so we do not set it again.
   if (xceiverServerRdma == null || !xceiverServerRdma.isAvailable()) {
-    return ContainerUtils.getErrorResponse(request,
+    return getContainerCommandResponse(request,
         ContainerProtos.Result.RDMA_NOT_AVAILABLE,
-        "RDMA not available on this datanode");
+        "RDMA not available on this datanode").build();
   }
 
+  final BlockID blockID;
   try {
-    final BlockID blockID = BlockID.getFromProtobuf(rdmaRequest.getBlockID());
-    KeyValueContainerData containerData =
-        (KeyValueContainerData) container.getContainerData();
+    blockID = BlockID.getFromProtobuf(rdmaRequest.getBlockID());
+    BlockUtils.verifyBCSId(kvContainer, blockID);
+    BlockUtils.verifyReplicaIdx(kvContainer, blockID);
+  } catch (StorageContainerException ex) {
+    return ContainerUtils.logAndReturnError(LOG, ex, request);
+  } catch (IOException ex) {
+    return ContainerUtils.logAndReturnError(LOG,
+        new StorageContainerException(ex.getMessage(), ex,
+            ContainerProtos.Result.IO_EXCEPTION),
+        request);
+  }
 
-    BlockUtils.verifyBCSId(container, blockID);
-    BlockUtils.verifyReplicaIdx(container, blockID);
+  final KeyValueContainerData containerData = kvContainer.getContainerData();
 
-    final File blockFile = FILE_PER_BLOCK.getChunkFile(containerData, blockID, null);
-    try (FileChannel fileChannel = FileChannel.open(blockFile.toPath(),
-        java.nio.file.StandardOpenOption.READ)) {
+  try {
+    // Load stored BlockData so handleRdmaRead can verify each stored chunk's
+    // CRC before RDMA_WRITE. Parity with handleReadChunk
+    // (KeyValueHandler.java:2131).
+    final BlockData blockData = getBlockManager().getBlock(kvContainer, blockID);
+    final List<ContainerProtos.ChunkInfo> storedChunks = blockData.getChunks();
+
+    // Note on layout: Ozone's streaming read path also hardcodes FILE_PER_BLOCK
+    // (see KeyValueHandler.java:2123 in handleReadChunk). Phase 1 inherits
+    // that assumption. If/when FILE_PER_CHUNK support is added to the
+    // streaming path, this call should adopt the same layout-aware logic.
+    final File blockFile =
+        FILE_PER_BLOCK.getChunkFile(containerData, blockID, null);
+    try (FileChannel fileChannel = FileChannel.open(
+        blockFile.toPath(), java.nio.file.StandardOpenOption.READ)) {
 
       long blockSize = fileChannel.size();
 
       RdmaReadBlockResponseProto rdmaResponse =
-          xceiverServerRdma.handleRdmaRead(rdmaRequest, fileChannel, blockSize);
+          xceiverServerRdma.handleRdmaRead(
+              rdmaRequest, fileChannel, blockSize, storedChunks);
 
-      return getSuccessResponse(request).toBuilder()
+      // getSuccessResponse already sets cmdType = request.getCmdType() and
+      // result = SUCCESS — do NOT also call setCmdType().
+      return getSuccessResponse(request)
+          .toBuilder()
           .setRdmaReadBlock(rdmaResponse)
-          .setCmdType(ContainerProtos.Type.RdmaReadBlock)
           .build();
     }
-  } catch (InterruptedException e) {
+  } catch (StorageContainerException ex) {
+    return ContainerUtils.logAndReturnError(LOG, ex, request);
+  } catch (InterruptedException ex) {
     Thread.currentThread().interrupt();
-    return ContainerUtils.getErrorResponse(request,
-        ContainerProtos.Result.IO_EXCEPTION,
-        "RDMA read interrupted: " + e.getMessage());
-  } catch (IOException e) {
-    LOG.error("RDMA read failed for block {}", rdmaRequest.getBlockID(), e);
-    return ContainerUtils.getErrorResponse(request,
-        ContainerProtos.Result.IO_EXCEPTION,
-        "RDMA read failed: " + e.getMessage());
+    return ContainerUtils.logAndReturnError(LOG,
+        new StorageContainerException("RDMA read interrupted: " + ex.getMessage(),
+            ex, ContainerProtos.Result.IO_EXCEPTION),
+        request);
+  } catch (IOException ex) {
+    LOG.error("RDMA read failed for block {}", rdmaRequest.getBlockID(), ex);
+    return ContainerUtils.logAndReturnError(LOG,
+        new StorageContainerException("RDMA read failed: " + ex.getMessage(),
+            ex, ContainerProtos.Result.IO_EXCEPTION),
+        request);
   }
 }
 ```
@@ -2041,15 +2250,43 @@ ContainerCommandResponseProto handleRdmaReadBlock(
 
 **File:** `hadoop-ozone/s3gateway/src/main/java/org/apache/hadoop/ozone/s3/endpoint/ObjectEndpoint.java`
 
-> **Verified:** `handleGetRequest()` at lines 404-522. The RDMA check inserts after range header
-> parsing, before ResponseBuilder construction.
+> **Verified:** `handleGetRequest()` at `ObjectEndpoint.java:403-522`. The RDMA
+> check is inserted after the range-header parse (line 449) and before the
+> `ResponseBuilder responseBuilder;` declaration (line 451). At that point
+> `handleGetRequest()` has already:
+> - Set `context.setAction(S3GAction.GET_KEY)` (line 415)
+> - Fetched `keyDetails` via `getS3KeyDetails(...)` (lines 417–419)
+> - Asserted the key is a file via `isFile(keyPath, keyDetails)` (line 421)
+> - Evaluated `S3ConditionalRequest.evaluateReadPreconditions(...)` (line 423)
+> - Parsed + validated the `Range:` header, throwing `INVALID_RANGE` on bad
+>   ranges (lines 443–448)
+>
+> That means the RDMA path is responsible for:
+> - Recording the SUCCESS metrics the TCP path records post-stream
+>   (`updateGetKeyMetadataStats`, `updateGetKeySuccessStats`,
+>   `incGetKeySuccessLength`, `perf.appendSizeBytes`, `perf.appendOpLatencyNanos`,
+>   `perf.appendMetaLatencyNanos`) — see §4.15.5.
+> - Emitting the standard response headers the TCP path emits
+>   (`Accept-Ranges`, `Content-Range`, `Content-Length`, `Last-Modified`,
+>   `ETag`, `x-amz-mp-parts-count`, `x-amz-tagging-count`) — using the SAME
+>   helpers as the TCP path for parity.
+> - Applying the `overrideQueryParameter` map so that `response-content-type`,
+>   `response-cache-control`, `response-expires`, `response-content-language`,
+>   `response-content-disposition`, `response-content-encoding` query-param
+>   overrides produce the right headers.
+> - Throwing on fatal failure so the caller's `catch (IOException |
+>   RuntimeException ex) { getMetrics().updateGetKeyFailureStats(startNanos); }`
+>   (lines 518–521) records the failure metric.
 
 #### 4.15.1 New Fields
 
 ```java
 private XceiverClientFactory xceiverClientFactory;
 
-private static final ExecutorService RDMA_DISPATCH_POOL =
+// Private, final, per-endpoint-instance pool. Avoid a JVM-wide singleton so
+// test-injected configuration (different thread counts per MiniOzoneCluster
+// instance) works correctly.
+private final ExecutorService rdmaDispatchPool =
     Executors.newFixedThreadPool(
         Math.max(4, Runtime.getRuntime().availableProcessors()),
         new ThreadFactoryBuilder()
@@ -2070,15 +2307,14 @@ if (proxy instanceof RpcClient) {
 
 #### 4.15.3 Obtaining Block Locations with Pipeline and Token
 
-**No new method needed.** `RpcClient.java` already has a public overload:
+**No new method needed.** `RpcClient.java:1896` already exposes:
 
 ```java
-// EXISTING method in RpcClient.java (lines 1896-1911) — DO NOT DUPLICATE.
-// This overload correctly handles topologyAwareReadEnabled,
-// latestVersionLocation, and forceUpdateContainerCacheFromSCM.
+// EXISTING method — DO NOT DUPLICATE. This overload correctly handles
+// topologyAwareReadEnabled, latestVersionLocation, and
+// forceUpdateContainerCacheFromSCM.
 public OmKeyInfo getKeyInfo(String volumeName, String bucketName,
     String keyName, boolean forceUpdateContainerCache) throws IOException
-
 ```
 
 **API chain from OmKeyInfo to Pipeline and Token:**
@@ -2100,18 +2336,31 @@ OmKeyInfo
                        +-- .encodeToUrlString() -> String
 ```
 
+> **Double OM round-trip note.** `getS3KeyDetails(...)` already consulted OM to
+> return `keyDetails`, and `getKeyInfo(vol, bucket, key, false)` is a second OM
+> round-trip. The two calls bracket a small consistency window — if the key is
+> mutated between them, the RDMA read can race. In Phase 1 the extra round-trip
+> is accepted because `OzoneKeyDetails.getOzoneKeyLocations()` does not expose
+> `Pipeline` or `Token`; Phase 2 should add those fields to the S3-aware key
+> details so a single round-trip is sufficient.
+
 #### 4.15.4 RDMA Detection in `handleGetRequest()`
 
-```java
-// INSERT after range header parsing, before ResponseBuilder construction:
+Insert the following block in `handleGetRequest()` **immediately after** line
+449 (the end of the range-parse `if (rangeHeaderVal != null) { ... }` block) and
+**before** line 451 (`ResponseBuilder responseBuilder;`). At this insertion
+point `partNumber`, `keyDetails`, `rangeHeader`, `startNanos`, `perf`, and
+`length` are all in scope.
 
-// getContext() returns the JAX-RS ContainerRequestContext from EndpointBase.
-// RdmaRequestFilter sets the RDMA_TOKEN_PROPERTY on the ContainerRequestContext.
+```java
+// RdmaRequestFilter populates RDMA_TOKEN_PROPERTY on the JAX-RS
+// ContainerRequestContext when the client sends `x-amz-rdma-token: ...`.
+// getContext() returns that ContainerRequestContext (EndpointBase.java:502).
 String rdmaToken = (String) getContext()
     .getProperty(RdmaRequestFilter.RDMA_TOKEN_PROPERTY);
 if (rdmaToken != null && xceiverClientFactory != null) {
-  Response rdmaResponse = handleRdmaGet(keyDetails, rdmaToken, rangeHeader,
-      partNumber);
+  Response rdmaResponse = handleRdmaGet(
+      keyDetails, rdmaToken, rangeHeader, partNumber, startNanos, perf);
   if (rdmaResponse != null) {
     return rdmaResponse;
   }
@@ -2121,65 +2370,127 @@ if (rdmaToken != null && xceiverClientFactory != null) {
 
 #### 4.15.5 `handleRdmaGet()` Implementation
 
-```java
-private Response handleRdmaGet(OzoneKeyDetails keyDetails, String rdmaToken,
-    RangeHeader rangeHeader, String partNumberParam) throws IOException {
+Imports required for the method body:
 
-  // Phase 1: Fall back to TCP for multipart part-number requests.
-  // The normal GET path has special handling for partNumber that RDMA does not
-  // replicate. Supporting this is deferred to Phase 2.
-  if (partNumberParam != null) {
-    LOG.debug("RDMA fallback: partNumber requests not supported in Phase 1");
+```java
+import static org.apache.hadoop.ozone.s3.util.S3Consts.ACCEPT_RANGE_HEADER;
+import static org.apache.hadoop.ozone.s3.util.S3Consts.CONTENT_RANGE_HEADER;
+import static org.apache.hadoop.ozone.s3.util.S3Consts.RANGE_HEADER_SUPPORTED_UNIT;
+import static org.apache.hadoop.ozone.s3.util.S3Consts.TAG_COUNT_HEADER;
+
+import org.apache.hadoop.hdds.protocol.proto.HddsProtos;
+import org.apache.hadoop.hdds.scm.XceiverClientFactory;
+import org.apache.hadoop.hdds.scm.XceiverClientSpi;
+import org.apache.hadoop.ozone.audit.S3GAction;
+import org.apache.hadoop.ozone.om.helpers.OmKeyInfo;
+import org.apache.hadoop.ozone.om.helpers.OmKeyLocationInfo;
+import org.apache.hadoop.ozone.om.helpers.OmKeyLocationInfoGroup;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+import javax.ws.rs.core.MultivaluedMap;
+```
+
+```java
+/**
+ * Execute an S3 GET over RDMA. Returns a built Response on success or a 503
+ * PARTIAL_FAILURE response when the gateway cannot safely fall back to TCP.
+ * Returns null when RDMA is not the right fit and the caller should continue
+ * on the TCP path (e.g. object too small, EC key, TDE bucket, no RDMA port
+ * on target datanodes).
+ *
+ * Contract with the caller (handleGetRequest):
+ * - On success, this method records the same GET_KEY metrics the TCP path
+ *   records (metadata latency, op latency, success length, size-bytes),
+ *   matching ObjectEndpoint.java:456-513.
+ * - On RDMA failure BEFORE any server has started RDMA_WRITE, returns null
+ *   so the caller continues on TCP. No metrics are updated here; the TCP
+ *   path will update them.
+ * - On RDMA partial failure (at least one block already RDMA_WRITE-ed), the
+ *   caller's TCP fallback would produce an inconsistent client buffer.
+ *   Returns a 503 with x-amz-rdma-reply: PARTIAL_FAILURE. Metrics are
+ *   updated here via updateGetKeyFailureStats.
+ * - Throws IOException on genuine server-side errors (not fallback-worthy),
+ *   letting the caller's catch update failure metrics.
+ *
+ * @param partNumber S3 multipart part number from ?partNumber=N. 0 when the
+ *     client did not request a specific part. Non-zero triggers TCP fallback
+ *     because Phase 1 does not implement partNumber-aware offset math.
+ */
+private Response handleRdmaGet(OzoneKeyDetails keyDetails, String rdmaToken,
+    RangeHeader rangeHeader, int partNumber, long startNanos,
+    PerformanceStringBuilder perf) throws IOException {
+
+  // Phase 1: TCP fallback for multipart partNumber reads. The TCP path resolves
+  // partNumber via getS3KeyDetails(..., partNumber) to scope the read to a
+  // single part's block layout; we do not replicate that here.
+  if (partNumber != 0) {
+    LOG.debug("RDMA fallback: partNumber={} not supported in Phase 1", partNumber);
     return null;
   }
 
-  // Phase 1: Fall back to TCP for Erasure Coded keys.
-  // EC keys have different block layout semantics that require special
-  // offset/length calculations not yet implemented for RDMA.
+  // Phase 1: TCP fallback for Erasure Coded keys. EC has a striped block
+  // layout that requires per-stripe offset arithmetic not implemented here.
   if (keyDetails.getReplicationConfig() != null
       && keyDetails.getReplicationConfig().getReplicationType()
-          == org.apache.hadoop.hdds.protocol.proto.HddsProtos.ReplicationType.EC) {
+          == HddsProtos.ReplicationType.EC) {
     LOG.debug("RDMA fallback: EC keys not supported in Phase 1");
     return null;
   }
 
   final long objectSize = keyDetails.getDataSize();
-  final long minRdmaSize = ozoneConfiguration.getLong(
+  // getOzoneConfiguration() is protected on EndpointBase (EndpointBase.java:559)
+  // — the `ozoneConfiguration` field itself is private. Do NOT reference the
+  // field directly.
+  final long minRdmaSize = getOzoneConfiguration().getLong(
       "ozone.s3g.rdma.min.object.size", 1048576);
-
-  if (objectSize < minRdmaSize) return null;
+  if (objectSize < minRdmaSize) {
+    return null;
+  }
 
   if (keyDetails.getFileEncryptionInfo() != null) {
-    if (!ozoneConfiguration.getBoolean("ozone.s3g.rdma.allow.encrypted.buckets", false)) {
+    if (!getOzoneConfiguration().getBoolean(
+        "ozone.s3g.rdma.allow.encrypted.buckets", false)) {
       return null;
     }
   }
 
-  ClientProtocol proxy = getClientProtocol();
-  if (!(proxy instanceof RpcClient)) return null;
+  final ClientProtocol proxy = getClientProtocol();
+  if (!(proxy instanceof RpcClient)) {
+    return null;
+  }
 
-  // Use existing 4-arg overload. Pass false for forceUpdateContainerCache
-  // since block locations from the latest version are sufficient.
-  OmKeyInfo omKeyInfo = ((RpcClient) proxy).getKeyInfo(
+  // See §4.15.3 for the consistency-window caveat on this second OM round-trip.
+  final OmKeyInfo omKeyInfo = ((RpcClient) proxy).getKeyInfo(
       keyDetails.getVolumeName(), keyDetails.getBucketName(),
       keyDetails.getName(), false);
-  OmKeyLocationInfoGroup latestLocations = omKeyInfo.getLatestVersionLocations();
-  if (latestLocations == null) return null;
-
+  final OmKeyLocationInfoGroup latestLocations =
+      omKeyInfo.getLatestVersionLocations();
+  if (latestLocations == null) {
+    return null;
+  }
   final List<OmKeyLocationInfo> allLocations =
       latestLocations.getBlocksLatestVersionOnly();
 
-  // Filter to blocks overlapping requested range
+  // Range-to-blocks mapping. rangeHeader has already been validated by
+  // handleGetRequest() — isInValidRange() is guaranteed false here.
+  final long rangeStart;
+  final long rangeEnd;
   final List<OmKeyLocationInfo> locations;
-  final long rangeStart, rangeEnd;
-  if (rangeHeader != null && !rangeHeader.isInValidRange()) {
+  if (rangeHeader != null && !rangeHeader.isReadFull()) {
     rangeStart = rangeHeader.getStartOffset();
     rangeEnd = rangeHeader.getEndOffset() + 1;
     locations = new ArrayList<>();
     long blockStart = 0;
     for (OmKeyLocationInfo loc : allLocations) {
       long blockEnd = blockStart + loc.getLength();
-      if (blockEnd > rangeStart && blockStart < rangeEnd) locations.add(loc);
+      if (blockEnd > rangeStart && blockStart < rangeEnd) {
+        locations.add(loc);
+      }
       blockStart = blockEnd;
     }
   } else {
@@ -2187,28 +2498,36 @@ private Response handleRdmaGet(OzoneKeyDetails keyDetails, String rdmaToken,
     rangeEnd = objectSize;
     locations = allLocations;
   }
+  if (locations.isEmpty()) {
+    return null;
+  }
 
-  if (locations.isEmpty()) return null;
+  // Require the target datanode to advertise an RDMA port. Check only the
+  // closest-node of the first block; if the others differ, the per-block
+  // sendCommand below will surface it as a non-SUCCESS result.
+  final DatanodeDetails firstDn =
+      locations.get(0).getPipeline().getClosestNode();
+  if (firstDn.getPort(DatanodeDetails.Port.Name.RDMA) == null) {
+    return null;
+  }
 
-  // Check RDMA port on first datanode
-  DatanodeDetails firstDn = locations.get(0).getPipeline().getClosestNode();
-  if (firstDn.getPort(DatanodeDetails.Port.Name.RDMA) == null) return null;
-
-  // Compute destOffset and per-block offset/length.
-  // Use blockID comparison (not reference equality) to find the global byte
-  // offset of the first selected block within the full block list.
+  // Compute client-buffer destOffset, per-block offset, and per-block length.
+  // The first selected block's global byte offset is where the range starts;
+  // find it via BlockID.equals() (reference equality would be fragile).
   long gpuOffset = 0;
   long blockStartGlobal = 0;
-  BlockID firstSelectedBlockID = locations.get(0).getBlockID();
+  final BlockID firstSelectedBlockID = locations.get(0).getBlockID();
   for (OmKeyLocationInfo loc : allLocations) {
-    if (loc.getBlockID().equals(firstSelectedBlockID)) break;
+    if (loc.getBlockID().equals(firstSelectedBlockID)) {
+      break;
+    }
     blockStartGlobal += loc.getLength();
   }
 
   final int blockCount = locations.size();
-  long[] destOffsets = new long[blockCount];
-  long[] blockOffsets = new long[blockCount];
-  long[] blockLengths = new long[blockCount];
+  final long[] destOffsets = new long[blockCount];
+  final long[] blockOffsets = new long[blockCount];
+  final long[] blockLengths = new long[blockCount];
   for (int i = 0; i < blockCount; i++) {
     OmKeyLocationInfo loc = locations.get(i);
     long blockEnd = blockStartGlobal + loc.getLength();
@@ -2221,9 +2540,8 @@ private Response handleRdmaGet(OzoneKeyDetails keyDetails, String rdmaToken,
     blockStartGlobal = blockEnd;
   }
 
-  // Dispatch all blocks in parallel
   @SuppressWarnings("unchecked")
-  CompletableFuture<ContainerProtos.ContainerCommandResponseProto>[] futures =
+  final CompletableFuture<ContainerProtos.ContainerCommandResponseProto>[] futures =
       new CompletableFuture[blockCount];
 
   for (int i = 0; i < blockCount; i++) {
@@ -2248,14 +2566,15 @@ private Response handleRdmaGet(OzoneKeyDetails keyDetails, String rdmaToken,
                 .setCmdType(ContainerProtos.Type.RdmaReadBlock)
                 .setRdmaReadBlock(rdmaRequest)
                 .setContainerID(location.getContainerID())
-                .setDatanodeUuid(location.getPipeline().getClosestNode().getUuidString());
+                .setDatanodeUuid(
+                    location.getPipeline().getClosestNode().getUuidString());
 
         if (location.getToken() != null) {
           reqBuilder.setEncodedToken(location.getToken().encodeToUrlString());
         }
 
-        // Use read-specific client acquisition to match existing read paths
-        // in BlockInputStream / StreamBlockInputStream.
+        // Read-specific client acquisition (XceiverClientFactory.java:55/64),
+        // matching BlockInputStream / StreamBlockInputStream.
         XceiverClientSpi client = xceiverClientFactory
             .acquireClientForReadData(location.getPipeline());
         try {
@@ -2264,97 +2583,180 @@ private Response handleRdmaGet(OzoneKeyDetails keyDetails, String rdmaToken,
           xceiverClientFactory.releaseClientForReadData(client, false);
         }
       } catch (IOException e) {
-        throw new java.util.concurrent.CompletionException(e);
+        throw new CompletionException(e);
       }
-    }, RDMA_DISPATCH_POOL);
+    }, rdmaDispatchPool);
   }
 
-  // Wait for all blocks
+  // Wait for all blocks. Two failure modes:
+  //   (a) Pre-transfer failure: no future has transitioned to a non-failed
+  //       completion. Return null so the TCP path can serve the request.
+  //   (b) Partial failure: at least one future is completed successfully,
+  //       meaning its server has (likely) already issued RDMA_WRITE. The
+  //       client's buffer has partial data; TCP fallback would produce an
+  //       inconsistent state. Return 503 PARTIAL_FAILURE.
   long totalTransferred = 0;
-  List<String> perBlockChecksums = new ArrayList<>();
+  final List<String> perBlockChecksums = new ArrayList<>();
   try {
     CompletableFuture.allOf(futures).join();
     for (CompletableFuture<ContainerProtos.ContainerCommandResponseProto> f : futures) {
       ContainerProtos.ContainerCommandResponseProto response = f.get();
       if (response.getResult() != ContainerProtos.Result.SUCCESS) {
-        LOG.warn("RDMA read failed: {}. Falling back to TCP.", response.getMessage());
+        LOG.warn("RDMA read failed with result {}: {}. Falling back to TCP.",
+            response.getResult(), response.getMessage());
         return null;
       }
-      totalTransferred += response.getRdmaReadBlock().getBytesTransferred();
-      if (response.getRdmaReadBlock().hasChecksumData()) {
-        ContainerProtos.ChecksumData csData = response.getRdmaReadBlock().getChecksumData();
+      totalTransferred +=
+          response.getRdmaReadBlock().getBytesTransferred();
+      ContainerProtos.RdmaReadBlockResponseProto rdmaBlockResponse =
+          response.getRdmaReadBlock();
+      for (int c = 0; c < rdmaBlockResponse.getPerChunkChecksumCount(); c++) {
+        ContainerProtos.ChecksumData csData =
+            rdmaBlockResponse.getPerChunkChecksum(c);
         StringBuilder sb = new StringBuilder();
-        for (int c = 0; c < csData.getChecksumsCount(); c++) {
-          if (c > 0) sb.append(",");
-          sb.append(bytesToHex(csData.getChecksums(c).toByteArray()));
+        for (int k = 0; k < csData.getChecksumsCount(); k++) {
+          if (k > 0) {
+            sb.append(",");
+          }
+          sb.append(bytesToHex(csData.getChecksums(k).toByteArray()));
         }
         perBlockChecksums.add(sb.toString());
       }
     }
-  } catch (Exception e) {
-    // Check if any blocks completed before the failure. If so, the client's
-    // RDMA buffer has partial data — TCP fallback would produce an inconsistent
-    // state (partial RDMA data + full TCP body). Return error instead.
-    boolean anyCompleted = false;
-    for (CompletableFuture<ContainerProtos.ContainerCommandResponseProto> f : futures) {
-      if (f.isDone() && !f.isCompletedExceptionally()) {
-        anyCompleted = true;
-        break;
-      }
-    }
-    if (anyCompleted) {
-      LOG.warn("RDMA read partially completed before failure. Cannot safely "
-          + "fall back to TCP. Client should retry. Error: {}", e.getMessage());
-      return Response.status(Response.Status.SERVICE_UNAVAILABLE)
-          .header("Retry-After", "1")
-          .header("x-amz-rdma-reply", "PARTIAL_FAILURE")
-          .build();
-    }
-    LOG.warn("RDMA read failed before any transfer. Falling back to TCP: {}",
-        e.getMessage());
-    return null;
+  } catch (ExecutionException | CompletionException e) {
+    return handleRdmaFailure(futures, startNanos, e);
+  } catch (InterruptedException e) {
+    Thread.currentThread().interrupt();
+    return handleRdmaFailure(futures, startNanos, e);
   }
 
-  // Build response that preserves the same headers as the normal TCP GET path.
-  // Use rangeHeader.isReadFull() to distinguish 200 vs 206, matching the existing
-  // ObjectEndpoint behavior (not just checking rangeHeader != null).
-  boolean isFullRead = (rangeHeader == null || rangeHeader.isReadFull());
-  Response.ResponseBuilder responseBuilder = isFullRead
+  // Success path. Replicate TCP response header construction + metrics.
+  final boolean isFullRead =
+      (rangeHeader == null || rangeHeader.isReadFull());
+  final Response.ResponseBuilder responseBuilder = isFullRead
       ? Response.ok()
       : Response.status(Response.Status.PARTIAL_CONTENT);
 
-  // RDMA-specific headers (no body — data went via RDMA_WRITE)
+  // RDMA-specific signalling to the client. The body is empty because the
+  // bytes went via RDMA_WRITE into the client's pre-registered buffer.
   responseBuilder
       .header("x-amz-rdma-reply", "OK")
-      .header("Content-Length", "0")
+      .header(HttpHeaders.CONTENT_LENGTH, 0)
       .header("x-amz-rdma-bytes-transferred", totalTransferred);
 
-  // Standard S3 response headers — must match normal GET path for client
-  // compatibility. ETag must be quoted per RFC 7232.
-  String eTag = keyDetails.getMetadata().get(OzoneConsts.ETAG);
-  addEntityTagHeader(responseBuilder, eTag);
+  if (!isFullRead) {
+    // Use the same constant as the TCP path (ObjectEndpoint.java:488).
+    String contentRangeVal = RANGE_HEADER_SUPPORTED_UNIT + " "
+        + rangeStart + "-" + (rangeEnd - 1) + "/" + objectSize;
+    responseBuilder.header(CONTENT_RANGE_HEADER, contentRangeVal);
+  }
+  responseBuilder.header(ACCEPT_RANGE_HEADER, RANGE_HEADER_SUPPORTED_UNIT);
+
+  // ETag + x-amz-mp-parts-count. The helper takes OzoneKey (not String),
+  // quotes the value per RFC 7232, and emits MP_PARTS_COUNT for multipart
+  // objects. See ObjectEndpoint.java:546.
+  addEntityTagHeader(responseBuilder, keyDetails);
+
+  // overrideQueryParameter loop — parity with ObjectEndpoint.java:499-508.
+  // Converts query-param overrides (?response-content-type=..., etc.) into
+  // response headers. Without this loop, S3 clients relying on these
+  // overrides would silently see the origin server's headers.
+  MultivaluedMap<String, String> queryParams =
+      getContext().getUriInfo().getQueryParameters();
+  for (Map.Entry<String, String> entry : overrideQueryParameter.entrySet()) {
+    String headerValue = getHeaders().getHeaderString(entry.getKey());
+    String queryValue = queryParams.getFirst(entry.getValue());
+    if (queryValue != null) {
+      headerValue = queryValue;
+    }
+    if (headerValue != null) {
+      responseBuilder.header(entry.getKey(), headerValue);
+    }
+  }
+
   addLastModifiedDate(responseBuilder, keyDetails);
   addTagCountIfAny(responseBuilder, keyDetails);
-  responseBuilder.header("Accept-Ranges", RANGE_HEADER_SUPPORTED_UNIT);
 
+  // Stored-checksum passthrough so the client can re-verify its RDMA buffer
+  // after transfer (protects against memory/DMA corruption between NIC
+  // write and application read).
   if (!perBlockChecksums.isEmpty()) {
     responseBuilder.header("x-amz-rdma-checksum-crc32c",
         String.join(";", perBlockChecksums));
   }
-  if (!isFullRead) {
-    responseBuilder.header("Content-Range",
-        "bytes " + rangeStart + "-" + (rangeEnd - 1) + "/" + objectSize);
-  }
 
-  // Record success metrics to match normal GET path instrumentation
+  // Metrics parity with TCP success path. Order matches
+  // ObjectEndpoint.java:457-461 and 513-514: size + success + op latency
+  // first (counts this request as a completed GET), then metadata latency
+  // at the end (covers headers + OM lookup overhead).
   getMetrics().incGetKeySuccessLength(totalTransferred);
+  perf.appendSizeBytes(totalTransferred);
+  long opLatencyNs = getMetrics().updateGetKeySuccessStats(startNanos);
+  perf.appendOpLatencyNanos(opLatencyNs);
+  long metaLatencyNs = getMetrics().updateGetKeyMetadataStats(startNanos);
+  perf.appendMetaLatencyNanos(metaLatencyNs);
 
   return responseBuilder.build();
 }
 
+/**
+ * Handle a fatal dispatch failure. Distinguishes pre-transfer failure
+ * (return null, let TCP retry the request) from partial failure (at least
+ * one datanode already RDMA_WRITE-ed, so the client's buffer has partial
+ * data — return 503 with an explicit "you must re-register a fresh buffer
+ * and retry" contract to the client).
+ *
+ * Partial-failure protocol:
+ *   - x-amz-rdma-reply: PARTIAL_FAILURE
+ *   - Retry-After: 1 (SHOULD, not MUST — clients may retry sooner)
+ *   - x-amz-rdma-partial-bytes: number of RDMA blocks that reported success
+ *     before the failure, for client-side telemetry only
+ *
+ * The client contract on receiving PARTIAL_FAILURE is:
+ *   1. MUST NOT trust any bytes in the previously registered buffer —
+ *      in-flight RDMA_WRITEs may still arrive after the 503 is read.
+ *   2. MUST de-register the previous buffer before reusing its memory.
+ *   3. MUST register a fresh buffer (new rkey) and re-issue the GET with a
+ *      new x-amz-rdma-token. The gateway cannot guarantee stale writes will
+ *      target the old rkey rather than the new one.
+ *
+ * Rationale: CompletableFuture.cancel(true) does NOT interrupt the
+ * underlying computation in cuObjServer; the RDMA_WRITE can complete after
+ * the 503 is returned. Requiring a new rkey makes the race harmless.
+ */
+private Response handleRdmaFailure(
+    CompletableFuture<ContainerProtos.ContainerCommandResponseProto>[] futures,
+    long startNanos,
+    Exception cause) {
+  int completedCount = 0;
+  for (CompletableFuture<ContainerProtos.ContainerCommandResponseProto> f : futures) {
+    if (f.isDone() && !f.isCompletedExceptionally()) {
+      completedCount++;
+    }
+  }
+  if (completedCount == 0) {
+    LOG.warn("RDMA read failed before any transfer. Falling back to TCP: {}",
+        cause.getMessage());
+    return null;
+  }
+  LOG.warn("RDMA read partially completed ({} of {} blocks) before failure. "
+      + "Cannot safely fall back to TCP. Client must re-register buffer and "
+      + "retry. Error: {}", completedCount, futures.length, cause.getMessage());
+  // Update failure metric since we're returning an error, not null.
+  getMetrics().updateGetKeyFailureStats(startNanos);
+  return Response.status(Response.Status.SERVICE_UNAVAILABLE)
+      .header("Retry-After", "1")
+      .header("x-amz-rdma-reply", "PARTIAL_FAILURE")
+      .header("x-amz-rdma-partial-blocks-completed", completedCount)
+      .header(HttpHeaders.CONTENT_LENGTH, 0)
+      .build();
+}
+
 private static String bytesToHex(byte[] bytes) {
   StringBuilder sb = new StringBuilder(bytes.length * 2);
-  for (byte b : bytes) sb.append(String.format("%02x", b & 0xff));
+  for (byte b : bytes) {
+    sb.append(String.format("%02x", b & 0xff));
+  }
   return sb.toString();
 }
 ```
@@ -3012,12 +3414,37 @@ echo "=== Done. Remember to shut down cloud VMs! ==="
 
 ### 8.1 Unit Tests (SIMULATED — MockRdmaTransferService, no hardware)
 
+All tests use the 2-arg `initialize(bindAddress, port)` signature that matches
+`RdmaTransferService` (§4.4). The 4th parameter (`maxConnections`) was removed
+in v10.0 because cuObjServer has no corresponding constructor parameter.
+
+`handleRdmaRead(...)` takes `List<ContainerProtos.ChunkInfo> storedChunks` as
+its final parameter (see §4.11). In unit tests with no stored checksums, pass
+`Collections.emptyList()` — the method skips verification when the stored
+chunk has `ChecksumType.NONE`, which is also the behavior for blocks written
+with checksums disabled. The tests below use a synthetic `ChunkInfo` with
+`CHECKSUM_NONE` so the assertions focus on data transfer, not CRC math; see
+`TestXceiverServerRdmaChecksumVerification` (§8.1 additional test below) for
+the checksum-path coverage.
+
 ```java
+private static ContainerProtos.ChunkInfo syntheticChunk(long offset, long len) {
+  return ContainerProtos.ChunkInfo.newBuilder()
+      .setChunkName("test-chunk-" + offset)
+      .setOffset(offset)
+      .setLen(len)
+      .setChecksumData(ContainerProtos.ChecksumData.newBuilder()
+          .setType(ContainerProtos.ChecksumType.NONE)
+          .setBytesPerChecksum(0)
+          .build())
+      .build();
+}
+
 // TestRdmaBufferPool
 @Test
 public void testAcquireAndRelease() throws Exception {
   MockRdmaTransferService mockService = new MockRdmaTransferService();
-  mockService.initialize(null, 0, 0);
+  mockService.initialize(null, 0);
   OzoneConfiguration conf = new OzoneConfiguration();
   conf.setInt(RdmaBufferPool.BUFFER_SIZE_KEY, 1024);
   conf.setInt(RdmaBufferPool.BUFFER_COUNT_KEY, 4);
@@ -3033,7 +3460,7 @@ public void testAcquireAndRelease() throws Exception {
 @Test
 public void testHandleRdmaReadSingleChunk() throws Exception {
   MockRdmaTransferService mockService = new MockRdmaTransferService();
-  mockService.initialize(null, 0, 0);
+  mockService.initialize(null, 0);
   ByteBuffer remoteBuffer = ByteBuffer.allocateDirect(4096);
   mockService.registerRemoteBuffer("test-token-123", remoteBuffer);
   OzoneConfiguration conf = new OzoneConfiguration();
@@ -3050,8 +3477,12 @@ public void testHandleRdmaReadSingleChunk() throws Exception {
       .setBlockID(DatanodeBlockID.newBuilder().setContainerID(1).setLocalID(1))
       .setRdmaToken("test-token-123").build();
 
+  List<ContainerProtos.ChunkInfo> storedChunks =
+      Collections.singletonList(syntheticChunk(0, testData.length));
+
   try (FileChannel fc = FileChannel.open(tempFile, StandardOpenOption.READ)) {
-    RdmaReadBlockResponseProto response = rdmaServer.handleRdmaRead(request, fc, testData.length);
+    RdmaReadBlockResponseProto response =
+        rdmaServer.handleRdmaRead(request, fc, testData.length, storedChunks);
     assertEquals(1024, response.getBytesTransferred());
     remoteBuffer.position(0);
     byte[] received = new byte[1024];
@@ -3064,7 +3495,7 @@ public void testHandleRdmaReadSingleChunk() throws Exception {
 public void testHandleRdmaReadWithDestOffset() throws Exception {
   // Verifies multi-block: second block writes at destOffset=1024
   MockRdmaTransferService mockService = new MockRdmaTransferService();
-  mockService.initialize(null, 0, 0);
+  mockService.initialize(null, 0);
   ByteBuffer remoteBuffer = ByteBuffer.allocateDirect(4096);
   mockService.registerRemoteBuffer("token-offset", remoteBuffer);
   OzoneConfiguration conf = new OzoneConfiguration();
@@ -3081,8 +3512,12 @@ public void testHandleRdmaReadWithDestOffset() throws Exception {
       .setBlockID(DatanodeBlockID.newBuilder().setContainerID(1).setLocalID(2))
       .setRdmaToken("token-offset").setDestOffset(1024).build();
 
+  List<ContainerProtos.ChunkInfo> storedChunks =
+      Collections.singletonList(syntheticChunk(0, testData.length));
+
   try (FileChannel fc = FileChannel.open(tempFile, StandardOpenOption.READ)) {
-    RdmaReadBlockResponseProto response = rdmaServer.handleRdmaRead(request, fc, testData.length);
+    RdmaReadBlockResponseProto response =
+        rdmaServer.handleRdmaRead(request, fc, testData.length, storedChunks);
     assertEquals(512, response.getBytesTransferred());
     remoteBuffer.position(1024);
     byte[] received = new byte[512];
@@ -3092,12 +3527,13 @@ public void testHandleRdmaReadWithDestOffset() throws Exception {
 }
 
 @Test
-public void testHandleRdmaReadChunked() throws Exception {
-  // 16 KB block, 4 KB buffer -> 4 RDMA chunks
+public void testHandleRdmaReadMultipleStoredChunks() throws Exception {
+  // 16 KB block stored as 4 × 4 KB stored chunks; buffer holds 4 KB.
+  // Each stored chunk is read + (optionally) verified + RDMA_WRITE-ed once.
   MockRdmaTransferService mockService = new MockRdmaTransferService();
-  mockService.initialize(null, 0, 0);
+  mockService.initialize(null, 0);
   ByteBuffer remoteBuffer = ByteBuffer.allocateDirect(16 * 1024);
-  mockService.registerRemoteBuffer("token-chunked", remoteBuffer);
+  mockService.registerRemoteBuffer("token-multi", remoteBuffer);
   OzoneConfiguration conf = new OzoneConfiguration();
   conf.setInt(RdmaBufferPool.BUFFER_SIZE_KEY, 4096);
   conf.setInt(RdmaBufferPool.BUFFER_COUNT_KEY, 2);
@@ -3105,16 +3541,24 @@ public void testHandleRdmaReadChunked() throws Exception {
 
   byte[] testData = new byte[16 * 1024];
   new Random(42).nextBytes(testData);
-  Path tempFile = Files.createTempFile("rdma-chunk", ".block");
+  Path tempFile = Files.createTempFile("rdma-multi", ".block");
   Files.write(tempFile, testData);
 
   RdmaReadBlockRequestProto request = RdmaReadBlockRequestProto.newBuilder()
       .setBlockID(DatanodeBlockID.newBuilder().setContainerID(1).setLocalID(1))
-      .setRdmaToken("token-chunked").build();
+      .setRdmaToken("token-multi").build();
+
+  List<ContainerProtos.ChunkInfo> storedChunks = Arrays.asList(
+      syntheticChunk(0, 4096),
+      syntheticChunk(4096, 4096),
+      syntheticChunk(8192, 4096),
+      syntheticChunk(12288, 4096));
 
   try (FileChannel fc = FileChannel.open(tempFile, StandardOpenOption.READ)) {
-    RdmaReadBlockResponseProto response = rdmaServer.handleRdmaRead(request, fc, testData.length);
+    RdmaReadBlockResponseProto response =
+        rdmaServer.handleRdmaRead(request, fc, testData.length, storedChunks);
     assertEquals(16 * 1024, response.getBytesTransferred());
+    assertEquals(4, response.getPerChunkChecksumCount());
     remoteBuffer.position(0);
     byte[] received = new byte[16 * 1024];
     remoteBuffer.get(received);
@@ -3125,7 +3569,7 @@ public void testHandleRdmaReadChunked() throws Exception {
 @Test(expected = IOException.class)
 public void testMalformedRdmaToken() throws Exception {
   MockRdmaTransferService mockService = new MockRdmaTransferService();
-  mockService.initialize(null, 0, 0);
+  mockService.initialize(null, 0);
   // Do NOT register any remote buffer
   OzoneConfiguration conf = new OzoneConfiguration();
   conf.setInt(RdmaBufferPool.BUFFER_SIZE_KEY, 4096);
@@ -3140,9 +3584,62 @@ public void testMalformedRdmaToken() throws Exception {
       .setBlockID(DatanodeBlockID.newBuilder().setContainerID(1).setLocalID(1))
       .setRdmaToken("nonexistent-token").build();
 
+  List<ContainerProtos.ChunkInfo> storedChunks =
+      Collections.singletonList(syntheticChunk(0, testData.length));
+
   try (FileChannel fc = FileChannel.open(tempFile, StandardOpenOption.READ)) {
-    rdmaServer.handleRdmaRead(request, fc, testData.length); // Should throw
+    // Should throw — MockRdmaTransferService.rdmaWriteToRemote rejects
+    // tokens that weren't registered.
+    rdmaServer.handleRdmaRead(request, fc, testData.length, storedChunks);
   }
+}
+
+@Test(expected = IOException.class)
+public void testHandleRdmaReadStoredChecksumMismatch() throws Exception {
+  // Writes 1 KB to disk, then passes in a stored ChunkInfo whose CRC was
+  // computed over DIFFERENT bytes. handleRdmaRead MUST throw before
+  // rdmaWriteToRemote runs (no bytes should reach the remote buffer).
+  MockRdmaTransferService mockService = new MockRdmaTransferService();
+  mockService.initialize(null, 0);
+  ByteBuffer remoteBuffer = ByteBuffer.allocateDirect(4096);
+  mockService.registerRemoteBuffer("token-bad-crc", remoteBuffer);
+  OzoneConfiguration conf = new OzoneConfiguration();
+  conf.setInt(RdmaBufferPool.BUFFER_SIZE_KEY, 4096);
+  conf.setInt(RdmaBufferPool.BUFFER_COUNT_KEY, 2);
+  XceiverServerRdma rdmaServer = new XceiverServerRdma(conf, mockService);
+
+  byte[] onDisk = new byte[1024];
+  Arrays.fill(onDisk, (byte) 0x11);
+  Path tempFile = Files.createTempFile("rdma-bad-crc", ".block");
+  Files.write(tempFile, onDisk);
+
+  // Build a stored ChunkInfo whose CRC32C corresponds to a DIFFERENT buffer
+  // (all zeros). When handleRdmaRead reads the 0x11 bytes and verifies, the
+  // CRCs must mismatch.
+  byte[] fakeBytes = new byte[1024];
+  ChecksumData fakeCs =
+      new Checksum(ContainerProtos.ChecksumType.CRC32C, 1024)
+          .computeChecksum(fakeBytes);
+  ContainerProtos.ChunkInfo chunk = ContainerProtos.ChunkInfo.newBuilder()
+      .setChunkName("bad-crc")
+      .setOffset(0)
+      .setLen(1024)
+      .setChecksumData(fakeCs.getProtoBufMessage())
+      .build();
+
+  RdmaReadBlockRequestProto request = RdmaReadBlockRequestProto.newBuilder()
+      .setBlockID(DatanodeBlockID.newBuilder().setContainerID(1).setLocalID(1))
+      .setRdmaToken("token-bad-crc").build();
+
+  try (FileChannel fc = FileChannel.open(tempFile, StandardOpenOption.READ)) {
+    rdmaServer.handleRdmaRead(
+        request, fc, onDisk.length, Collections.singletonList(chunk));
+  }
+  // Remote buffer must still be zero — no partial RDMA_WRITE.
+  remoteBuffer.position(0);
+  byte[] received = new byte[1024];
+  remoteBuffer.get(received);
+  assertArrayEquals(new byte[1024], received);
 }
 ```
 
@@ -3205,14 +3702,18 @@ public void testRdmaReadBlockEndToEnd() throws Exception {
 
     if (loc.getToken() != null) reqBuilder.setEncodedToken(loc.getToken().encodeToUrlString());
 
+    // Read-specific acquisition matches the RDMA dispatch path
+    // (ObjectEndpoint.handleRdmaGet → acquireClientForReadData). `var` is
+    // not used — the repo targets Java 8 (pom.xml maven.compiler.release=8).
     XceiverClientSpi xcClient = cluster.getXceiverClientManager()
-        .acquireClient(loc.getPipeline());
+        .acquireClientForReadData(loc.getPipeline());
     try {
-      var response = xcClient.sendCommand(reqBuilder.build());
+      ContainerProtos.ContainerCommandResponseProto response =
+          xcClient.sendCommand(reqBuilder.build());
       assertEquals(ContainerProtos.Result.SUCCESS, response.getResult());
       assertEquals(loc.getLength(), response.getRdmaReadBlock().getBytesTransferred());
     } finally {
-      cluster.getXceiverClientManager().releaseClient(xcClient, false);
+      cluster.getXceiverClientManager().releaseClientForReadData(xcClient, false);
     }
     gpuOffset += loc.getLength();
   }
