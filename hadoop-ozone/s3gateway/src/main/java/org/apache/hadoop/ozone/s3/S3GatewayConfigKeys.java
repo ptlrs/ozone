@@ -103,6 +103,29 @@ public final class S3GatewayConfigKeys {
   public static final int OZONE_S3G_LIST_MAX_KEYS_LIMIT_DEFAULT = 1000;
 
   /**
+   * Minimum object size (in bytes) for which the S3G will attempt an RDMA
+   * GET before falling back to TCP streaming. Below this size the RDMA
+   * setup cost (OM round-trip for pipeline + token, sendCommand dispatch,
+   * cuObjServer descriptor parsing) dominates the TCP-stream cost.
+   */
+  public static final String OZONE_S3G_RDMA_MIN_OBJECT_SIZE_KEY =
+      "ozone.s3g.rdma.min.object.size";
+  public static final long OZONE_S3G_RDMA_MIN_OBJECT_SIZE_DEFAULT =
+      1024L * 1024L;
+
+  /**
+   * When false, S3G skips RDMA for keys whose bucket has Transparent Data
+   * Encryption (FileEncryptionInfo != null) — the TCP path decrypts in the
+   * JVM and the RDMA path would bypass that contract. Operators opt in by
+   * setting this key to true, accepting the "ciphertext to client; client
+   * decrypts" model.
+   */
+  public static final String OZONE_S3G_RDMA_ALLOW_ENCRYPTED_BUCKETS_KEY =
+      "ozone.s3g.rdma.allow.encrypted.buckets";
+  public static final boolean OZONE_S3G_RDMA_ALLOW_ENCRYPTED_BUCKETS_DEFAULT =
+      false;
+
+  /**
    * Never constructed.
    */
   private S3GatewayConfigKeys() {

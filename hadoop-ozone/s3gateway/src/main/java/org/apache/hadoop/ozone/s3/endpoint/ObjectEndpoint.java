@@ -47,6 +47,7 @@ import static org.apache.hadoop.ozone.s3.util.S3Utils.validateSignatureHeader;
 import static org.apache.hadoop.ozone.s3.util.S3Utils.wrapInQuotes;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -60,6 +61,11 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
@@ -80,8 +86,14 @@ import javax.xml.bind.DatatypeConverter;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.hadoop.hdds.client.BlockID;
 import org.apache.hadoop.hdds.client.ECReplicationConfig;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
+import org.apache.hadoop.hdds.protocol.DatanodeDetails;
+import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos;
+import org.apache.hadoop.hdds.protocol.proto.HddsProtos;
+import org.apache.hadoop.hdds.scm.XceiverClientFactory;
+import org.apache.hadoop.hdds.scm.XceiverClientSpi;
 import org.apache.hadoop.ozone.OzoneConsts;
 import org.apache.hadoop.ozone.audit.S3GAction;
 import org.apache.hadoop.ozone.client.OzoneBucket;
@@ -90,14 +102,21 @@ import org.apache.hadoop.ozone.client.OzoneKeyDetails;
 import org.apache.hadoop.ozone.client.OzoneVolume;
 import org.apache.hadoop.ozone.client.io.OzoneInputStream;
 import org.apache.hadoop.ozone.client.io.OzoneOutputStream;
+import org.apache.hadoop.ozone.client.protocol.ClientProtocol;
+import org.apache.hadoop.ozone.client.rpc.RpcClient;
 import org.apache.hadoop.ozone.om.OmConfig;
 import org.apache.hadoop.ozone.om.exceptions.OMException;
 import org.apache.hadoop.ozone.om.exceptions.OMException.ResultCodes;
 import org.apache.hadoop.ozone.om.helpers.BucketLayout;
+import org.apache.hadoop.ozone.om.helpers.OmKeyInfo;
+import org.apache.hadoop.ozone.om.helpers.OmKeyLocationInfo;
+import org.apache.hadoop.ozone.om.helpers.OmKeyLocationInfoGroup;
 import org.apache.hadoop.ozone.om.helpers.OmMultipartCommitUploadPartInfo;
 import org.apache.hadoop.ozone.om.helpers.OmMultipartInfo;
 import org.apache.hadoop.ozone.om.helpers.OmMultipartUploadCompleteInfo;
 import org.apache.hadoop.ozone.s3.HeaderPreprocessor;
+import org.apache.hadoop.ozone.s3.RdmaRequestFilter;
+import org.apache.hadoop.ozone.s3.S3GatewayConfigKeys;
 import org.apache.hadoop.ozone.s3.MultiDigestInputStream;
 import org.apache.hadoop.ozone.s3.exception.OS3Exception;
 import org.apache.hadoop.ozone.s3.exception.S3ErrorTable;
@@ -131,6 +150,18 @@ public class ObjectEndpoint extends ObjectOperationHandler {
   /*FOR the feature Overriding Response Header
   https://docs.aws.amazon.com/de_de/AmazonS3/latest/API/API_GetObject.html */
   private final Map<String, String> overrideQueryParameter;
+
+  // JVM-wide singleton pool used by handleRdmaGet to dispatch each block's
+  // RdmaReadBlock request in parallel. Must be static — ObjectEndpoint is a
+  // JAX-RS resource and may be instantiated per request; a per-instance
+  // pool would leak threads on every request.
+  private static final ExecutorService RDMA_DISPATCH_POOL =
+      Executors.newFixedThreadPool(
+          Math.max(4, Runtime.getRuntime().availableProcessors()),
+          new ThreadFactoryBuilder()
+              .setNameFormat("s3g-rdma-dispatch-%d")
+              .setDaemon(true)
+              .build());
 
   public ObjectEndpoint() {
     overrideQueryParameter = ImmutableMap.<String, String>builder()
@@ -448,6 +479,23 @@ public class ObjectEndpoint extends ObjectOperationHandler {
         }
       }
 
+      // RdmaRequestFilter populates the token property on the JAX-RS context
+      // when the client sent `x-amz-rdma-token: ...`. If the RDMA path opts
+      // out (small object, EC key, TDE bucket, no RDMA port on datanode),
+      // handleRdmaGet returns null and we continue on the TCP stream path
+      // below. A non-null Response — success or PARTIAL_FAILURE — returns
+      // directly to the caller without any TCP streaming.
+      String rdmaToken = (String) getContext()
+          .getProperty(RdmaRequestFilter.RDMA_TOKEN_PROPERTY);
+      if (rdmaToken != null) {
+        Response rdmaResponse = handleRdmaGet(
+            keyDetails, rdmaToken, rangeHeader, partNumber, startNanos, perf);
+        if (rdmaResponse != null) {
+          return rdmaResponse;
+        }
+        LOG.debug("RDMA path returned null, falling back to TCP for {}", keyPath);
+      }
+
       ResponseBuilder responseBuilder;
 
       if (rangeHeaderVal == null || rangeHeader.isReadFull()) {
@@ -519,6 +567,348 @@ public class ObjectEndpoint extends ObjectOperationHandler {
       getMetrics().updateGetKeyFailureStats(startNanos);
       throw ex;
     }
+  }
+
+  /**
+   * Dispatch an S3 GET over RDMA. Returns a built Response on success or a
+   * 503 PARTIAL_FAILURE response when the gateway cannot safely fall back
+   * to TCP. Returns null to tell the caller to continue on the TCP path —
+   * object too small for RDMA, EC key, TDE bucket without operator opt-in,
+   * datanode without an RDMA port, or no successful block completed
+   * RDMA_WRITE before a failure.
+   *
+   * <p>Partial-failure contract: {@code x-amz-rdma-reply: PARTIAL_FAILURE}
+   * + {@code Retry-After: 1} + {@code x-amz-rdma-partial-blocks-completed: N}.
+   * Because CompletableFuture.cancel(true) does NOT interrupt an in-flight
+   * cuObjServer RDMA_WRITE, the client MUST de-register the previous buffer
+   * and re-issue the GET with a fresh rkey; the gateway cannot guarantee
+   * stale writes will land on the old rkey rather than the new one.
+   */
+  @SuppressWarnings("checkstyle:MethodLength")
+  private Response handleRdmaGet(OzoneKeyDetails keyDetails, String rdmaToken,
+      RangeHeader rangeHeader, int partNumber, long startNanos,
+      PerformanceStringBuilder perf) throws IOException {
+
+    // Phase 1 TCP fallbacks.
+    if (partNumber != 0) {
+      LOG.debug("RDMA fallback: partNumber={} not supported in Phase 1",
+          partNumber);
+      return null;
+    }
+    if (keyDetails.getReplicationConfig() != null
+        && keyDetails.getReplicationConfig().getReplicationType()
+            == HddsProtos.ReplicationType.EC) {
+      LOG.debug("RDMA fallback: EC keys not supported in Phase 1");
+      return null;
+    }
+
+    final long objectSize = keyDetails.getDataSize();
+    final long minRdmaSize = getOzoneConfiguration().getLong(
+        S3GatewayConfigKeys.OZONE_S3G_RDMA_MIN_OBJECT_SIZE_KEY,
+        S3GatewayConfigKeys.OZONE_S3G_RDMA_MIN_OBJECT_SIZE_DEFAULT);
+    if (objectSize < minRdmaSize) {
+      return null;
+    }
+
+    if (keyDetails.getFileEncryptionInfo() != null
+        && !getOzoneConfiguration().getBoolean(
+            S3GatewayConfigKeys.OZONE_S3G_RDMA_ALLOW_ENCRYPTED_BUCKETS_KEY,
+            S3GatewayConfigKeys.OZONE_S3G_RDMA_ALLOW_ENCRYPTED_BUCKETS_DEFAULT)) {
+      return null;
+    }
+
+    final ClientProtocol proxy = getClientProtocol();
+    if (!(proxy instanceof RpcClient)) {
+      return null;
+    }
+    final XceiverClientFactory xceiverClientFactory =
+        ((RpcClient) proxy).getXceiverClientManager();
+    if (xceiverClientFactory == null) {
+      return null;
+    }
+
+    // Second OM round-trip so we have Pipeline + Token per block. See
+    // §4.15.3 for the consistency-window caveat.
+    final OmKeyInfo omKeyInfo = ((RpcClient) proxy).getKeyInfo(
+        keyDetails.getVolumeName(), keyDetails.getBucketName(),
+        keyDetails.getName(), false);
+    final OmKeyLocationInfoGroup latestLocations =
+        omKeyInfo.getLatestVersionLocations();
+    if (latestLocations == null) {
+      return null;
+    }
+    final List<OmKeyLocationInfo> allLocations =
+        latestLocations.getBlocksLatestVersionOnly();
+
+    final long rangeStart;
+    final long rangeEnd;
+    final List<OmKeyLocationInfo> locations;
+    if (rangeHeader != null && !rangeHeader.isReadFull()) {
+      rangeStart = rangeHeader.getStartOffset();
+      rangeEnd = rangeHeader.getEndOffset() + 1;
+      locations = new ArrayList<>();
+      long blockStart = 0;
+      for (OmKeyLocationInfo loc : allLocations) {
+        long blockEnd = blockStart + loc.getLength();
+        if (blockEnd > rangeStart && blockStart < rangeEnd) {
+          locations.add(loc);
+        }
+        blockStart = blockEnd;
+      }
+    } else {
+      rangeStart = 0;
+      rangeEnd = objectSize;
+      locations = allLocations;
+    }
+    if (locations.isEmpty()) {
+      return null;
+    }
+
+    final DatanodeDetails firstDn =
+        locations.get(0).getPipeline().getClosestNode();
+    if (firstDn.getPort(DatanodeDetails.Port.Name.RDMA) == null) {
+      return null;
+    }
+
+    long gpuOffset = 0;
+    long blockStartGlobal = 0;
+    final BlockID firstSelectedBlockID = locations.get(0).getBlockID();
+    for (OmKeyLocationInfo loc : allLocations) {
+      if (loc.getBlockID().equals(firstSelectedBlockID)) {
+        break;
+      }
+      blockStartGlobal += loc.getLength();
+    }
+
+    final int blockCount = locations.size();
+    final long[] destOffsets = new long[blockCount];
+    final long[] blockOffsets = new long[blockCount];
+    final long[] blockLengths = new long[blockCount];
+    for (int i = 0; i < blockCount; i++) {
+      OmKeyLocationInfo loc = locations.get(i);
+      long blockEnd = blockStartGlobal + loc.getLength();
+      long clipStart = Math.max(blockStartGlobal, rangeStart);
+      long clipEnd = Math.min(blockEnd, rangeEnd);
+      blockOffsets[i] = clipStart - blockStartGlobal;
+      blockLengths[i] = clipEnd - clipStart;
+      destOffsets[i] = gpuOffset;
+      gpuOffset += blockLengths[i];
+      blockStartGlobal = blockEnd;
+    }
+
+    @SuppressWarnings("unchecked")
+    final CompletableFuture<ContainerProtos.ContainerCommandResponseProto>[] futures =
+        new CompletableFuture[blockCount];
+
+    for (int i = 0; i < blockCount; i++) {
+      final OmKeyLocationInfo location = locations.get(i);
+      final long destOffset = destOffsets[i];
+      final long blockOffset = blockOffsets[i];
+      final long blockLength = blockLengths[i];
+
+      futures[i] = CompletableFuture.supplyAsync(() -> {
+        try {
+          ContainerProtos.RdmaReadBlockRequestProto rdmaRequest =
+              ContainerProtos.RdmaReadBlockRequestProto.newBuilder()
+                  .setBlockID(location.getBlockID().getDatanodeBlockIDProtobuf())
+                  .setRdmaToken(rdmaToken)
+                  .setOffset(blockOffset)
+                  .setLength(blockLength)
+                  .setDestOffset(destOffset)
+                  .build();
+          ContainerProtos.ContainerCommandRequestProto.Builder reqBuilder =
+              ContainerProtos.ContainerCommandRequestProto.newBuilder()
+                  .setCmdType(ContainerProtos.Type.RdmaReadBlock)
+                  .setRdmaReadBlock(rdmaRequest)
+                  .setContainerID(location.getContainerID())
+                  .setDatanodeUuid(
+                      location.getPipeline().getClosestNode().getUuidString());
+          if (location.getToken() != null) {
+            reqBuilder.setEncodedToken(location.getToken().encodeToUrlString());
+          }
+          XceiverClientSpi client = xceiverClientFactory
+              .acquireClientForReadData(location.getPipeline());
+          try {
+            return client.sendCommand(reqBuilder.build());
+          } finally {
+            xceiverClientFactory.releaseClientForReadData(client, false);
+          }
+        } catch (IOException e) {
+          throw new CompletionException(e);
+        }
+      }, RDMA_DISPATCH_POOL);
+    }
+
+    int successCount = 0;
+    long totalTransferred = 0;
+    final List<String> perBlockChecksums = new ArrayList<>();
+    String firstFailureMessage = null;
+    ContainerProtos.Result firstFailureResult = null;
+    try {
+      CompletableFuture.allOf(futures).join();
+      for (CompletableFuture<ContainerProtos.ContainerCommandResponseProto> f : futures) {
+        ContainerProtos.ContainerCommandResponseProto response = f.get();
+        if (response.getResult() != ContainerProtos.Result.SUCCESS) {
+          LOG.warn("RDMA block returned {}: {}",
+              response.getResult(), response.getMessage());
+          if (firstFailureResult == null) {
+            firstFailureResult = response.getResult();
+            firstFailureMessage = response.getMessage();
+          }
+          continue;
+        }
+        successCount++;
+        totalTransferred +=
+            response.getRdmaReadBlock().getBytesTransferred();
+        ContainerProtos.RdmaReadBlockResponseProto rdmaBlockResponse =
+            response.getRdmaReadBlock();
+        for (int c = 0; c < rdmaBlockResponse.getPerChunkChecksumCount(); c++) {
+          ContainerProtos.ChecksumData csData =
+              rdmaBlockResponse.getPerChunkChecksum(c);
+          StringBuilder sb = new StringBuilder();
+          for (int k = 0; k < csData.getChecksumsCount(); k++) {
+            if (k > 0) {
+              sb.append(',');
+            }
+            sb.append(bytesToHex(csData.getChecksums(k).toByteArray()));
+          }
+          perBlockChecksums.add(sb.toString());
+        }
+      }
+    } catch (ExecutionException | CompletionException e) {
+      return handleRdmaFailure(futures, startNanos, e);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return handleRdmaFailure(futures, startNanos, e);
+    }
+
+    if (successCount < futures.length) {
+      if (successCount == 0) {
+        LOG.warn("RDMA read failed on all {} blocks (first error: {} / {}). "
+            + "Falling back to TCP.", futures.length, firstFailureResult,
+            firstFailureMessage);
+        return null;
+      }
+      LOG.warn("RDMA read partially succeeded ({} of {} blocks; first error: "
+          + "{} / {}). Returning PARTIAL_FAILURE.",
+          successCount, futures.length, firstFailureResult,
+          firstFailureMessage);
+      return handleRdmaFailure(
+          futures, startNanos, successCount,
+          new IOException("RDMA partial failure: " + successCount + "/"
+              + futures.length + " blocks succeeded; first error: "
+              + firstFailureResult + " / " + firstFailureMessage));
+    }
+
+    final boolean isFullRead =
+        (rangeHeader == null || rangeHeader.isReadFull());
+    final Response.ResponseBuilder responseBuilder = isFullRead
+        ? Response.ok()
+        : Response.status(Response.Status.PARTIAL_CONTENT);
+
+    responseBuilder
+        .header("x-amz-rdma-reply", "OK")
+        .header(HttpHeaders.CONTENT_LENGTH, 0)
+        .header("x-amz-rdma-bytes-transferred", totalTransferred);
+
+    if (!isFullRead) {
+      String contentRangeVal = RANGE_HEADER_SUPPORTED_UNIT + " "
+          + rangeStart + "-" + (rangeEnd - 1) + "/" + objectSize;
+      responseBuilder.header(CONTENT_RANGE_HEADER, contentRangeVal);
+    }
+    responseBuilder.header(ACCEPT_RANGE_HEADER, RANGE_HEADER_SUPPORTED_UNIT);
+
+    addEntityTagHeader(responseBuilder, keyDetails);
+
+    MultivaluedMap<String, String> queryParams =
+        getContext().getUriInfo().getQueryParameters();
+    for (Map.Entry<String, String> entry : overrideQueryParameter.entrySet()) {
+      String headerValue = getHeaders().getHeaderString(entry.getKey());
+      String queryValue = queryParams.getFirst(entry.getValue());
+      if (queryValue != null) {
+        headerValue = queryValue;
+      }
+      if (headerValue != null) {
+        responseBuilder.header(entry.getKey(), headerValue);
+      }
+    }
+
+    addLastModifiedDate(responseBuilder, keyDetails);
+    addTagCountIfAny(responseBuilder, keyDetails);
+
+    if (!perBlockChecksums.isEmpty()) {
+      responseBuilder.header("x-amz-rdma-checksum-crc32c",
+          String.join(";", perBlockChecksums));
+    }
+
+    getMetrics().incGetKeySuccessLength(totalTransferred);
+    perf.appendSizeBytes(totalTransferred);
+    long opLatencyNs = getMetrics().updateGetKeySuccessStats(startNanos);
+    perf.appendOpLatencyNanos(opLatencyNs);
+    long metaLatencyNs = getMetrics().updateGetKeyMetadataStats(startNanos);
+    perf.appendMetaLatencyNanos(metaLatencyNs);
+
+    return responseBuilder.build();
+  }
+
+  /**
+   * Failure path invoked when an exception escaped the allOf/get loop.
+   * Re-inspects each future to derive the actual success count (a
+   * "done normally" future may have returned a non-SUCCESS
+   * ContainerCommandResponseProto). Delegates to the explicit-count
+   * overload for the safe/unsafe decision.
+   */
+  private Response handleRdmaFailure(
+      CompletableFuture<ContainerProtos.ContainerCommandResponseProto>[] futures,
+      long startNanos,
+      Exception cause) {
+    int successCount = 0;
+    for (CompletableFuture<ContainerProtos.ContainerCommandResponseProto> f : futures) {
+      if (!f.isDone() || f.isCompletedExceptionally()) {
+        continue;
+      }
+      try {
+        ContainerProtos.ContainerCommandResponseProto resp = f.getNow(null);
+        if (resp != null
+            && resp.getResult() == ContainerProtos.Result.SUCCESS) {
+          successCount++;
+        }
+      } catch (CompletionException ignored) {
+        // Race: future flipped between isDone and getNow. Treat as non-success.
+      }
+    }
+    return handleRdmaFailure(futures, startNanos, successCount, cause);
+  }
+
+  private Response handleRdmaFailure(
+      CompletableFuture<ContainerProtos.ContainerCommandResponseProto>[] futures,
+      long startNanos,
+      int successCount,
+      Exception cause) {
+    if (successCount == 0) {
+      LOG.warn("RDMA read failed before any successful block transfer. "
+          + "Falling back to TCP: {}", cause.getMessage());
+      return null;
+    }
+    LOG.warn("RDMA read partially succeeded ({} of {} blocks) before failure. "
+        + "Cannot safely fall back to TCP. Client must re-register buffer "
+        + "and retry. Error: {}", successCount, futures.length,
+        cause.getMessage());
+    getMetrics().updateGetKeyFailureStats(startNanos);
+    return Response.status(Response.Status.SERVICE_UNAVAILABLE)
+        .header("Retry-After", "1")
+        .header("x-amz-rdma-reply", "PARTIAL_FAILURE")
+        .header("x-amz-rdma-partial-blocks-completed", successCount)
+        .header(HttpHeaders.CONTENT_LENGTH, 0)
+        .build();
+  }
+
+  private static String bytesToHex(byte[] bytes) {
+    StringBuilder sb = new StringBuilder(bytes.length * 2);
+    for (byte b : bytes) {
+      sb.append(String.format("%02x", b & 0xff));
+    }
+    return sb.toString();
   }
 
   static void addLastModifiedDate(
