@@ -1,7 +1,7 @@
 # DN-Direct RDMA Implementation Specification for Apache Ozone
 ## Phase 1: Read Path — Dual-Mode: GPU Memory and Host-Memory RDMA Transfers
 
-**Version:** 12.2
+**Version:** 12.3
 **Date:** 2026-04-18
 **Status:** Draft — v11.0 audit fixes + post-review additions applied.
 v12.0: shared-helper plumbing for `RdmaReadBlock`, `OzoneContainer`→
@@ -35,6 +35,23 @@ text was contradicted by v12.0 additions); §4.1.2 wording for
 `perChunkChecksum` clarified so implementers know the field is always
 populated, with `type = NONE` and an empty CRC list for `CHECKSUM_NONE`
 blocks.
+v12.3: post-v12.2 audit fixes (`docs/gds-dn-direct-rdma-implementation-spec-audit-analysis.md`):
+§4.3 Maven coordinates corrected from `org.apache.ozone:hadoop-hdds-*`
+to the repo's actual `hdds-*` artifactId convention; every
+`HddsDispatcher.msgToAction(...)` reference renamed to the actual
+method name `getAuditAction(Type)` (the spec name did not exist in the
+codebase); §4.1.0 added documenting the required `import "hdds.proto"`
+in `DatanodeClientProtocol.proto` for the new
+`hadoop.hdds.PipelineID` fields in §4.1.2; §4.2 now assigns the explicit
+integer layout version `11` to `RDMA_PORT_IN_DATANODEDETAILS`
+(immediately after `STORAGE_SPACE_DISTRIBUTION(10, ...)`); historical
+v12.1 R7 row dist-path normalized from `share/hadoop/ozone/lib/native/`
+to `share/ozone/lib/native/`; §1.2.3 throughput unit fixed
+(`~25 GB/s on 200 Gbps; ~23.3 GiB/s` — the prior `25 GiB/s` was a
+units-conversion error); v10.0 historical CRC32C row corrected to name
+the actual `ChecksumByteBufferFactory` methods (`crc32Impl()` /
+`crc32CImpl()`) and to flag that v11.0 abandoned the hand-rolled CRC
+scheme entirely.
 **Target Branch:** `master` (Apache Ozone `2.2.0-SNAPSHOT`)
 **Scope:** Phase 1 — S3 GET (Read Path) Only — GPU and Host-Memory Client Modes
 
@@ -113,7 +130,7 @@ finding that was only partially accurate.
 | 1 | §1 Critical | `HddsUtils.isReadOnly(...)`, `.requireBlockToken(...)`, `.getBlockID(...)` unchanged — would mis-classify `RdmaReadBlock` as write-like, fail token verification, and return null block IDs | **VERIFIED** against `hadoop-hdds/common/.../HddsUtils.java` lines 336-369, 392-409, 430-500. Added new §4.13-pre "Shared Helper Updates" with explicit `case RdmaReadBlock` entries for all three methods. |
 | 2 | §2 Critical | Spec proposed adding `XceiverServerRdma` as constructor arg to `KeyValueHandler`, but `OzoneContainer` constructs handlers (lines 212-223) **before** any transport server (lines 237, 250). The RDMA engine cannot exist yet at the factory call site. | **VERIFIED** construction ordering + enumerated the 7 test files with direct `new KeyValueHandler(...)` callers. **v12.0 swaps to post-construction setter** (`setXceiverServerRdma`) — no constructor change, no test churn. §4.12 wires after RDMA engine init via a handler-map loop; §4.14.1 documents the setter. |
 | 3 | §3 Critical | `handleRdmaRead` called `allocateChannel()` + `bufferPool.acquire()` **before** the try/finally block. Any throw leaked the semaphore permit, and a throw from `acquire()` leaked the channel too. | **VERIFIED** against §4.11 spec lines 1918-1925 + 2044-2048. **Fixed:** acquisitions moved inside try, each guarded by null-check + per-resource try/catch on release. |
-| 4 | §4 High | `DNAction` had no RDMA action; `HddsDispatcher.msgToAction(...)` returned null for `RdmaReadBlock`; `XceiverClientGrpc.getRequestBlockID(...)` had no case for it | **VERIFIED** against `DNAction.java`, `HddsDispatcher.java:920`, `XceiverClientGrpc.java:477-489`. Added to §4.13-pre D and E with explicit code, plus the decision to use a new `RDMA_READ_BLOCK` audit action (not reuse `READ_BLOCK`). |
+| 4 | §4 High | `DNAction` had no RDMA action; `HddsDispatcher.getAuditAction(...)` returned null for `RdmaReadBlock`; `XceiverClientGrpc.getRequestBlockID(...)` had no case for it | **VERIFIED** against `DNAction.java`, `HddsDispatcher.java:920`, `XceiverClientGrpc.java:477-489`. Added to §4.13-pre D and E with explicit code, plus the decision to use a new `RDMA_READ_BLOCK` audit action (not reuse `READ_BLOCK`). |
 | 5 | §5 Medium | Crusoe Linux `apt` stanza referenced `dl.fury.io/crusoecloud/apt/` — not documented on Crusoe's current CLI guide | **PARTIALLY VERIFIED** — the `brew` macOS path is confirmed; the Linux apt URL could not be independently verified in the v11.0 audit timeframe. **v12.0 removes the unverified apt stanza** from §7.4.A and directs Linux users to the Crusoe CLI GitHub releases (documented path). |
 | 6 | §6 Low | Native JNI bridge at §4.6 uses `free(ptr)` at line 1285 but does NOT `#include <cstdlib>` in its header block (lines 1208-1215). Compilation was relying on transitive include. (The audit incorrectly claimed `<cstdlib>` was already included — that was in a *different* C++ snippet at §2.10 line 702.) | **VERIFIED** — includes in §4.6 did not list `<cstdlib>`. **Fixed:** added `#include <cstdlib>` to the JNI bridge header block with a comment referencing the `nativeFreeHostBuffer` use site. Partial-init cleanup for `RdmaBufferPool` (also called out in §6) is addressed in §4.10. |
 
@@ -140,7 +157,7 @@ first-time implementer.
 | R4 | No provisioning stanza for RoCEv2 clouds | Added §7.4.E (OCI — `oci compute instance launch` with `BM.GPU.H100.8`, RoCEv2 setup pointer to §7.2.RoCE) and §7.4.F (IBM Cloud — `ibmcloud is instance-create gx3d-160x1792x8h100`, UNCONFIRMED CLI shape documented as-is). |
 | R5 | `setup-gpu-env.sh` treated every Mellanox NIC the same and did not tune for RoCEv2 | Script now detects `link_layer: InfiniBand` vs `Ethernet` via `ibv_devinfo`, runs `cma_roce_mode -m 2` for RoCE, applies `mlnx_qos` PFC on priority 3, enables ECN, sets `CUFILE_ETH_SL=3`. |
 | R6 | `validate-env.sh` did not tell the operator whether they were on IB, RoCEv2, or SoftRoCE | Added a fabric classification block that reports `REAL InfiniBand`, `REAL RoCEv2`, or `SIMULATED SoftRoCE`, and asserts PFC+CUFILE_ETH_SL on the RoCE path. |
-| R7 | §4.7 documented `CMakeLists.txt` but did not show HOW Maven invokes CMake or how the built `.so` gets into the jar | Added §4.7.0 (Maven-antrun plugin invokes cmake during `compile`; maven-resources plugin copies `libcuobj_server_bridge.so` into `target/classes/native/`) and §4.7.2 (distribution-tarball packaging under `share/hadoop/ozone/lib/native/`). |
+| R7 | §4.7 documented `CMakeLists.txt` but did not show HOW Maven invokes CMake or how the built `.so` gets into the jar | Added §4.7.0 (Maven-antrun plugin invokes cmake during `compile`; maven-resources plugin copies `libcuobj_server_bridge.so` into `target/classes/native/`) and §4.7.2 (distribution-tarball packaging under `share/ozone/lib/native/`, matching the repo's `dist-layout-stitching` layout — the v12.1 draft of this row originally said `share/hadoop/ozone/lib/native/`, which is wrong; v12.2 V3 fixed the body of §4.7.2 and v12.3 normalizes this row). |
 
 ### Issues Fixed in v12.2 (Post-v12.1 Verification)
 
@@ -156,9 +173,25 @@ implementation-blocking inconsistencies introduced over v10.0–v12.1.
 | V5 | §7.11 and Appendix F listed `hdds.datanode.rdma.checksum.enabled` as a user-facing toggle, but no Java code read it. | Added `RDMA_CHECKSUM_ENABLED_KEY` constant + constructor field in `XceiverServerRdma`; gated the `Checksum.verifyChecksum(...)` call on the flag. |
 | V6 | `handleRdmaReadBlock` did not record `volume.getVolumeIOStats().recordReadOperation(...)` or `metrics.incContainerBytesStats(...)` even though `readBlockImpl` does — RDMA reads were invisible to every existing datanode read dashboard. | §4.14.3 wraps the call with the same `startTime` + stats pattern used by `readBlockImpl`, attributing RDMA bytes to `Type.RdmaReadBlock`. |
 | V7 | §4.2 added `Port.Name.RDMA` but did not update `DatanodeDetails.IO_PORTS`, so the proto serializer's `IO_PORTS` filter path hid the new port from clients. | §4.2 updates `IO_PORTS` to include `RDMA` and notes the layout-version annotation protects pre-RDMA clients. |
-| V8 | §4.13 still read "No changes required" while §4.13-pre D (added in v12.0) explicitly added `DNAction.RDMA_READ_BLOCK` + `msgToAction` case to `HddsDispatcher`. Internal self-contradiction. | §4.13 rewritten to "audit-action mapping only", cross-referencing §4.13-pre D. |
+| V8 | §4.13 still read "No changes required" while §4.13-pre D (added in v12.0) explicitly added `DNAction.RDMA_READ_BLOCK` + `getAuditAction` case to `HddsDispatcher`. Internal self-contradiction. | §4.13 rewritten to "audit-action mapping only", cross-referencing §4.13-pre D. |
 | V9 | Architecture diagram still showed `libgds_jni.so`; §5.2 still said "CMake + `cmake-maven-plugin`". Both contradicted the rest of the spec. | Diagram updated to `libcuobj_server_bridge.so`; §5.2 rewritten to match §4.7.0's `maven-antrun-plugin` + `maven-resources-plugin` story. |
 | V10 | §4.1.2 comment on `perChunkChecksum` said "empty only when block was written with `CHECKSUM_NONE`", but `handleRdmaRead` always appends a per-chunk entry regardless of type — the field is populated with `type = NONE` + empty CRC list for `CHECKSUM_NONE` blocks, not omitted. | §4.1.2 comment rewritten so clients branch on per-entry `type == NONE`, not on emptiness of the outer repeated field. |
+
+### Issues Fixed in v12.3 (Post-v12.2 Audit)
+
+The v12.2 audit (`docs/gds-dn-direct-rdma-implementation-spec-audit-analysis.md`)
+identified seven concrete blockers/inconsistencies. Each was independently
+verified against the current repo state before the fix was applied.
+
+| # | v12.2 gap | v12.3 fix |
+|---|---|---|
+| W1 | §4.3 dependency notes used `org.apache.ozone:hadoop-hdds-common`, `hadoop-hdds-rocks-native`, `hadoop-hdds-container-service-native`. The repo's actual artifactIds (`hadoop-hdds/common/pom.xml:23`, `rocks-native/pom.xml:22`, `container-service/pom.xml:22`) use the bare `hdds-*` prefix. A literal POM following the spec text would have failed Maven resolution. | §4.3 dependency block rewritten to `org.apache.ozone:hdds-common`, `hdds-rocks-native`, `hdds-container-service-native`, with an explicit note stating the new module's `<artifactId>` must follow the same `hdds-*` convention. |
+| W2 | Six places (table row #4, §4.13-pre D code block + body, §4.13 narrative, §4.13-pre F test list) referenced `HddsDispatcher.msgToAction(...)`. That method does not exist in the codebase; the actual switch is `private static DNAction getAuditAction(Type cmdType)` at `hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/impl/HddsDispatcher.java:896-924`. A literal patch would have searched for the wrong symbol. | All `msgToAction` occurrences renamed to `getAuditAction` (file-wide replace). The line-`920` insertion-point reference is preserved because line 920 in the actual file is the `case ReadBlock` case, which is still the correct location for the new `case RdmaReadBlock` entry. |
+| W3 | §4.1.2 added `optional hadoop.hdds.PipelineID pipelineID = 5;` and `... = 4;` fields to two new request messages, but the surrounding `DatanodeClientProtocol.proto` does not currently `import "hdds.proto"` (verified by grep on the proto file). The proto would not compile once the fields are added. | New §4.1.0 inserted before §4.1.1 documenting the required `import "hdds.proto";` and noting that `hdds.proto` is in the same `interface-client` module so no extra protoc include path is needed. |
+| W4 | §4.2 said "Add `RDMA_PORT_IN_DATANODEDETAILS` to `HDDSLayoutFeature` enum" but did not assign the integer layout version. `HDDSLayoutFeature.java`'s last entry is `STORAGE_SPACE_DISTRIBUTION(10, ...)`. Layout-feature integers participate in upgrade ordering and wire compatibility — leaving the value blank is not implementable. | §4.2 now specifies version `11`, with the exact enum line to append, and an explicit fallback note for the case where a concurrent PR has incremented the count further. |
+| W5 | The v12.1 R7 changelog row still referenced the old dist path `share/hadoop/ozone/lib/native/`. The corrected path used elsewhere in the spec (§4.7.2 v12.2 V3) is `share/ozone/lib/native/`, matching the actual `dist-layout-stitching` behavior. | R7 row body updated to `share/ozone/lib/native/` with a back-pointer to V3 explaining the v12.1→v12.2 fix history. |
+| W6 | §1.2.3 mode-comparison table said `Line rate (~25 GiB/s on 200Gbps)`. `200 Gbps / 8 = 25 GB/s`, not `25 GiB/s`; the binary equivalent is `~23.3 GiB/s`. | Both rows updated to `Line rate (~25 GB/s on 200 Gbps; ~23.3 GiB/s)`, keeping decimal-vs-binary explicit. |
+| W7 | The v10.0 historical row claimed the CRC32C compile blocker was fixed by calling `ChecksumByteBufferFactory.getCrc32CByteBufferInstance()`. That helper does not exist; the actual factory methods are `crc32Impl()` / `crc32CImpl()` (`ChecksumByteBufferFactory.java:73,77`). Misleading breadcrumb for anyone reconciling history with code. | Row rewritten to name the actual factory methods and to flag that v11.0 abandoned the hand-rolled CRC scheme entirely in favor of `Checksum.verifyChecksum(...)`, so no `XceiverServerRdma`-side CRC computation exists in the current spec. |
 
 ### Issues Fixed in v11.0 (Post-v10.0 Audit)
 
@@ -199,7 +232,7 @@ before publication; included here for traceability):
 | Item | v9.0 Status | v10.0 Fix |
 |---|---|---|
 | `var` keyword in `handleRdmaGet()` | **COMPILE BLOCKER** — Java 10+ feature, repo targets Java 8 | Fixed: replaced with explicit types (`CompletableFuture<...>`, `ContainerCommandResponseProto`, `ChecksumData`) |
-| `new java.util.zip.CRC32C()` in `XceiverServerRdma` | **COMPILE BLOCKER** — Java 9+ API, repo targets Java 8 | Fixed: use `ChecksumByteBufferFactory.getCrc32CByteBufferInstance()` (existing Java 8-compatible abstraction) |
+| `new java.util.zip.CRC32C()` in `XceiverServerRdma` | **COMPILE BLOCKER** — Java 9+ API, repo targets Java 8 | v10.0 attempted to call `ChecksumByteBufferFactory.getCrc32CByteBufferInstance()` — that helper does **not** exist; the actual factory methods are `crc32Impl()` / `crc32CImpl()` (`hadoop-hdds/common/.../ChecksumByteBufferFactory.java:73,77`). v11.0 abandoned the hand-rolled CRC scheme entirely in favor of `Checksum.verifyChecksum(ByteBuffer, ChecksumData, int)` against stored chunk metadata (see v11.0 row #1 below); current §4.11 has no `XceiverServerRdma` CRC computation. |
 | `NativeLibraryLoader.getInstance().loadLibrary(LIBRARY_NAME)` | **COMPILE BLOCKER** — only 2-arg overload `loadLibrary(String, List<String>)` exists | Fixed: pass `Collections.emptyList()` as second argument |
 | `context.getProperty(...)` in ObjectEndpoint | **COMPILE BLOCKER** — `context` is `ObjectRequestContext` with no `getProperty()` | Fixed: use `getContext().getProperty(...)` to access JAX-RS `ContainerRequestContext` |
 | `maxConnections` param on `RdmaTransferService.initialize()` | **UNMAPPED** — cuObjServer constructor has no `maxConnections` param | Fixed: removed from interface, impl, and config. cuObjServer tunables are in `cuObjRDMATunableParam` (Phase 2) |
@@ -497,7 +530,7 @@ posix_memalign(&ptr, 4096, size)  // or malloc + mlock
 | **RDMA NIC required** | YES (ConnectX-5+) | YES (ConnectX-5+) |
 | **DMA path** | NIC -> PCIe -> GPU BAR | NIC -> PCIe -> Host RAM |
 | **CPU copies** | Zero (NIC -> GPU direct) | Zero (NIC -> pinned RAM direct) |
-| **Expected throughput** | Line rate (~25 GiB/s on 200Gbps) | Line rate (~25 GiB/s on 200Gbps) |
+| **Expected throughput** | Line rate (~25 GB/s on 200 Gbps; ~23.3 GiB/s) | Line rate (~25 GB/s on 200 Gbps; ~23.3 GiB/s) |
 | **Server-side code** | Identical | Identical |
 | **S3 Gateway code** | Identical | Identical |
 | **RDMA token format** | Same (cuObjClient generates) | Same (cuObjClient generates) |
@@ -984,6 +1017,25 @@ string throughout. No conditional logic for GPU vs host memory exists or is need
 > **Verified:** Current highest Type enum value is `ReadBlock = 24`. Current highest request field is 28.
 > Current highest response field is 25. The field numbers below are safe.
 
+#### 4.1.0 Required Import
+
+`DatanodeClientProtocol.proto` does **not** currently import `hdds.proto`
+(`message PipelineID` is defined in
+`hadoop-hdds/interface-client/src/main/proto/hdds.proto` at line 107).
+The new `RdmaReadBlockRequestProto` and Phase-2 `RdmaWriteBlockRequestProto`
+both reference `hadoop.hdds.PipelineID`, so the proto will not compile
+without adding the import alongside any existing top-level imports:
+
+```protobuf
+// DatanodeClientProtocol.proto — add at top, with existing imports:
+import "hdds.proto";
+```
+
+If this is the first cross-module import in the file, also confirm the
+generated-sources path in `hadoop-hdds/interface-client/pom.xml` already
+exposes `hdds.proto` to the protoc include path (it does — `hdds.proto`
+lives in the same `interface-client` module).
+
 #### 4.1.1 New Type Enum Values
 
 ```protobuf
@@ -1094,7 +1146,24 @@ RDMA_NOT_AVAILABLE = 51;         // Permanent: RDMA not enabled or native lib no
 **File:** `hadoop-hdds/common/src/main/java/org/apache/hadoop/hdds/protocol/DatanodeDetails.java`
 
 Add `RDMA` to `Port.Name` enum with `@BelongsToHDDSLayoutVersion(RDMA_PORT_IN_DATANODEDETAILS)`.
-Add `RDMA_PORT_IN_DATANODEDETAILS` to `HDDSLayoutFeature` enum.
+
+Add `RDMA_PORT_IN_DATANODEDETAILS` to `HDDSLayoutFeature` enum
+(`hadoop-hdds/common/src/main/java/org/apache/hadoop/hdds/upgrade/HDDSLayoutFeature.java`).
+The current last entry is `STORAGE_SPACE_DISTRIBUTION(10, ...)`, so the new
+feature **must** be assigned the next sequential integer version `11`. Layout
+versions are explicit numeric entries that participate in wire compatibility
+and upgrade behavior — leaving the integer blank produces an undefined
+feature and breaks upgrade ordering.
+
+```java
+// HDDSLayoutFeature.java — append after STORAGE_SPACE_DISTRIBUTION(10, ...):
+RDMA_PORT_IN_DATANODEDETAILS(11, "Adding the RDMA port to DatanodeDetails.");
+```
+
+If a concurrent PR has bumped the layout version count between the time this
+spec was written and the time you implement it, increment to the next free
+integer instead of `11` and update the `@BelongsToHDDSLayoutVersion`
+annotation on `Port.Name.RDMA` to match.
 
 **v12.2 audit fix.** The current `DatanodeDetails.IO_PORTS` definition
 (`DatanodeDetails.java:1049-1050`) enumerates the ports that the proto
@@ -1146,9 +1215,11 @@ cycle. The required dependency set for each side is:
 
 `container-service-native/pom.xml` declares (no reverse edge):
 
-- `org.apache.ozone:hadoop-hdds-common` — for `ChecksumByteBufferFactory`,
-  `BlockID`, `ContainerProtos`, etc.
-- `org.apache.ozone:hadoop-hdds-rocks-native` — **required** because
+- `org.apache.ozone:hdds-common` — for `ChecksumByteBufferFactory`,
+  `BlockID`, `ContainerProtos`, etc. (Repository convention: HDDS Maven
+  artifactIds use the bare `hdds-*` prefix, not `hadoop-hdds-*`. Verify
+  against `hadoop-hdds/common/pom.xml` if in doubt.)
+- `org.apache.ozone:hdds-rocks-native` — **required** because
   `CuObjServerBridge` reuses `org.apache.hadoop.hdds.utils.NativeLibraryLoader`,
   which lives in the `rocks-native` module. The class is a generic JNI loader
   despite the module name; this reuse is deliberate to avoid duplicating the
@@ -1156,9 +1227,12 @@ cycle. The required dependency set for each side is:
 
 `hadoop-hdds/container-service/pom.xml` adds:
 
-- `org.apache.ozone:hadoop-hdds-container-service-native` — so
+- `org.apache.ozone:hdds-container-service-native` — so
   `XceiverServerRdma`, `KeyValueHandler.handleRdmaReadBlock()`, and
-  `OzoneContainer` can compile against the RDMA classes.
+  `OzoneContainer` can compile against the RDMA classes. The new module's
+  own `<artifactId>` in `hadoop-hdds/container-service-native/pom.xml`
+  must be `hdds-container-service-native`, matching the repo's `hdds-*`
+  artifactId convention.
 
 Reusing a RocksDB-adjacent loader for a cuObjServer bridge is pragmatic but
 architecturally notable — if at some point `NativeLibraryLoader` is moved into a
@@ -2685,7 +2759,7 @@ case RdmaReadBlock:                           // <<< ADD
 Without this, `BlockTokenVerifier.verify(...)` receives a null block ID and
 rejects every `RdmaReadBlock` when block tokens are enabled.
 
-#### D. `DNAction` + `HddsDispatcher.msgToAction(...)` — new audit action
+#### D. `DNAction` + `HddsDispatcher.getAuditAction(...)` — new audit action
 
 **Files:**
 - `hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/audit/DNAction.java`
@@ -2707,12 +2781,12 @@ public enum DNAction implements AuditAction {
 ```
 
 ```java
-// HddsDispatcher.msgToAction(...) switch:
+// HddsDispatcher.getAuditAction(...) switch:
 case ReadBlock        : return DNAction.READ_BLOCK;
 case RdmaReadBlock    : return DNAction.RDMA_READ_BLOCK;   // <<< ADD
 ```
 
-Without this, `msgToAction` returns `null` for `RdmaReadBlock`, and the log
+Without this, `getAuditAction` returns `null` for `RdmaReadBlock`, and the log
 line you see today for `ReadBlock` will be missing entirely for the RDMA path.
 
 #### E. `XceiverClientGrpc.getRequestBlockID(...)` — add `RdmaReadBlock`
@@ -2739,7 +2813,7 @@ sort path. Leaving it unpatched is a latent bug for any future caller.
 
 - `TestHddsUtils` (if it exists) should gain `isReadOnly` / `requireBlockToken`
   cases for `RdmaReadBlock`.
-- `TestHddsDispatcher` should assert `msgToAction(RdmaReadBlock) == RDMA_READ_BLOCK`.
+- `TestHddsDispatcher` should assert `getAuditAction(RdmaReadBlock) == RDMA_READ_BLOCK`.
 - `TestXceiverClientGrpc` (or equivalent) should assert `getRequestBlockID`
   extracts the block ID from an `RdmaReadBlock` request.
 
@@ -2749,7 +2823,7 @@ sort path. Leaving it unpatched is a latent bug for any future caller.
 > described adding a case to a `Type` switch inside
 > `HddsDispatcher.dispatchRequest()`. That switch does not exist — the v11.0
 > audit correctly removed that direction. But v12.0 then introduced
-> `DNAction.RDMA_READ_BLOCK` and a new `HddsDispatcher.msgToAction(...)`
+> `DNAction.RDMA_READ_BLOCK` and a new `HddsDispatcher.getAuditAction(...)`
 > case for it (see §4.13-pre D). Earlier versions of §4.13 kept the "no
 > changes required" wording, which contradicted §4.13-pre D. This section
 > is rewritten to state the actual required change explicitly.
@@ -2764,10 +2838,10 @@ sort path. Leaving it unpatched is a latent bug for any future caller.
 > `RdmaReadBlock` dispatch case. See §4.14.2.
 >
 > **What DOES change (and must not be skipped).**
-> `HddsDispatcher.msgToAction(...)` (around `HddsDispatcher.java:920`) maps
+> `HddsDispatcher.getAuditAction(...)` (around `HddsDispatcher.java:920`) maps
 > every `ContainerProtos.Type` to a `DNAction` for audit logging. It must
 > gain the `RdmaReadBlock → DNAction.RDMA_READ_BLOCK` case already specified
-> in §4.13-pre D. Without this, `msgToAction(RdmaReadBlock)` returns `null`
+> in §4.13-pre D. Without this, `getAuditAction(RdmaReadBlock)` returns `null`
 > and the audit log line you see today for `ReadBlock` is missing entirely
 > for the RDMA path — an observability regression, not a functional one.
 >
