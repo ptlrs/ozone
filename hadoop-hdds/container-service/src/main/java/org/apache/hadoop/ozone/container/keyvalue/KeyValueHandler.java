@@ -39,6 +39,7 @@ import static org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.Res
 import static org.apache.hadoop.hdds.scm.ScmConfigKeys.OZONE_SCM_CHUNK_SIZE_DEFAULT;
 import static org.apache.hadoop.hdds.scm.ScmConfigKeys.OZONE_SCM_CHUNK_SIZE_KEY;
 import static org.apache.hadoop.hdds.scm.protocolPB.ContainerCommandResponseBuilders.getBlockDataResponse;
+import static org.apache.hadoop.hdds.scm.protocolPB.ContainerCommandResponseBuilders.getContainerCommandResponse;
 import static org.apache.hadoop.hdds.scm.protocolPB.ContainerCommandResponseBuilders.getBlockLengthResponse;
 import static org.apache.hadoop.hdds.scm.protocolPB.ContainerCommandResponseBuilders.getEchoResponse;
 import static org.apache.hadoop.hdds.scm.protocolPB.ContainerCommandResponseBuilders.getFinalizeBlockResponse;
@@ -70,6 +71,8 @@ import com.google.common.util.concurrent.Striped;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FilenameFilter;
+import java.nio.channels.FileChannel;
+import java.nio.file.StandardOpenOption;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -152,6 +155,7 @@ import org.apache.hadoop.ozone.container.common.interfaces.ScanResult;
 import org.apache.hadoop.ozone.container.common.interfaces.VolumeChoosingPolicy;
 import org.apache.hadoop.ozone.container.common.report.IncrementalReportSender;
 import org.apache.hadoop.ozone.container.common.statemachine.DatanodeConfiguration;
+import org.apache.hadoop.ozone.container.common.transport.server.XceiverServerRdma;
 import org.apache.hadoop.ozone.container.common.transport.server.ratis.DispatcherContext;
 import org.apache.hadoop.ozone.container.common.utils.ContainerLogger;
 import org.apache.hadoop.ozone.container.common.utils.StorageVolumeUtil;
@@ -165,6 +169,8 @@ import org.apache.hadoop.ozone.container.keyvalue.impl.BlockManagerImpl;
 import org.apache.hadoop.ozone.container.keyvalue.impl.ChunkManagerFactory;
 import org.apache.hadoop.ozone.container.keyvalue.interfaces.BlockManager;
 import org.apache.hadoop.ozone.container.keyvalue.interfaces.ChunkManager;
+import org.apache.hadoop.ozone.container.rdma.RdmaBufferPoolExhaustedException;
+import org.apache.hadoop.ozone.container.rdma.RdmaTransferException;
 import org.apache.hadoop.ozone.container.upgrade.VersionedDatanodeFeatures;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.Time;
@@ -197,6 +203,12 @@ public class KeyValueHandler extends Handler {
   private static FaultInjector injector;
   private final Clock clock;
   private final BlockInputStreamFactoryImpl blockInputStreamFactory;
+
+  // Wired post-construction by OzoneContainer after the RDMA engine is built
+  // (spec §4.12). Nullable because OzoneContainer invokes the setter
+  // unconditionally and passes null when RDMA is disabled or failed to init;
+  // handleRdmaReadBlock returns RDMA_NOT_AVAILABLE in that case.
+  private volatile XceiverServerRdma xceiverServerRdma;
 
   public KeyValueHandler(ConfigurationSource config,
                          String datanodeId,
@@ -346,6 +358,8 @@ public class KeyValueHandler extends Handler {
       return handler.handleListBlock(request, kvContainer);
     case ReadChunk:
       return handler.handleReadChunk(request, kvContainer, dispatcherContext);
+    case RdmaReadBlock:
+      return handler.handleRdmaReadBlock(request, kvContainer);
     case DeleteChunk:
       return handler.handleDeleteChunk(request, kvContainer);
     case WriteChunk:
@@ -387,6 +401,21 @@ public class KeyValueHandler extends Handler {
   @VisibleForTesting
   public ContainerChecksumTreeManager getChecksumManager() {
     return this.checksumManager;
+  }
+
+  /**
+   * Called by OzoneContainer after the RDMA engine has been built. May be
+   * called with {@code null} when RDMA is disabled or failed to initialize;
+   * {@link #handleRdmaReadBlock} checks for null and returns
+   * RDMA_NOT_AVAILABLE.
+   */
+  public void setXceiverServerRdma(XceiverServerRdma xceiverServerRdma) {
+    this.xceiverServerRdma = xceiverServerRdma;
+  }
+
+  @VisibleForTesting
+  public XceiverServerRdma getXceiverServerRdma() {
+    return this.xceiverServerRdma;
   }
 
   ContainerCommandResponseProto handleStreamInit(
@@ -2107,6 +2136,106 @@ public class KeyValueHandler extends Handler {
       responseProto = ContainerUtils.logAndReturnError(LOG, sce, request);
     }
     return responseProto;
+  }
+
+  /**
+   * Handle an RdmaReadBlock request: verify block token + BCSID, load stored
+   * BlockData so XceiverServerRdma can verify each stored chunk's CRC before
+   * RDMA_WRITE, then delegate the transfer to the RDMA engine. Records the
+   * same volume-IO-stats and container-bytes-stats as the TCP read path
+   * (parity with {@code readBlock}) so existing dashboards pick up RDMA
+   * traffic.
+   */
+  ContainerCommandResponseProto handleRdmaReadBlock(
+      ContainerCommandRequestProto request, KeyValueContainer kvContainer) {
+
+    final ContainerProtos.RdmaReadBlockRequestProto rdmaRequest =
+        request.getRdmaReadBlock();
+
+    if (xceiverServerRdma == null || !xceiverServerRdma.isAvailable()) {
+      return getContainerCommandResponse(request,
+          ContainerProtos.Result.RDMA_NOT_AVAILABLE,
+          "RDMA not available on this datanode").build();
+    }
+
+    final BlockID blockID;
+    try {
+      blockID = BlockID.getFromProtobuf(rdmaRequest.getBlockID());
+      BlockUtils.verifyBCSId(kvContainer, blockID);
+      BlockUtils.verifyReplicaIdx(kvContainer, blockID);
+    } catch (StorageContainerException ex) {
+      return ContainerUtils.logAndReturnError(LOG, ex, request);
+    } catch (IOException ex) {
+      return ContainerUtils.logAndReturnError(LOG,
+          new StorageContainerException(ex.getMessage(), ex, IO_EXCEPTION),
+          request);
+    }
+
+    final KeyValueContainerData containerData = kvContainer.getContainerData();
+
+    try {
+      final BlockData blockData = getBlockManager().getBlock(kvContainer, blockID);
+      final List<ContainerProtos.ChunkInfo> storedChunks = blockData.getChunks();
+
+      // Phase 1 inherits the FILE_PER_BLOCK assumption from the streaming
+      // read path (readBlockImpl at line 2152 also hardcodes FILE_PER_BLOCK).
+      final File blockFile =
+          FILE_PER_BLOCK.getChunkFile(containerData, blockID, null);
+      try (FileChannel fileChannel = FileChannel.open(
+          blockFile.toPath(), StandardOpenOption.READ)) {
+
+        final long blockSize = fileChannel.size();
+
+        final long startTime = Time.monotonicNow();
+        ContainerProtos.RdmaReadBlockResponseProto rdmaResponse =
+            xceiverServerRdma.handleRdmaRead(
+                rdmaRequest, fileChannel, blockSize, storedChunks);
+        final long bytesRead = rdmaResponse.getBytesTransferred();
+
+        HddsVolume volume = containerData.getVolume();
+        if (volume != null) {
+          volume.getVolumeIOStats().recordReadOperation(startTime, bytesRead);
+        }
+        metrics.incContainerBytesStats(Type.RdmaReadBlock, bytesRead);
+
+        return getSuccessResponse(request)
+            .toBuilder()
+            .setRdmaReadBlock(rdmaResponse)
+            .build();
+      }
+    } catch (StorageContainerException ex) {
+      return ContainerUtils.logAndReturnError(LOG, ex, request);
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+      return ContainerUtils.logAndReturnError(LOG,
+          new StorageContainerException(
+              "RDMA read interrupted: " + ex.getMessage(), ex, IO_EXCEPTION),
+          request);
+    } catch (RdmaBufferPoolExhaustedException ex) {
+      // Specific catch MUST precede the generic IOException branch because
+      // RdmaBufferPoolExhaustedException extends IOException. Maps to a
+      // distinct result code so the gateway can translate to HTTP 503 +
+      // Retry-After instead of a generic IO_EXCEPTION.
+      return ContainerUtils.logAndReturnError(LOG,
+          new StorageContainerException(
+              "RDMA buffer pool exhausted: " + ex.getMessage(),
+              ex, ContainerProtos.Result.RDMA_BUFFER_POOL_EXHAUSTED),
+          request);
+    } catch (RdmaTransferException ex) {
+      LOG.error("RDMA transfer failed for block {}",
+          rdmaRequest.getBlockID(), ex);
+      return ContainerUtils.logAndReturnError(LOG,
+          new StorageContainerException(
+              "RDMA transfer failed: " + ex.getMessage(),
+              ex, ContainerProtos.Result.RDMA_TRANSFER_FAILED),
+          request);
+    } catch (IOException ex) {
+      LOG.error("RDMA read failed for block {}", rdmaRequest.getBlockID(), ex);
+      return ContainerUtils.logAndReturnError(LOG,
+          new StorageContainerException(
+              "RDMA read failed: " + ex.getMessage(), ex, IO_EXCEPTION),
+          request);
+    }
   }
 
   private long readBlockImpl(ContainerCommandRequestProto request, RandomAccessFileChannel blockFile,
