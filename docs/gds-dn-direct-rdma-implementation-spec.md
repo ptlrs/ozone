@@ -1,14 +1,22 @@
 # DN-Direct RDMA Implementation Specification for Apache Ozone
 ## Phase 1: Read Path — Dual-Mode: GPU Memory and Host-Memory RDMA Transfers
 
-**Version:** 12.0
+**Version:** 12.1
 **Date:** 2026-04-18
-**Status:** Draft — v11.0 audit fixes applied (shared-helper plumbing for
-`RdmaReadBlock`, `OzoneContainer`→`KeyValueHandler` wiring via post-construction
-setter, `XceiverServerRdma.handleRdmaRead` resource-leak fix, `RdmaBufferPool`
+**Status:** Draft — v11.0 audit fixes + post-review additions applied.
+v12.0: shared-helper plumbing for `RdmaReadBlock`, `OzoneContainer`→
+`KeyValueHandler` wiring via post-construction setter,
+`XceiverServerRdma.handleRdmaRead` resource-leak fix, `RdmaBufferPool`
 partial-init cleanup, JNI bridge missing `<cstdlib>`, cloud section rewritten
-to multi-provider — Crusoe / Vultr / Lambda / AWS — with validated launch
-commands).
+to multi-provider (Crusoe / Vultr / Lambda / AWS) with validated launch
+commands.
+v12.1: added §2.12 IB-vs-RoCEv2 transport section, §7.2.RoCE real-RoCEv2
+host/NIC setup walkthrough, §7.4.E Oracle Cloud (only VERIFIED RoCEv2
+self-service) and §7.4.F IBM Cloud (VERIFIED RoCEv2, UNCONFIRMED
+self-service), §4.7.0 Maven↔CMake integration via `maven-antrun-plugin` +
+`maven-resources-plugin`, §4.7.2 distribution packaging of
+`libcuobj_server_bridge.so`, and RoCEv2 detection/tuning in
+`setup-gpu-env.sh` + `validate-env.sh`.
 **Target Branch:** `master` (Apache Ozone `2.2.0-SNAPSHOT`)
 **Scope:** Phase 1 — S3 GET (Read Path) Only — GPU and Host-Memory Client Modes
 
@@ -98,6 +106,23 @@ finding that was only partially accurate.
 | §7.3 Cloud provider matrix | Crusoe-primary, with a fallback table that marked Lambda / Vultr / AWS as `LIKELY YES` or ruled out | **Multi-cloud first-class.** §7.3 now has a verified table covering Crusoe, Vultr, Lambda, and AWS, with explicit source links, per-SKU `$/GPU/hr`, and a §7.3.3 EFA-vs-IB compatibility caveat for AWS. |
 | §7.4 Step-by-step provisioning | Single flow for Crusoe | **Split into 7.4.A–D (per provider) and 7.4.Z (shared build/run).** All four provisioning stanzas produce `$VM_IP`, `$VM_USER`, `$CLOUD` env vars, then the provider-agnostic §7.4.Z runs build + tests. |
 | §7.10 Cookbook — "Cloud GPU VM" | Crusoe-only quick start | Replaced with four parallel stanzas (B.1 Crusoe / B.2 Vultr / B.3 Lambda / B.4 AWS), each 10-15 lines and runnable end-to-end. |
+
+### Issues Fixed in v12.1 (Post-v12.0 Review)
+
+Architecture-level review caught that v12.0 only covered InfiniBand and EFA
+clouds — no real RoCEv2 host, and no explicit RoCEv2 setup path. v12.1 also
+closes the Maven↔CMake gap that made §4.7 non-self-sufficient for a
+first-time implementer.
+
+| # | v12.0 gap | v12.1 fix |
+|---|---|---|
+| R1 | Arch diagrams labeled the data plane "InfiniBand / RoCEv2" but no dedicated section explained that Ozone is transport-agnostic and named the RoCE-specific host/NIC config | Added §2.12 "Transport: InfiniBand vs. RoCEv2 (both are first-class)" with NVIDIA-doc citations confirming cuObject/GDS supports both transports and a fabric-difference matrix. |
+| R2 | SoftRoCE was the only RoCE-adjacent option anywhere in §7, leaving operators with real RoCEv2 hardware without a setup recipe | Added §7.2.RoCE with the full host-side setup: NIC mode (LINK_TYPE_P1=2), `cma_roce_mode` check, `mlnx_qos` PFC on priority 3, ECN enable, `CUFILE_ETH_SL=3`, and a perftest smoke test. |
+| R3 | No RoCEv2 cloud was recommended in §7.3 — all four providers were IB or EFA | Added verified rows for Oracle Cloud (`BM.GPU.H100.8` / `BM.GPU.A100-v2.8` / `BM.GPU4.8`) and IBM Cloud (`gx3d-160x1792x8h100`) to the §7.3.1 matrix. **OCI is the only verified credit-card-accessible RoCEv2 path**; IBM's self-service status is UNCONFIRMED. |
+| R4 | No provisioning stanza for RoCEv2 clouds | Added §7.4.E (OCI — `oci compute instance launch` with `BM.GPU.H100.8`, RoCEv2 setup pointer to §7.2.RoCE) and §7.4.F (IBM Cloud — `ibmcloud is instance-create gx3d-160x1792x8h100`, UNCONFIRMED CLI shape documented as-is). |
+| R5 | `setup-gpu-env.sh` treated every Mellanox NIC the same and did not tune for RoCEv2 | Script now detects `link_layer: InfiniBand` vs `Ethernet` via `ibv_devinfo`, runs `cma_roce_mode -m 2` for RoCE, applies `mlnx_qos` PFC on priority 3, enables ECN, sets `CUFILE_ETH_SL=3`. |
+| R6 | `validate-env.sh` did not tell the operator whether they were on IB, RoCEv2, or SoftRoCE | Added a fabric classification block that reports `REAL InfiniBand`, `REAL RoCEv2`, or `SIMULATED SoftRoCE`, and asserts PFC+CUFILE_ETH_SL on the RoCE path. |
+| R7 | §4.7 documented `CMakeLists.txt` but did not show HOW Maven invokes CMake or how the built `.so` gets into the jar | Added §4.7.0 (Maven-antrun plugin invokes cmake during `compile`; maven-resources plugin copies `libcuobj_server_bridge.so` into `target/classes/native/`) and §4.7.2 (distribution-tarball packaging under `share/hadoop/ozone/lib/native/`). |
 
 ### Issues Fixed in v11.0 (Post-v10.0 Audit)
 
@@ -776,6 +801,64 @@ int main() {
 
 Deferred to Phase 2 for both modes.
 
+### 2.12 Transport: InfiniBand vs. RoCEv2 (both are first-class)
+
+> **Added in v12.0 after audit.** The spec originally treated "InfiniBand / RoCEv2"
+> as interchangeable in arch diagrams but did not document the RoCEv2 setup path
+> or name a real-RoCE cloud test cluster. Customers who show up with a ConnectX
+> NIC in Ethernet mode (the RoCE path) need explicit guidance; this section
+> closes that gap.
+
+Ozone's RDMA path runs over either fabric — the cuObjServer/cuObjClient pair is
+transport-agnostic at the application layer, and NVIDIA's own docs confirm GDS
+(libcufile) supports both:
+
+> *"When using Mellanox ConnectX-5 or later, the HCAs must be configured in
+> **InfiniBand or RoCE v2 mode**. For GDS support, MLNX_OFED 5.4 or later,
+> or DOCA 2.9.0 or later is required."*
+> — [NVIDIA GPUDirect Storage Installation and Troubleshooting Guide](https://docs.nvidia.com/gpudirect-storage/troubleshooting-guide/index.html)
+
+The cuObject subsystem is explicitly documented as working "over InfiniBand and
+RoCEv2" ([NVIDIA cuObject docs](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html)).
+No Ozone code branches on the fabric; the distinction lives entirely in how
+the host OS / NIC firmware is configured.
+
+#### 2.12.1 Which fabric does a given customer have?
+
+| Customer hardware | Ozone behaviour | Fabric config responsibility |
+|---|---|---|
+| ConnectX-5/6/7 HCA in **InfiniBand mode** (`LINK_TYPE_P1=1`) | Works out of the box once MLNX_OFED is installed. | Site manages IB subnet manager (e.g. `opensm`). |
+| ConnectX-5/6/7 NIC in **Ethernet mode** (`LINK_TYPE_P1=2`) with RoCEv2 (`RoCEv2`, not v1) | Works, but the switched Ethernet fabric must be **lossless** (PFC + ECN + DSCP). See §7.2.RoCE. | Site network team must configure switches + NICs for lossless RoCEv2. |
+| Non-Mellanox NIC | Unsupported for Phase 1. cuObjServer depends on ConnectX primitives (DC transport, on-demand paging). | — |
+| No RDMA NIC at all | Fall back to TCP path (existing Ozone behaviour). RDMA features report `RDMA_NOT_AVAILABLE`. | — |
+
+#### 2.12.2 Implementation implication: zero code branches
+
+- The datanode code never decides "IB vs RoCE" — it calls the cuObjServer API,
+  which picks the right transport based on the kernel's RDMA device table.
+- Config keys are fabric-agnostic: `hdds.datanode.rdma.enabled`, `hdds.datanode.rdma.port`,
+  `hdds.datanode.rdma.buffer.size` (see §7.11).
+- Validation (`validate-env.sh`, §7.8) detects IB vs RoCEv2 and reports both as
+  `REAL` — only SoftRoCE (`rdma_rxe`) counts as simulated.
+
+#### 2.12.3 What changes for operators running RoCEv2
+
+| Item | InfiniBand | RoCEv2 |
+|---|---|---|
+| NIC firmware mode | `LINK_TYPE_P1=1` (IB) | `LINK_TYPE_P1=2` (Ethernet) |
+| Switch requirement | IB switch with subnet manager | Lossless Ethernet (PFC + ECN) |
+| Priority Flow Control | N/A (IB is loss-less by design) | Required — `mlnx_qos --pfc 0,0,0,1,0,0,0,0` on priority 3 |
+| ECN marking | N/A | Required — `echo 1 > /sys/class/net/<iface>/ecn/roce_np/enable/3` |
+| DSCP trust | N/A | Required — `mlnx_qos -i <netdev> --trust dscp` |
+| QOS env var for cuFile | N/A | Set `CUFILE_ETH_SL=3` (or matching priority) to pin QOS |
+| Congestion-control algorithm | IB DCQCN (built-in) | RoCEv2 DCQCN — enable via `mlnx_qos` / `ethtool` |
+| Driver minimum | MLNX_OFED 5.4+ or DOCA 2.9+ | Same |
+| NVIDIA `cma_roce_mode` check | N/A | `cma_roce_mode -d mlx5_0 -p 1 -m 2` — must return `2` (RoCEv2) |
+
+The commands above are the short form; see §7.2.RoCE for a walkthrough and a
+validate-env.sh branch that enforces each. None of them live in Ozone — they
+are host/NIC/switch configuration, applied once per datanode.
+
 ---
 
 ## 3. Security and Encryption
@@ -1405,7 +1488,98 @@ Java_org_apache_hadoop_ozone_container_rdma_CuObjServerBridge_nativeHandleGetObj
 }
 ```
 
-### 4.7 CMakeLists.txt for Native Build
+### 4.7.0 Maven ↔ CMake integration (v12.0)
+
+> Added in v12.0 after audit. Prior drafts referenced `mvn install -Pnative
+> -pl hadoop-hdds/container-service-native` without showing what the `native`
+> profile actually does. This section closes that loop: the profile invokes
+> `cmake` via `maven-antrun-plugin`, and the resulting `.so` is placed on the
+> classpath via `build-helper-maven-plugin` so `NativeLibraryLoader` can
+> extract it at runtime — identical to how `rocks-native` ships its JNI
+> library.
+
+Add the following to `hadoop-hdds/container-service-native/pom.xml`:
+
+```xml
+<profiles>
+  <profile>
+    <id>native</id>
+    <activation>
+      <activeByDefault>false</activeByDefault>
+    </activation>
+    <build>
+      <plugins>
+        <!-- 1. Run cmake + make to produce libcuobj_server_bridge.so. -->
+        <plugin>
+          <artifactId>maven-antrun-plugin</artifactId>
+          <executions>
+            <execution>
+              <id>build-native</id>
+              <phase>compile</phase>
+              <goals><goal>run</goal></goals>
+              <configuration>
+                <target>
+                  <mkdir dir="${project.build.directory}/native"/>
+                  <exec executable="cmake" dir="${project.build.directory}/native" failonerror="true">
+                    <arg value="${basedir}/src/main/native"/>
+                    <arg value="-DCUOBJSERVER_HOME=${env.CUOBJSERVER_HOME}"/>
+                    <arg value="-DCMAKE_INSTALL_PREFIX=${project.build.directory}/native/install"/>
+                  </exec>
+                  <exec executable="make" dir="${project.build.directory}/native"
+                        failonerror="true">
+                    <arg value="-j"/>
+                  </exec>
+                  <exec executable="make" dir="${project.build.directory}/native"
+                        failonerror="true">
+                    <arg value="install"/>
+                  </exec>
+                </target>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+
+        <!-- 2. Pick up the built libcuobj_server_bridge.so into the jar's
+             native/ directory so NativeLibraryLoader can extract it at
+             runtime. This mirrors how rocks-native ships its .so. -->
+        <plugin>
+          <artifactId>maven-resources-plugin</artifactId>
+          <executions>
+            <execution>
+              <id>copy-native-lib</id>
+              <phase>process-classes</phase>
+              <goals><goal>copy-resources</goal></goals>
+              <configuration>
+                <outputDirectory>${project.build.outputDirectory}/native</outputDirectory>
+                <resources>
+                  <resource>
+                    <directory>${project.build.directory}/native/install/lib</directory>
+                    <includes>
+                      <include>libcuobj_server_bridge.so</include>
+                    </includes>
+                  </resource>
+                </resources>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+      </plugins>
+    </build>
+  </profile>
+</profiles>
+```
+
+**Runtime load path.** `NativeLibraryLoader.loadLibrary("cuobj_server_bridge", ...)`
+in `CuObjServerBridge` (§4.5) will:
+1. Look in `java.library.path` first.
+2. Fall back to extracting `native/libcuobj_server_bridge.so` from the
+   `container-service-native` jar to a temp directory and loading from there.
+
+The datanode start script (`bin/ozone`) already sets `java.library.path` to
+include `share/hadoop/ozone/lib/native/`. Distribution packaging must copy
+`libcuobj_server_bridge.so` there — see §4.7.2.
+
+### 4.7.1 CMakeLists.txt for Native Build
 
 **File:** `hadoop-hdds/container-service-native/src/main/native/CMakeLists.txt`
 
@@ -1435,6 +1609,37 @@ target_link_libraries(cuobj_server_bridge cuobjserver)
 install(TARGETS cuobj_server_bridge
         LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
 ```
+
+### 4.7.2 Distribution packaging
+
+The built `libcuobj_server_bridge.so` must ship in the Ozone distribution
+tarball under `share/hadoop/ozone/lib/native/` so the datanode JVM finds it
+via `java.library.path`. In addition to the jar-embedded copy (used by
+`NativeLibraryLoader`'s fallback), add the library to
+`hadoop-ozone/dist/src/main/assemblies/ozone-src.xml` and the runtime
+assembly descriptor:
+
+```xml
+<!-- hadoop-ozone/dist/src/main/assemblies/ozone.xml -->
+<fileSet>
+  <directory>${project.basedir}/../../hadoop-hdds/container-service-native/target/native/install/lib</directory>
+  <outputDirectory>share/hadoop/ozone/lib/native</outputDirectory>
+  <includes>
+    <include>libcuobj_server_bridge.so</include>
+  </includes>
+  <fileMode>0755</fileMode>
+</fileSet>
+```
+
+The native profile must also be activated when building the dist tarball:
+`mvn package -Pnative,dist -pl hadoop-ozone/dist -am -DskipTests`.
+
+**Non-native builds.** When `-Pnative` is NOT set, the jar contains no `.so`,
+`NativeLibraryLoader.loadLibrary(...)` returns `false`, and
+`CuObjRdmaTransferService.isAvailable()` returns `false`. The datanode
+reports `RDMA_NOT_AVAILABLE` and all RDMA requests fall back to the TCP
+path — the existing Ozone read path. This is the default for CI and test
+builds; only Phase-1 RDMA-enabled clusters need the `-Pnative` build.
 
 ### 4.8 `CuObjRdmaTransferService.java`
 
@@ -3200,15 +3405,112 @@ API in software — the kernel emulates RDMA operations using regular TCP/IP. **
 - **SIMULATION CALLOUT:** SoftRoCE may not support DC (Dynamically Connected) transport, which
   cuObjServer uses. If DC is not supported, cuObjServer initialization will fail on SoftRoCE.
   Use `MockRdmaTransferService` for development in this case.
+- **SoftRoCE is NOT a substitute for real RoCEv2.** It is a kernel-space software
+  emulator of the ibverbs API. Lossless Ethernet tuning (PFC/ECN/DSCP) does not
+  apply. Treat it as a code-path validator only. For production RoCEv2 guidance,
+  see §7.2.RoCE.
+
+### 7.2.RoCE Real RoCEv2: Host and NIC Configuration
+
+> Added in v12.0. Most cloud providers with RDMA expose InfiniBand; OCI and IBM
+> Cloud are the two verified exceptions that expose RoCEv2 on H100 bare metal.
+> Operators running Ozone datanodes on their own racks will also often be on
+> RoCEv2 (ConnectX NIC in Ethernet mode). This section is the operator-side
+> setup walkthrough. None of it is Ozone code; all of it is host/NIC/switch
+> configuration that the datanode JVM inherits.
+
+**Prerequisite checks.** The NIC must be in Ethernet mode and cuFile/cuObjServer
+must see it as a RoCEv2 device, not v1.
+
+```bash
+# Identify the PCI address of the NIC
+lspci | grep -i mellanox
+# e.g., 41:00.0 Ethernet controller: Mellanox MT2910 Family [ConnectX-7]
+
+# Confirm the port is in Ethernet mode (LINK_TYPE_P1=2).
+# 1 = InfiniBand, 2 = Ethernet. If this says 1, the NIC is IB — skip the rest
+# of this section; you are on the IB path.
+sudo mlxconfig -d 41:00.0 q | grep LINK_TYPE_P1
+
+# Switch to Ethernet mode if needed (requires driver reload or reboot):
+# sudo mlxconfig -d 41:00.0 s LINK_TYPE_P1=2
+
+# Confirm RoCEv2 (not v1) is the selected mode on the RDMA device
+sudo cma_roce_mode -d mlx5_0 -p 1
+# Expected output: RoCE v2
+# If it says RoCE v1, set v2 explicitly:
+# sudo cma_roce_mode -d mlx5_0 -p 1 -m 2
+```
+
+**Lossless Ethernet tuning.** RoCEv2 does not tolerate packet drops — the
+switched fabric must use Priority Flow Control on a single class. Standard
+recipe is PFC on priority 3, with ECN marking also enabled on 3:
+
+```bash
+# Replace <iface> with the netdev for mlx5_0 (e.g., enp65s0f0).
+# PFC on priority 3 only. Priority vector maps to [0..7] → 0 means disabled,
+# 1 means enabled.
+sudo mlnx_qos -i <iface> --trust dscp --pfc 0,0,0,1,0,0,0,0
+
+# Enable ECN on priority 3 for RoCEv2 notification point.
+echo 1 | sudo tee /sys/class/net/<iface>/ecn/roce_np/enable/3
+echo 1 | sudo tee /sys/class/net/<iface>/ecn/roce_rp/enable/3
+
+# Verify:
+mlnx_qos -i <iface> | grep -A2 'PFC\|dscp'
+```
+
+**DSCP / priority on cuFile side.** NVIDIA's cuFile respects the `CUFILE_ETH_SL`
+environment variable for the service level used on RoCEv2 QPs:
+
+```bash
+export CUFILE_ETH_SL=3     # must match the priority you enabled in mlnx_qos
+```
+
+This is referenced in the
+[GDS Installation and Troubleshooting Guide](https://docs.nvidia.com/gpudirect-storage/troubleshooting-guide/index.html).
+Set it system-wide (`/etc/environment`) or in the datanode's systemd unit
+`Environment=` line. Ozone's `setup-gpu-env.sh` (§7.6) sets this automatically
+when it detects a RoCEv2-mode NIC.
+
+**Switch-side requirements (out of scope for Ozone but listed for completeness).**
+The top-of-rack switch must be configured to:
+- Honor DSCP trust on the priority 3 queue.
+- Advertise PFC on priority 3 in LLDP.
+- Enable ECN marking (AQM) on the same priority.
+
+If running between hosts through multiple switches, every hop must enforce the
+same PFC/ECN policy — a single lossy hop is enough to collapse RoCEv2
+throughput or freeze QPs via repeated RNR retransmits.
+
+**Smoke test — real RoCEv2 perftest loopback:**
+
+```bash
+# Terminal 1 (server):
+ib_write_bw -d mlx5_0 -p 18515 -F
+# Terminal 2 (client, same host for loopback, or a peer host):
+ib_write_bw -d mlx5_0 -p 18515 -F <server-ip>
+# Expected ~90% of line rate for a 400 Gb/s ConnectX-7 in RoCEv2 mode
+# (~44 GB/s). A sharp drop below that usually indicates PFC or ECN
+# misconfiguration on the switch.
+```
+
+**References:**
+- [NVIDIA GDS Installation and Troubleshooting Guide — RoCEv2 requirements](https://docs.nvidia.com/gpudirect-storage/troubleshooting-guide/index.html)
+- [NVIDIA cuObject — supports IB and RoCEv2](https://docs.nvidia.com/gpudirect-storage/cuobject/index.html)
+- [Oracle + NVIDIA: RoCEv2 on OCI ConnectX-7](https://developer.nvidia.com/blog/oci-accelerates-hpc-ai-and-database-using-roce-and-nvidia-connectx/)
+- [Red Hat: configuring IB/RoCE interfaces on OCI bare metal](https://access.redhat.com/solutions/7025304)
 
 ### 7.3 Cloud Provider for GPU+RDMA Testing
 
 > **v12.0 rewrite.** This section is now **provider-neutral**. The previous
 > Crusoe-only guidance was fine but limited: it assumed every reader could
 > self-serve into Crusoe and that region `us-east1-a` IB stock would be
-> available. This version covers four providers — Crusoe, Vultr, Lambda,
-> AWS — each with independently verified instance SKUs and launch commands.
-> Use §7.4 for provider-specific step-by-steps; this section is the
+> available. This version covers six providers — Crusoe, Vultr, Lambda, AWS,
+> Oracle Cloud (OCI), and IBM Cloud — each with independently verified
+> instance SKUs and launch commands. The last two are the **only verified
+> RoCEv2 options** (not IB, not EFA); every other provider below uses IB or
+> EFA. Use §7.4 for provider-specific step-by-steps; this section is the
 > decision table.
 
 > **Selection criteria used below:**
@@ -3231,6 +3533,9 @@ API in software — the kernel emulates RDMA operations using regular TCP/IP. **
 | **AWS** | `p4d.24xlarge` | EFA (libfabric + GPUDirect RDMA) — **NOT** InfiniBand | 8x A100 40GB | ~$4.10 | Yes (with cluster placement group) | VERIFIED | `cuObjServer` uses libcufile over EFA; requires EFA plugin. Not compatible if cuObjServer calls `ibv_*` directly — see §7.3.3. |
 | **AWS** | `p5.48xlarge` | EFAv2 (3200 Gb/s, GPUDirect RDMA) | 8x H100 80GB | ~$12.25 | Supply-constrained on-demand; use Capacity Blocks | VERIFIED product page, EFA+GDS blog post. On-demand price is ~$98/hr per node; Capacity Blocks as low as ~$55/hr. | Same EFA-vs-IB caveat as p4d. |
 | **AWS** | `p5en.48xlarge` | EFAv3 (3200 Gb/s) | 8x H200 | custom quote | Capacity Blocks | VERIFIED (AWS blog Dec 2024). | Newest; limited regions. |
+| **Oracle (OCI)** | `BM.GPU.H100.8` | **RoCEv2** (ConnectX-7, 3200 Gb/s) | 8x H100 80GB | ~$10.00 | **Quota-gated**, often requires limit-increase ticket; free-trial PAYG signup exists | Fabric: VERIFIED (Oracle+NVIDIA joint blog). Self-service: PARTIAL — credit-card signup yes, but H100 shapes typically need a quota increase. | Stock image does NOT preinstall `nvidia-fs`; install MLNX_OFED + cuFile. Validated GDS+RoCEv2 reference architecture exists with IBM Storage Scale. |
+| **Oracle (OCI)** | `BM.GPU.A100-v2.8` / `BM.GPU4.8` | RoCEv2 (ConnectX, 1600 Gb/s) | 8x A100 80GB / 8x A100 40GB | ~$4.00 / ~$3.05 | Quota-gated | VERIFIED RoCEv2. | Same install steps. |
+| **IBM Cloud** | `gx3d-160x1792x8h100` | RoCEv2 (ConnectX-7, 3200 Gb/s aggregate) | 8x H100 SXM5 | UNCONFIRMED (not publicly posted) | Requires capacity request / quota approval | Fabric: VERIFIED (IBM Cluster Network for NVIDIA announcement). Hourly price: UNCONFIRMED. Self-service: UNCONFIRMED. | Standard IBM BM image, `nvidia-fs` not preinstalled. Tuned for MLNX_OFED. |
 
 Prices are **listed-on-the-vendor's-website** dollars, not negotiated or committed. Treat them as
 order-of-magnitude; verify at launch time.
@@ -3250,6 +3555,12 @@ order-of-magnitude; verify at launch time.
   16-GPU floor. Only pick this when the 2-week minimum is acceptable.
 - **Single-node only, no multi-host RDMA:** Lambda on-demand `gpu_8x_h100_sxm5`. Fine for
   loopback RDMA tests (`rdma_rxe` + pinned-memory path) but does not exercise cross-host.
+- **RoCEv2 (NOT InfiniBand) on real hardware — the only verified option is OCI.**
+  Use `BM.GPU.H100.8` for 8x H100 with 3200 Gb/s RoCEv2, or `BM.GPU4.8` for a
+  cheaper A100 RoCEv2 box. Expect to file a limit-increase ticket for H100
+  shapes; A100 shapes are typically approvable within a day. IBM Cloud's
+  `gx3d-160x1792x8h100` is the other verified RoCEv2 option but has
+  UNCONFIRMED pricing and self-service paths.
 
 #### 7.3.3 AWS EFA vs. InfiniBand — Compatibility Caveat for `cuObjServer`
 
@@ -3596,6 +3907,149 @@ aws ec2 delete-placement-group  --group-name gds-test-cpg
 
 ---
 
+#### 7.4.E — Oracle Cloud (OCI) — real RoCEv2, bare metal
+
+> Use this path when you specifically need to exercise the RoCEv2 transport
+> rather than InfiniBand. OCI is the only tier-1 cloud with public
+> documentation confirming RoCEv2 on ConnectX-7 for H100 SXM bare metal.
+
+**E.1 Create an OCI tenancy + API user:**
+1. Sign up at [cloud.oracle.com](https://cloud.oracle.com) — credit card required.
+2. In the console, Identity → Users → create a user for API access, generate an
+   API signing key, note the tenancy OCID, user OCID, and region.
+3. **File a quota limit increase for GPU shapes** (Governance & Administration →
+   Limits, Quotas and Usage). H100 shapes (`BM.GPU.H100.8`) are typically 0 by
+   default — ask for ≥1. A100 shapes (`BM.GPU.A100-v2.8`, `BM.GPU4.8`) are
+   approved faster. Expect 1-5 business days.
+
+**E.2 Install the OCI CLI:**
+
+```bash
+# macOS:
+brew install oci-cli
+# Linux (any distro):
+bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)"
+
+oci setup config
+# Feeds tenancy OCID, user OCID, region, then generates/uploads API key.
+```
+
+**E.3 Provision a RoCEv2 H100 bare-metal instance (after quota is approved):**
+
+```bash
+# Find the Oracle-Linux-8 image for GPU bare metal (Ubuntu 22.04 is also
+# supported — filter by --operating-system "Canonical Ubuntu" for Ubuntu):
+oci compute image list --compartment-id <tenancy-or-compartment-OCID> \
+  --operating-system "Oracle Linux" --operating-system-version 8 \
+  --shape BM.GPU.H100.8 --query 'data[0].id' --raw-output
+export IMAGE_ID=<from-above>
+
+# Launch the shape. subnet-id / availability-domain must exist beforehand —
+# create via the console VCN wizard if you don't have them.
+oci compute instance launch \
+  --availability-domain <AD-identifier>  \
+  --compartment-id <compartment-OCID>    \
+  --shape BM.GPU.H100.8                  \
+  --image-id $IMAGE_ID                   \
+  --subnet-id <subnet-OCID>              \
+  --display-name ozone-rdma-dev-roce     \
+  --ssh-authorized-keys-file ~/.ssh/id_rsa.pub \
+  --assign-public-ip true
+
+# The instance takes 15-30 minutes to provision (bare metal imaging).
+# Grab the public IP when state=RUNNING:
+export VM_IP=$(oci compute instance list-vnics --instance-id <instance-OCID> \
+  --query 'data[0]."public-ip"' --raw-output)
+export VM_USER=opc       # Oracle Linux; use ubuntu for Canonical images
+export CLOUD=oci
+```
+
+> **Cost:** ~$10/GPU/hr list ⇒ ~$80/hr per BM.GPU.H100.8. A100 v2 bare metal
+> lands at ~$4/GPU/hr. Billing starts at launch; prorated to the second.
+> Pricing page: [oracle.com/cloud/compute/pricing](https://www.oracle.com/cloud/compute/pricing/).
+
+**E.4 RoCEv2 setup AFTER SSH in — this is where §7.2.RoCE applies:**
+
+```bash
+ssh $VM_USER@$VM_IP
+# Verify the NIC is in Ethernet mode (RoCE expected):
+sudo mlxconfig -d <pci-addr> q | grep LINK_TYPE_P1    # expect 2
+# Verify RoCEv2 is selected:
+sudo cma_roce_mode -d mlx5_0 -p 1                      # expect "RoCE v2"
+# Apply lossless Ethernet tuning from §7.2.RoCE:
+sudo mlnx_qos -i <netdev> --trust dscp --pfc 0,0,0,1,0,0,0,0
+echo 1 | sudo tee /sys/class/net/<netdev>/ecn/roce_np/enable/3
+echo 1 | sudo tee /sys/class/net/<netdev>/ecn/roce_rp/enable/3
+export CUFILE_ETH_SL=3
+# Install MLNX_OFED ≥5.4 (or DOCA ≥2.9) and nvidia-fs from the NVIDIA repos.
+# See the NVIDIA GDS install guide linked in §7.2.RoCE.
+```
+
+**E.5 Validate the fabric is real RoCEv2 and perftest is close to line rate:**
+
+```bash
+ibv_devinfo | head -20     # expect transport: Ethernet, hw_ver ConnectX-7
+ib_write_bw -d mlx5_0 -p 18515 -F &
+ib_write_bw -d mlx5_0 -p 18515 -F localhost
+# ConnectX-7 400 Gb/s RoCEv2: expect ~44 GB/s.
+```
+
+**E.6 Tear down:**
+
+```bash
+oci compute instance terminate --instance-id <instance-OCID> --force
+```
+
+---
+
+#### 7.4.F — IBM Cloud — real RoCEv2 (UNCONFIRMED self-service path)
+
+> IBM Cloud's H100 bare-metal SKU (`gx3d-160x1792x8h100`) has the same fabric
+> profile as OCI's H100 shape (RoCEv2 on ConnectX-7 at 3.2 Tbps aggregate), but
+> public pricing and self-service availability are **not documented on a
+> consumer-visible page** as of 2026-04. Path is included for completeness; if
+> you need a verified credit-card-only RoCE option, prefer OCI (§7.4.E).
+
+**F.1 Install `ibmcloud` CLI:**
+
+```bash
+curl -fsSL https://clis.cloud.ibm.com/install/osx | sh        # macOS
+# Linux:
+# curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
+ibmcloud login --sso
+ibmcloud target -r us-south   # or another GPU-bearing region
+```
+
+**F.2 Request capacity for the gx3d H100 SKU.**
+The SKU requires a Cluster Network reservation and a capacity request through
+IBM. Open a support case referencing `gx3d-160x1792x8h100` and the Cluster
+Network for NVIDIA announcement. Expect UNCONFIRMED turnaround.
+
+**F.3 Once capacity is granted, provision via IBM Cloud VPC:**
+
+```bash
+# The exact API shape and CLI args for Cluster Network provisioning are not
+# fully documented publicly. As a placeholder, use:
+ibmcloud is instance-create ozone-rdma-dev-ibm \
+  <vpc-id> <zone> gx3d-160x1792x8h100 <subnet-id> \
+  --image <ubuntu-22.04-ami-id> --keys <sshkey-id>
+
+export VM_IP=<public-ip-from-output>
+export VM_USER=root
+export CLOUD=ibm
+```
+
+**F.4 RoCEv2 setup:** follow §7.2.RoCE and §7.4.E.4 verbatim — NIC is the same
+ConnectX-7 family, same Ethernet/RoCEv2 config path.
+
+**F.5 Tear down:**
+
+```bash
+ibmcloud is instance-delete <instance-id>
+```
+
+---
+
 #### 7.4.Z — Provider-agnostic Steps: Build, Run, Test
 
 These steps assume `$VM_IP`, `$VM_USER`, and `$CLOUD` are exported from one of
@@ -3686,12 +4140,48 @@ sudo modprobe ib_core && sudo modprobe ib_uverbs
 sudo modprobe rdma_cm && sudo modprobe rdma_ucm
 if lspci | grep -qi mellanox; then
   sudo modprobe mlx5_core && sudo modprobe mlx5_ib
-  echo "[OK] Mellanox NIC detected - REAL RDMA hardware"
+
+  # v12.0: detect IB vs RoCEv2 so we apply the right tuning.
+  # mlx5_0 is the convention for the first Mellanox device; adjust if multiple.
+  PORT_TYPE=""
+  if command -v ibv_devinfo >/dev/null 2>&1; then
+    # "transport: InfiniBand" on port line => IB; "transport: Ethernet" => RoCE
+    if ibv_devinfo -d mlx5_0 2>/dev/null | grep -q "link_layer:.*InfiniBand"; then
+      PORT_TYPE="IB"
+    elif ibv_devinfo -d mlx5_0 2>/dev/null | grep -q "link_layer:.*Ethernet"; then
+      PORT_TYPE="ROCE"
+    fi
+  fi
+
+  if [ "$PORT_TYPE" = "IB" ]; then
+    echo "[OK] Mellanox NIC in InfiniBand mode - REAL IB hardware"
+  elif [ "$PORT_TYPE" = "ROCE" ]; then
+    echo "[OK] Mellanox NIC in Ethernet mode - assuming REAL RoCEv2 hardware"
+    # Ensure RoCEv2 (not v1). -m 2 => RoCE v2.
+    if command -v cma_roce_mode >/dev/null 2>&1; then
+      sudo cma_roce_mode -d mlx5_0 -p 1 -m 2 2>/dev/null || \
+        echo "[WARN] cma_roce_mode failed; ensure RoCEv2 is enabled manually"
+    fi
+    # Apply PFC + ECN on priority 3 (see §7.2.RoCE).
+    NETDEV=$(ls /sys/class/infiniband/mlx5_0/device/net/ 2>/dev/null | head -1)
+    if [ -n "$NETDEV" ] && command -v mlnx_qos >/dev/null 2>&1; then
+      sudo mlnx_qos -i "$NETDEV" --trust dscp --pfc 0,0,0,1,0,0,0,0 || \
+        echo "[WARN] mlnx_qos PFC config failed on $NETDEV"
+      echo 1 | sudo tee /sys/class/net/"$NETDEV"/ecn/roce_np/enable/3 >/dev/null 2>&1 || true
+      echo 1 | sudo tee /sys/class/net/"$NETDEV"/ecn/roce_rp/enable/3 >/dev/null 2>&1 || true
+    fi
+    # cuFile QOS service level — pin to the PFC-enabled priority.
+    grep -q '^CUFILE_ETH_SL=' /etc/environment 2>/dev/null || \
+      echo 'CUFILE_ETH_SL=3' | sudo tee -a /etc/environment >/dev/null
+    export CUFILE_ETH_SL=3
+  else
+    echo "[WARN] Mellanox NIC detected but port type unclear; skipping fabric tuning"
+  fi
 else
   sudo modprobe rdma_rxe
   IFACE=$(ip route get 8.8.8.8 | head -1 | awk '{print $5}')
   rdma link show 2>/dev/null | grep -q rxe0 || sudo rdma link add rxe0 type rxe netdev "$IFACE"
-  echo "[WARN] No Mellanox NIC - using SoftRoCE (SIMULATED RDMA)"
+  echo "[WARN] No Mellanox NIC - using SoftRoCE (SIMULATED RDMA, not real RoCEv2)"
 fi
 
 # 3. NVIDIA GPU + nvidia_peermem
@@ -3792,6 +4282,31 @@ check "ib_core loaded"   'lsmod | grep -q ib_core'
 check "ib_uverbs loaded" 'lsmod | grep -q ib_uverbs'
 check "RDMA device exists" 'test "$(rdma link show 2>/dev/null | wc -l)" -gt 0'
 check "Active RDMA port" 'ibv_devinfo 2>/dev/null | grep -q "state:.*PORT_ACTIVE"'
+
+# v12.0: classify the fabric so the validate output tells the operator whether
+# they are on REAL IB, REAL RoCEv2, or SIMULATED SoftRoCE.
+LINK_LAYER=$(ibv_devinfo -d mlx5_0 2>/dev/null | awk -F: '/link_layer/ {print $2}' | tr -d ' ')
+if [ "$LINK_LAYER" = "InfiniBand" ]; then
+  echo "  [INFO] Fabric: REAL InfiniBand (mlx5_0)"
+elif [ "$LINK_LAYER" = "Ethernet" ]; then
+  # If the device is Ethernet + RoCE kernel drivers loaded => RoCE.
+  # Distinguish real RoCEv2 from SoftRoCE via device driver.
+  if rdma link show 2>/dev/null | grep -q "rxe0"; then
+    echo "  [INFO] Fabric: SIMULATED SoftRoCE (rxe0) — not real RoCEv2"
+  else
+    ROCE_MODE=$(cma_roce_mode -d mlx5_0 -p 1 2>/dev/null)
+    if echo "$ROCE_MODE" | grep -q "v2"; then
+      echo "  [INFO] Fabric: REAL RoCEv2 (mlx5_0)"
+      check_warn "CUFILE_ETH_SL set" 'test -n "${CUFILE_ETH_SL:-}"'
+      check_warn "PFC configured on priority 3" \
+        'mlnx_qos -i $(ls /sys/class/infiniband/mlx5_0/device/net/ | head -1) 2>/dev/null | grep -A1 PFC | grep -q "1"'
+    else
+      echo "  [WARN] Fabric: Mellanox Ethernet but RoCE mode is $ROCE_MODE (expected v2)"
+    fi
+  fi
+else
+  echo "  [WARN] Fabric: unknown link_layer (mlx5_0 may be absent)"
+fi
 
 echo "--- cuObjServer ---"
 check "CUOBJSERVER_HOME set" 'test -n "${CUOBJSERVER_HOME:-}"'
