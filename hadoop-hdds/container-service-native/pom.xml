@@ -24,13 +24,26 @@
   <description>RDMA transfer services and JNI bridge to NVIDIA cuObjServer
     for GPUDirect / host-memory accelerated block reads.</description>
 
-  <!--
-    Phase 3 intentionally declares no compile-scope dependencies: the module
-    contains only a package-info.java and the Maven dependency analyzer
-    flags declared-but-unused deps as build failures. The real deps
-    (hdds-common, hdds-config, hdds-rocks-native, slf4j-api) are introduced
-    alongside the classes that use them in Phase 4 (§4.3 / §4.4 / §4.10).
-    Test-scope is also deferred to Phase 4 for the same reason.
-  -->
-  <dependencies/>
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.ozone</groupId>
+      <artifactId>hdds-config</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
+
+    <!-- Test dependencies -->
+    <dependency>
+      <groupId>org.apache.ozone</groupId>
+      <artifactId>hdds-test-utils</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 </project>
