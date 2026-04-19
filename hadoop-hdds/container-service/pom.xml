@@ -138,6 +138,12 @@
       <groupId>org.apache.ozone</groupId>
       <artifactId>hdds-config</artifactId>
     </dependency>
+    <!--
+      hdds-container-service-native dep is added in Phase 5 alongside
+      XceiverServerRdma (§4.11), which is the first class in this module
+      to reference the new module's classes. Maven's dependency analyzer
+      flags unused declared deps as build failures.
+    -->
     <dependency>
       <groupId>org.apache.ozone</groupId>
       <artifactId>hdds-interface-client</artifactId>
