@@ -1,10 +1,14 @@
 # DN-Direct RDMA Implementation Specification for Apache Ozone
 ## Phase 1: Read Path — Dual-Mode: GPU Memory and Host-Memory RDMA Transfers
 
-**Version:** 11.0
-**Date:** 2026-04-16
-**Status:** Draft — v10.0 audit fixes applied (compile blockers, full S3 parity,
-server-side stored-checksum verification, partial-failure client contract).
+**Version:** 12.0
+**Date:** 2026-04-18
+**Status:** Draft — v11.0 audit fixes applied (shared-helper plumbing for
+`RdmaReadBlock`, `OzoneContainer`→`KeyValueHandler` wiring via post-construction
+setter, `XceiverServerRdma.handleRdmaRead` resource-leak fix, `RdmaBufferPool`
+partial-init cleanup, JNI bridge missing `<cstdlib>`, cloud section rewritten
+to multi-provider — Crusoe / Vultr / Lambda / AWS — with validated launch
+commands).
 **Target Branch:** `master` (Apache Ozone `2.2.0-SNAPSHOT`)
 **Scope:** Phase 1 — S3 GET (Read Path) Only — GPU and Host-Memory Client Modes
 
@@ -69,6 +73,31 @@ replaces real hardware. An implementing AI or engineer should read this section 
 | Block Token Validation | **REAL** | **REAL** | **REAL** |
 | Performance Numbers | **MEANINGLESS** — measures JVM memcpy speed | **MISLEADING** — measures CPU-emulated RDMA | **REPRESENTATIVE** — measures actual NIC DMA throughput |
 | Cost | Free | Free | **$15.60/hr** (A100 IB) or **$31.20/hr** (H100 IB) |
+
+### Issues Fixed in v12.0 (Post-v11.0 Audit)
+
+The v11.0 audit (`docs/gds-dn-direct-rdma-implementation-spec-verification-report-v11.md`)
+identified six findings. v12.0 validates each against the current repo state
+and applies fixes. Each finding was **independently verified** before the
+corresponding fix was written — see the §Residual section for the one
+finding that was only partially accurate.
+
+| # | Audit ref | v11.0 state | v12.0 fix |
+|---|---|---|---|
+| 1 | §1 Critical | `HddsUtils.isReadOnly(...)`, `.requireBlockToken(...)`, `.getBlockID(...)` unchanged — would mis-classify `RdmaReadBlock` as write-like, fail token verification, and return null block IDs | **VERIFIED** against `hadoop-hdds/common/.../HddsUtils.java` lines 336-369, 392-409, 430-500. Added new §4.13-pre "Shared Helper Updates" with explicit `case RdmaReadBlock` entries for all three methods. |
+| 2 | §2 Critical | Spec proposed adding `XceiverServerRdma` as constructor arg to `KeyValueHandler`, but `OzoneContainer` constructs handlers (lines 212-223) **before** any transport server (lines 237, 250). The RDMA engine cannot exist yet at the factory call site. | **VERIFIED** construction ordering + enumerated the 7 test files with direct `new KeyValueHandler(...)` callers. **v12.0 swaps to post-construction setter** (`setXceiverServerRdma`) — no constructor change, no test churn. §4.12 wires after RDMA engine init via a handler-map loop; §4.14.1 documents the setter. |
+| 3 | §3 Critical | `handleRdmaRead` called `allocateChannel()` + `bufferPool.acquire()` **before** the try/finally block. Any throw leaked the semaphore permit, and a throw from `acquire()` leaked the channel too. | **VERIFIED** against §4.11 spec lines 1918-1925 + 2044-2048. **Fixed:** acquisitions moved inside try, each guarded by null-check + per-resource try/catch on release. |
+| 4 | §4 High | `DNAction` had no RDMA action; `HddsDispatcher.msgToAction(...)` returned null for `RdmaReadBlock`; `XceiverClientGrpc.getRequestBlockID(...)` had no case for it | **VERIFIED** against `DNAction.java`, `HddsDispatcher.java:920`, `XceiverClientGrpc.java:477-489`. Added to §4.13-pre D and E with explicit code, plus the decision to use a new `RDMA_READ_BLOCK` audit action (not reuse `READ_BLOCK`). |
+| 5 | §5 Medium | Crusoe Linux `apt` stanza referenced `dl.fury.io/crusoecloud/apt/` — not documented on Crusoe's current CLI guide | **PARTIALLY VERIFIED** — the `brew` macOS path is confirmed; the Linux apt URL could not be independently verified in the v11.0 audit timeframe. **v12.0 removes the unverified apt stanza** from §7.4.A and directs Linux users to the Crusoe CLI GitHub releases (documented path). |
+| 6 | §6 Low | Native JNI bridge at §4.6 uses `free(ptr)` at line 1285 but does NOT `#include <cstdlib>` in its header block (lines 1208-1215). Compilation was relying on transitive include. (The audit incorrectly claimed `<cstdlib>` was already included — that was in a *different* C++ snippet at §2.10 line 702.) | **VERIFIED** — includes in §4.6 did not list `<cstdlib>`. **Fixed:** added `#include <cstdlib>` to the JNI bridge header block with a comment referencing the `nativeFreeHostBuffer` use site. Partial-init cleanup for `RdmaBufferPool` (also called out in §6) is addressed in §4.10. |
+
+**Additional v12.0 changes:**
+
+| Area | v11.0 state | v12.0 change |
+|---|---|---|
+| §7.3 Cloud provider matrix | Crusoe-primary, with a fallback table that marked Lambda / Vultr / AWS as `LIKELY YES` or ruled out | **Multi-cloud first-class.** §7.3 now has a verified table covering Crusoe, Vultr, Lambda, and AWS, with explicit source links, per-SKU `$/GPU/hr`, and a §7.3.3 EFA-vs-IB compatibility caveat for AWS. |
+| §7.4 Step-by-step provisioning | Single flow for Crusoe | **Split into 7.4.A–D (per provider) and 7.4.Z (shared build/run).** All four provisioning stanzas produce `$VM_IP`, `$VM_USER`, `$CLOUD` env vars, then the provider-agnostic §7.4.Z runs build + tests. |
+| §7.10 Cookbook — "Cloud GPU VM" | Crusoe-only quick start | Replaced with four parallel stanzas (B.1 Crusoe / B.2 Vultr / B.3 Lambda / B.4 AWS), each 10-15 lines and runnable end-to-end. |
 
 ### Issues Fixed in v11.0 (Post-v10.0 Audit)
 
@@ -1207,6 +1236,7 @@ final class CuObjServerBridge {
 ```cpp
 #include <jni.h>
 #include <cstdint>
+#include <cstdlib>      // free() in nativeFreeHostBuffer
 #include <cstring>
 #include <string>
 #include <stdexcept>
@@ -1722,12 +1752,41 @@ public class RdmaBufferPool implements Closeable {
     this.pool = new ArrayBlockingQueue<>(bufferCount);
     this.allBuffers = new ArrayList<>(bufferCount);
 
-    for (int i = 0; i < bufferCount; i++) {
-      ByteBuffer buf = transferService.allocHostBuffer(bufferSize);
-      long regHandle = transferService.registerBuffer(buf);
-      RdmaBuffer rdmaBuffer = new RdmaBuffer(buf, regHandle);
-      allBuffers.add(rdmaBuffer);
-      pool.offer(rdmaBuffer);
+    // v12.0 audit fix: partial-initialization cleanup.
+    //
+    // If registerBuffer throws after allocHostBuffer succeeds, the just-
+    // allocated pinned buffer — and every successfully pinned buffer before
+    // it — must be released. Without this, a failure at buffer N leaks N-1
+    // pinned pages into the kernel and pins locked memory the JVM never
+    // sees again.
+    ByteBuffer lastAllocated = null;
+    try {
+      for (int i = 0; i < bufferCount; i++) {
+        lastAllocated = null;
+        ByteBuffer buf = transferService.allocHostBuffer(bufferSize);
+        lastAllocated = buf;
+        long regHandle = transferService.registerBuffer(buf);
+        lastAllocated = null;   // now owned by RdmaBuffer below
+        RdmaBuffer rdmaBuffer = new RdmaBuffer(buf, regHandle);
+        allBuffers.add(rdmaBuffer);
+        pool.offer(rdmaBuffer);
+      }
+    } catch (RuntimeException | IOException e) {
+      // Free the one allocated-but-not-yet-registered buffer, if any.
+      if (lastAllocated != null) {
+        try { transferService.freeHostBuffer(lastAllocated); }
+        catch (IOException ex) { LOG.warn("Failed to free partial buffer", ex); }
+      }
+      // Free the ones that were fully registered.
+      for (RdmaBuffer rb : allBuffers) {
+        try { transferService.deregisterBuffer(rb.getRegistrationHandle()); }
+        catch (IOException ex) { LOG.warn("Failed to deregister during cleanup", ex); }
+        try { transferService.freeHostBuffer(rb.getBuffer()); }
+        catch (IOException ex) { LOG.warn("Failed to free during cleanup", ex); }
+      }
+      allBuffers.clear();
+      pool.clear();
+      throw e;
     }
     LOG.info("RdmaBufferPool initialized: {} buffers x {} bytes = {} MiB total",
         bufferCount, bufferSize, (long) bufferCount * bufferSize / (1024 * 1024));
@@ -1920,9 +1979,15 @@ public class XceiverServerRdma implements Closeable {
       throw new IOException("RDMA transfer semaphore exhausted");
     }
 
-    final int channelId = transferService.allocateChannel();
-    final RdmaBuffer rdmaBuffer = bufferPool.acquire();
+    // v12.0 audit fix: each acquisition goes inside its own try so a failure
+    // at any step releases every resource acquired so far. Previously,
+    // allocateChannel() or bufferPool.acquire() throwing would leak the
+    // semaphore permit (and in the acquire() case, the channel too).
+    int channelId = -1;
+    RdmaBuffer rdmaBuffer = null;
     try {
+      channelId = transferService.allocateChannel();
+      rdmaBuffer = bufferPool.acquire();
       final ByteBuffer buffer = rdmaBuffer.getBuffer();
       final int bufSize = buffer.capacity();
       long totalTransferred = 0;
@@ -2042,8 +2107,16 @@ public class XceiverServerRdma implements Closeable {
       responseBuilder.setClientBufferOffset(destOffset);
       return responseBuilder.build();
     } finally {
-      bufferPool.release(rdmaBuffer);
-      transferService.freeChannel(channelId);
+      // Release in reverse-acquisition order, and guard each release so a
+      // failure to release one resource doesn't orphan the others.
+      if (rdmaBuffer != null) {
+        try { bufferPool.release(rdmaBuffer); }
+        catch (RuntimeException e) { LOG.warn("Failed to release RDMA buffer", e); }
+      }
+      if (channelId >= 0) {
+        try { transferService.freeChannel(channelId); }
+        catch (RuntimeException e) { LOG.warn("Failed to free RDMA channel", e); }
+      }
       transferSemaphore.release();
     }
   }
@@ -2066,8 +2139,24 @@ public class XceiverServerRdma implements Closeable {
 
 **File:** `hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/ozoneimpl/OzoneContainer.java`
 
-> **Verified:** `readChannel` is initialized at line 250, `writeChannel` at line 237.
-> Insert RDMA initialization after these, around line 252.
+> **Verified:** current construction order is **handlers first, then servers**.
+> - Handlers: `Handler.getHandlerForContainerType(...)` loop at lines ~212-223
+> - `writeChannel` (`XceiverServerRatis`): line ~237
+> - `readChannel` (`XceiverServerGrpc`): line ~250
+>
+> The RDMA engine cannot be passed into the handler constructor at the current
+> call site because handlers are built before any transport is up. **v12.0 fix:
+> wire via a post-construction setter**, not a constructor argument — this keeps
+> the existing handler-build ordering intact, avoids changes to the 7 test
+> callers of `new KeyValueHandler(...)`, and works for both the auto-discovered
+> `KeyValueContainer` type and any future container types.
+
+**Insertion order:**
+1. Keep handler loop (~line 219) unchanged.
+2. Keep `writeChannel` (~line 237) and `readChannel` (~line 250) unchanged.
+3. After both servers are built (around line 252), build the RDMA engine.
+4. Immediately after, loop the handler map and call `setXceiverServerRdma(rdma)`
+   on the `KeyValueHandler` entry.
 
 ```java
 // --- Add field ---
@@ -2095,6 +2184,15 @@ if (conf.getBoolean(XceiverServerRdma.RDMA_ENABLED_KEY,
 }
 this.xceiverServerRdma = rdma;
 
+// --- Wire the RDMA engine into already-constructed handlers.
+//     Safe even when rdma == null: setter stores null and handleRdmaReadBlock
+//     returns RDMA_NOT_AVAILABLE on the datapath. ---
+for (Handler h : handlers.values()) {
+  if (h instanceof KeyValueHandler) {
+    ((KeyValueHandler) h).setXceiverServerRdma(rdma);
+  }
+}
+
 // --- In stop() ---
 if (xceiverServerRdma != null) {
   xceiverServerRdma.close();
@@ -2105,6 +2203,134 @@ public XceiverServerRdma getXceiverServerRdma() {
   return xceiverServerRdma;
 }
 ```
+
+### 4.13-pre Shared Helper Updates for `RdmaReadBlock`
+
+> **Critical — added in v12.0 after audit.** Adding `Type.RdmaReadBlock` to the
+> proto is not enough. Several shared helpers still only know the legacy
+> `ReadBlock` enum value. Without explicit `RdmaReadBlock` cases added to each,
+> the new request will be **mis-classified as write-like**, will **fail block-token
+> verification** (no block ID extracted), and will **lose block-aware request
+> sorting** on the client. All five helpers below must be updated in the same
+> commit as the proto change.
+
+#### A. `HddsUtils.isReadOnly(...)` — add `RdmaReadBlock` to read list
+
+**File:** `hadoop-hdds/common/src/main/java/org/apache/hadoop/hdds/HddsUtils.java`
+**Verified baseline:** lines ~336-369 — `switch` statement lists `ReadContainer`,
+`ReadChunk`, `ReadBlock`, `ListBlock`, `GetBlock`, `GetSmallFile`, `ListContainer`,
+`ListChunk`, `GetCommittedBlockLength`, `GetContainerChecksumInfo` as the only
+read-type entries.
+
+```java
+// In HddsUtils.isReadOnly(...) switch on proto.getCmdType():
+case ReadContainer:
+case ReadChunk:
+case ReadBlock:
+case RdmaReadBlock:   // <<< ADD
+case ListBlock:
+// ... (rest unchanged)
+  return true;
+```
+
+If omitted, `HddsDispatcher.dispatchRequest()` will reject `RdmaReadBlock` on a
+decommissioning or read-only node (the dispatcher uses `isReadOnly` to decide
+whether to refuse the request).
+
+#### B. `HddsUtils.requireBlockToken(Type cmdType)` — add `RdmaReadBlock`
+
+**File:** same (`HddsUtils.java`, lines ~392-409). Current list includes
+`ReadBlock` and `ReadChunk`; `RdmaReadBlock` must be treated identically so the
+block-token verifier runs for this request type.
+
+```java
+case ReadBlock:
+case RdmaReadBlock:   // <<< ADD — same security class as ReadBlock
+case WriteChunk:
+// ... (rest unchanged)
+  return true;
+```
+
+#### C. `HddsUtils.getBlockID(...)` — extract block ID for `RdmaReadBlock`
+
+**File:** same (`HddsUtils.java`, lines ~430-500). Current switch has a
+`case ReadBlock` branch that reads `msg.getReadBlock().getBlockID()`. The
+RDMA request proto `RdmaReadBlockRequestProto` **also has `blockID` as its
+first field** (see §4.1.2), so the extractor mirrors exactly.
+
+```java
+case ReadBlock:
+  if (msg.hasReadBlock()) {
+    blockID = msg.getReadBlock().getBlockID();
+  }
+  break;
+case RdmaReadBlock:                           // <<< ADD
+  if (msg.hasRdmaReadBlock()) {
+    blockID = msg.getRdmaReadBlock().getBlockID();
+  }
+  break;
+```
+
+Without this, `BlockTokenVerifier.verify(...)` receives a null block ID and
+rejects every `RdmaReadBlock` when block tokens are enabled.
+
+#### D. `DNAction` + `HddsDispatcher.msgToAction(...)` — new audit action
+
+**Files:**
+- `hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/audit/DNAction.java`
+- `hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/impl/HddsDispatcher.java` (line ~920)
+
+**Decision:** add a new `RDMA_READ_BLOCK` audit action (not reuse
+`READ_BLOCK`). Rationale: operators analyzing audit logs need to tell
+TCP-streamed reads from RDMA-offloaded reads at a glance, especially when
+triaging a regression in the RDMA path.
+
+```java
+// DNAction.java
+public enum DNAction implements AuditAction {
+  // ... existing entries ...
+  READ_BLOCK,
+  RDMA_READ_BLOCK,      // <<< ADD, placed next to READ_BLOCK
+  // ... rest unchanged ...
+}
+```
+
+```java
+// HddsDispatcher.msgToAction(...) switch:
+case ReadBlock        : return DNAction.READ_BLOCK;
+case RdmaReadBlock    : return DNAction.RDMA_READ_BLOCK;   // <<< ADD
+```
+
+Without this, `msgToAction` returns `null` for `RdmaReadBlock`, and the log
+line you see today for `ReadBlock` will be missing entirely for the RDMA path.
+
+#### E. `XceiverClientGrpc.getRequestBlockID(...)` — add `RdmaReadBlock`
+
+**File:** `hadoop-hdds/client/src/main/java/org/apache/hadoop/hdds/scm/XceiverClientGrpc.java`
+(lines ~477-489). This method is used by the client to sort/group requests
+by block ID so the same datanode in a pipeline is preferred for sequential
+reads of the same block.
+
+```java
+} else if (request.getCmdType() == ContainerProtos.Type.ReadBlock) {
+  blockID = request.getReadBlock().getBlockID();
+} else if (request.getCmdType() == ContainerProtos.Type.RdmaReadBlock) {  // <<< ADD
+  blockID = request.getRdmaReadBlock().getBlockID();
+}
+```
+
+Phase 1 does not route `RdmaReadBlock` through `XceiverClientGrpc` (the
+RDMA path uses a direct container-command channel from S3G — see §4.15),
+but the helper is also reached by `XceiverClientRatis` and by the pipeline
+sort path. Leaving it unpatched is a latent bug for any future caller.
+
+#### F. Test updates implied by these helper changes
+
+- `TestHddsUtils` (if it exists) should gain `isReadOnly` / `requireBlockToken`
+  cases for `RdmaReadBlock`.
+- `TestHddsDispatcher` should assert `msgToAction(RdmaReadBlock) == RDMA_READ_BLOCK`.
+- `TestXceiverClientGrpc` (or equivalent) should assert `getRequestBlockID`
+  extracts the block ID from an `RdmaReadBlock` request.
 
 ### 4.13 HddsDispatcher — No changes required
 
@@ -2125,18 +2351,37 @@ public XceiverServerRdma getXceiverServerRdma() {
 **File:** `hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/keyvalue/KeyValueHandler.java`
 
 > **Verified:** Current handle method dispatches at lines 326-372. Add RdmaReadBlock case there.
-> Add XceiverServerRdma as constructor parameter.
+>
+> **v12.0 audit fix — wiring.** Do **NOT** change the `KeyValueHandler`
+> constructor signature. The factory `Handler.getHandlerForContainerType(...)`
+> (Handler.java:78-93) and the 7 test callers of `new KeyValueHandler(...)`
+> would all have to be updated simultaneously, and the RDMA engine does not
+> exist yet at the point the factory is called. Use a post-construction
+> setter (§4.14.1) and let `OzoneContainer` wire it in after the RDMA engine
+> is built (§4.12).
 
-#### 4.14.1 Constructor Change
+#### 4.14.1 Field + Setter (no constructor change)
 
 ```java
-private final XceiverServerRdma xceiverServerRdma;
+// --- Field — mutable because wired post-construction ---
+private volatile XceiverServerRdma xceiverServerRdma;
 
-public KeyValueHandler(/* existing params */, XceiverServerRdma xceiverServerRdma) {
-  // ... existing initialization ...
+// --- Setter — called by OzoneContainer after RDMA engine is built.
+//     Must accept null: OzoneContainer calls this unconditionally and passes
+//     null when RDMA is disabled or failed to initialize. handleRdmaReadBlock
+//     checks for null and returns RDMA_NOT_AVAILABLE. ---
+public void setXceiverServerRdma(XceiverServerRdma xceiverServerRdma) {
   this.xceiverServerRdma = xceiverServerRdma;
 }
 ```
+
+> **Test impact of this approach.** None of `ContainerTestUtils`,
+> `TestContainerPersistence`, `TestReconcileContainerCommandHandler`,
+> `TestDiskBalancerService`, `TestDiskBalancerTask`, `TestKeyValueHandler`,
+> or `TestKeyValueHandlerWithUnhealthyContainer` — the 7 tests that
+> directly call `new KeyValueHandler(...)` — need to change, because the
+> constructor signature is unchanged. Tests that exercise the RDMA path
+> can call `handler.setXceiverServerRdma(mockRdma)` in setup.
 
 #### 4.14.2 Add dispatch case
 
@@ -2958,101 +3203,120 @@ API in software — the kernel emulates RDMA operations using regular TCP/IP. **
 
 ### 7.3 Cloud Provider for GPU+RDMA Testing
 
-> **Selection criteria applied:** (1) Accepts credit card for self-service signup, (2) Provides
-> immediate access without sales channel or quota approval, (3) Exposes real RDMA ibverbs to users.
+> **v12.0 rewrite.** This section is now **provider-neutral**. The previous
+> Crusoe-only guidance was fine but limited: it assumed every reader could
+> self-serve into Crusoe and that region `us-east1-a` IB stock would be
+> available. This version covers four providers — Crusoe, Vultr, Lambda,
+> AWS — each with independently verified instance SKUs and launch commands.
+> Use §7.4 for provider-specific step-by-steps; this section is the
+> decision table.
 
-#### Primary Recommendation: Crusoe Cloud
+> **Selection criteria used below:**
+> 1. **Self-service signup with credit card.**
+> 2. **Immediate (or near-immediate) launch** — no quota ticket that takes days.
+> 3. **Real RDMA fabric exposed to the guest** — genuine IB ibverbs, RoCE, or EFA with GPUDirect RDMA.
+> 4. **GPUDirect Storage (libcufile / nvidia-fs) known to work** on the offered image,
+>    or the image permits a straightforward install.
 
-**Crusoe Cloud** is the recommended provider for Phase 1 testing. It meets all three criteria:
+#### 7.3.1 Provider Matrix — At a Glance
 
-| Criterion | Status | Evidence |
-|---|---|---|
-| Credit card signup | **YES** | Self-service at console.crusoecloud.com |
-| Immediate access | **YES** | VM provisioning ~90 seconds from API call |
-| Real RDMA ibverbs | **CONFIRMED** | Official support article: "How-To Validate InfiniBand Hardware and Test RDMA Connectivity for GPU VMs". Users run `ibv_devinfo`, `ib_write_bw`, `ib_read_bw`, perftest suite. |
+| Provider | Best IB SKU | Fabric | GPUs | Per-GPU $/hr | On-demand multi-GPU? | Verified? | Notes |
+|---|---|---|---|---|---|---|---|
+| **Crusoe Cloud** | `a100-80gb-sxm-ib.8x` | InfiniBand (ConnectX-6, 200 Gb/s) | 8x A100 80GB | $1.95 | Yes (single VM) | Instance + price: VERIFIED. IB behavior: VERIFIED (official validate-IB article). | 8-GPU minimum; IB only in `us-east1-a`. |
+| **Crusoe Cloud** | `h100-80gb-sxm-ib.8x` | InfiniBand (ConnectX-7, 400 Gb/s) | 8x H100 80GB | $3.90 | Yes | VERIFIED | Same region/minimum caveats. |
+| **Vultr** | H100 Bare Metal | InfiniBand (Quantum-2, 3200 Gb/s non-blocking) | 8x H100 80GB (per chassis) | ~$2.30-$2.99 | Yes (bare metal, full root) | Fabric + GPU: VERIFIED on product page. Exact pricing: UNCONFIRMED (third-party aggregators). | Manual MLNX_OFED + `nvidia-fs` install needed. |
+| **Vultr** | A100 PCIe (Cloud GPU) | No IB between tenants | up to 8x A100 | ~$2.40 | Yes | VERIFIED no-IB; shared/fractional only. | **Do NOT use for RDMA tests** — Cloud GPU tier has no ibverbs. |
+| **Lambda Labs** | 1-Click Cluster H100 | InfiniBand (Quantum-2, 3200 Gb/s) | 16-2000+ H100 SXM | $6.16 | **No — 2-week minimum reservation** | VERIFIED on `lambda.ai/1-click-clusters`. | Smallest cluster = 16 GPUs; min spend ~$16.5K. |
+| **Lambda Labs** | `gpu_8x_h100_sxm5` (on-demand) | **No IB** between on-demand nodes | 8x H100 | $3.99 | Yes (single node only) | VERIFIED | Single-node only; **cannot test multi-host RDMA** on this tier. |
+| **AWS** | `p4d.24xlarge` | EFA (libfabric + GPUDirect RDMA) — **NOT** InfiniBand | 8x A100 40GB | ~$4.10 | Yes (with cluster placement group) | VERIFIED | `cuObjServer` uses libcufile over EFA; requires EFA plugin. Not compatible if cuObjServer calls `ibv_*` directly — see §7.3.3. |
+| **AWS** | `p5.48xlarge` | EFAv2 (3200 Gb/s, GPUDirect RDMA) | 8x H100 80GB | ~$12.25 | Supply-constrained on-demand; use Capacity Blocks | VERIFIED product page, EFA+GDS blog post. On-demand price is ~$98/hr per node; Capacity Blocks as low as ~$55/hr. | Same EFA-vs-IB caveat as p4d. |
+| **AWS** | `p5en.48xlarge` | EFAv3 (3200 Gb/s) | 8x H200 | custom quote | Capacity Blocks | VERIFIED (AWS blog Dec 2024). | Newest; limited regions. |
 
-**IMPORTANT:** InfiniBand instances are **8-GPU minimum** (no single-GPU IB option). IB is only
-available in the `us-east1-a` region. The recommended VM image is `ubuntu22.04-nvidia-sxm-docker:latest`
-which comes with NVIDIA drivers and RDMA tools pre-installed.
+Prices are **listed-on-the-vendor's-website** dollars, not negotiated or committed. Treat them as
+order-of-magnitude; verify at launch time.
 
-| Instance Type | GPUs | GPU Type | RDMA NIC | Speed | Cost/GPU/hr | Total Cost/hr |
-|---|---|---|---|---|---|---|
-| `a100-80gb-sxm-ib.8x` | 8x A100 SXM | A100 80GB | ConnectX-6 IB | 200 Gb/s per GPU | **$1.95** | **$15.60** |
-| `h100-80gb-sxm-ib.8x` | 8x H100 SXM | H100 80GB | ConnectX-7 IB | 400 Gb/s per GPU | $3.90 | $31.20 |
-| `h200-141gb-sxm-ib.8x` | 8x H200 SXM | H200 141GB | ConnectX-7 IB | 400 Gb/s per GPU | $4.29 | $34.32 |
+#### 7.3.2 Recommendation by Use Case
 
-**Recommendation:** Use `a100-80gb-sxm-ib.8x` ($15.60/hr) for development and functional testing.
-Use `h100-80gb-sxm-ib.8x` ($31.20/hr) only for performance benchmarking.
+- **Development / functional correctness (cheapest real IB):** Crusoe `a100-80gb-sxm-ib.8x` —
+  $15.60/hr for 8x A100 with 200 Gb/s IB. Image ships with drivers and RDMA tools.
+- **Low-floor IB bare metal, full control:** Vultr H100 bare metal — real Quantum-2 IB,
+  full root, cheapest H100 IB per GPU-hour of the four providers. Budget ~60 minutes for
+  MOFED + `nvidia-fs` install before first test.
+- **AWS-native environment / already-EFA workflow:** AWS `p4d.24xlarge` or `p5.48xlarge` with
+  the Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04) and an EFA-enabled cluster
+  placement group. Works for libcufile-over-EFA tests; see §7.3.3 for the cuObjServer
+  compatibility caveat.
+- **Large/Phase-2 performance benchmarks:** Lambda 1-Click Cluster H100 — real Quantum-2 IB,
+  16-GPU floor. Only pick this when the 2-week minimum is acceptable.
+- **Single-node only, no multi-host RDMA:** Lambda on-demand `gpu_8x_h100_sxm5`. Fine for
+  loopback RDMA tests (`rdma_rxe` + pinned-memory path) but does not exercise cross-host.
 
-**Why Crusoe over alternatives:**
-- Lambda Labs single-GPU instances do NOT have InfiniBand (Ethernet only). IB requires cluster reservations.
-- Vultr does not expose ibverbs to users.
-- CoreWeave requires sales approval — not self-service.
-- Azure HPC VMs (HBv3, ND H100) require quota approval with default quota of 0 — not immediate access.
-- AWS EFA is NOT InfiniBand — it uses a custom libfabric provider that may not be compatible with cuObjServer.
+#### 7.3.3 AWS EFA vs. InfiniBand — Compatibility Caveat for `cuObjServer`
 
-#### Fallback Options (with caveats)
+AWS EFA is **not InfiniBand**. EFA exposes a libfabric provider (`efa`), not the standard
+`ibv_*` verbs API. The cuObjServer/cuObjClient reference implementation in this spec
+assumes ibverbs-style transport registration; its compatibility with EFA depends on whether
+the build links against NVIDIA's EFA adapter or only ibverbs. Before committing to AWS,
+confirm by running `ibv_devinfo` on a live `p4d.24xlarge` with the DLAMI — if it reports
+no IB devices but an EFA device is present, the cuObjServer binary must be built with
+EFA support. Mark this as a **BLOCKER TO VERIFY** before sinking real hours into AWS.
 
-| Provider | Instance | Caveat | ibverbs |
-|---|---|---|---|
-| **Lambda Labs** (cluster tier) | 8x H100 cluster | IB only on cluster reservations, not single-GPU | LIKELY YES |
-| **Azure ND H100 v5** | 8x H100 | Requires quota request (may take days/weeks) | CONFIRMED |
-| **Oracle OCI** | BM.GPU.H100.8 | Bare metal, confirmed RoCEv2 + ibverbs | CONFIRMED |
-| **Nebius** | HGX H100 | Self-service, likely IB access | LIKELY YES |
+#### 7.3.4 RDMA-Only (No GPU) Testing
 
-#### RDMA-Only (No GPU) Testing
+For host-memory mode without a GPU, use either:
+- **Vultr CPU bare metal with Mellanox ConnectX-6** (if in stock — requires checking
+  `vultr-cli bare-metal plan list`), or
+- **SoftRoCE on any Linux VM** (`modprobe rdma_rxe`, then `rdma link add rxe0 type rxe netdev eth0`).
+  SoftRoCE is a kernel CPU emulation of RDMA — useful for code-path validation, **never**
+  for performance numbers. Marked as `SIMULATED` in the validation matrix (§1.0).
 
-For host-memory mode testing without GPU, **Azure HBv3 (HB120rs_v3)** has confirmed ConnectX-6
-InfiniBand at 200 Gb/s HDR and full ibverbs support [[ref-23]](#11-references).
+Azure HBv3 remains an option as documented in prior versions of this spec, but it requires a
+quota ticket (default quota 0 for HB series; 1-3 business-day approval) — it is not
+self-service. Prefer Vultr bare metal or Crusoe for immediate access.
 
-**CAVEAT:** Azure HPC VMs require quota approval. Default quota is 0 for HB-series. You must
-request quota via the Azure portal and approval may take 1-3 business days. This is NOT immediate
-credit-card access.
-
-Cost: ~$3.60/hr once quota is approved.
+**Sources for the table:**
+- Crusoe: [Crusoe docs — validate InfiniBand](https://docs.crusoecloud.com/), [Crusoe pricing](https://crusoecloud.com/pricing).
+- Vultr: [Vultr H100 product page](https://www.vultr.com/products/cloud-gpu/nvidia-h100/),
+  [Vultr bare-metal GPU variants](https://docs.vultr.com/products/compute/bare-metal/explore-gpu-variants).
+- Lambda: [1-Click Clusters](https://lambda.ai/1-click-clusters), [Lambda on-demand pricing](https://lambda.ai/pricing).
+- AWS: [P4 instances](https://aws.amazon.com/ec2/instance-types/p4/),
+  [P5 instances](https://aws.amazon.com/ec2/instance-types/p5/),
+  [P5 EFA guide](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/p5-efa.html),
+  [P5en announcement (Dec 2024)](https://aws.amazon.com/blogs/aws/new-amazon-ec2-p5en-instances-with-nvidia-h200-tensor-core-gpus-and-efav3-networking/),
+  [FSx for Lustre + GDS](https://aws.amazon.com/blogs/aws/amazon-fsx-for-lustre-unlocks-full-network-bandwidth-and-gpu-performance/).
 
 ### 7.4 Cloud Cluster: Step-by-Step Provisioning and Testing
 
-This section provides exact instructions for getting a cloud cluster to test the implementation.
-**All hardware is REAL — no simulation.**
+> **v12.0: multi-cloud.** Pick exactly one of §7.4.A (Crusoe), §7.4.B (Vultr),
+> §7.4.C (Lambda), or §7.4.D (AWS). Steps 5-7 (build / run / shutdown) are
+> **provider-agnostic** and live at §7.4.Z — they reference a `$VM_IP` you
+> export after the provider-specific provisioning.
 
-#### Step 1: Create a Crusoe Cloud Account
+---
 
-```
-1. Go to https://console.crusoecloud.com
-2. Click "Sign Up"
-3. Enter email, create password
-4. Add credit card for billing
-5. Account is active immediately
-```
+#### 7.4.A — Crusoe Cloud (cheapest real IB, simplest images)
 
-#### Step 2: Provision a GPU VM with InfiniBand
+**A.1 Create account:** go to [console.crusoecloud.com](https://console.crusoecloud.com),
+sign up with email + credit card. Account is active immediately.
+
+**A.2 Install the Crusoe CLI:**
 
 ```bash
-# Install Crusoe CLI
 # macOS:
 brew install crusoecloud/cli/crusoe
-# Debian/Ubuntu:
-#   curl -fsSL https://dl.fury.io/crusoecloud/apt/gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/crusoe.gpg
-#   echo "deb [signed-by=/usr/share/keyrings/crusoe.gpg] https://dl.fury.io/crusoecloud/apt/ /" | sudo tee /etc/apt/sources.list.d/crusoe.list
-#   sudo apt update && sudo apt install crusoe
-# Or download binary from: https://github.com/crusoecloud/cli/releases
+
+# Linux (any distro) — prebuilt binary is the official path:
+# See releases at https://github.com/crusoecloud/cli/releases
+# (v12.0 fix: previous drafts used dl.fury.io URLs that are not documented
+#  on Crusoe's site. If an apt repo exists, treat it as UNVERIFIED until
+#  confirmed in Crusoe's current docs.)
 
 crusoe auth login
+```
 
-# Create a VM with A100 GPU and InfiniBand (cheapest IB option at $15.60/hr)
-# IMPORTANT: InfiniBand requires 8-GPU instances. No single-GPU IB option exists.
-# IMPORTANT: InfiniBand is only available in us-east1-a.
-#
-# Use the web console at console.crusoecloud.com if CLI is unavailable:
-#   1. Click "Create VM"
-#   2. Select type: a100-80gb-sxm-ib.8x (8x A100 with IB)
-#   3. Select location: us-east1-a (only region with IB)
-#   4. Select image: ubuntu22.04-nvidia-sxm-docker:latest
-#   5. Add your SSH public key
-#   6. Click "Create"
+**A.3 Provision an A100 IB VM (cheapest IB option — 8-GPU minimum, `us-east1-a` only):**
 
-# CLI method:
+```bash
 crusoe compute vms create \
   --name ozone-rdma-dev \
   --type a100-80gb-sxm-ib.8x \
@@ -3061,113 +3325,326 @@ crusoe compute vms create \
   --ssh-key "$(cat ~/.ssh/id_rsa.pub)" \
   --disk-size 200
 
-# Note the public IP address from the output
+export VM_IP=<public-ip-from-output>
+export VM_USER=ubuntu
+export CLOUD=crusoe
 ```
 
-> **Cost control:** The `a100-80gb-sxm-ib.8x` instance costs $15.60/hr ($1.95/GPU x 8).
-> **Shut down the VM immediately when done — billing is per-hour while running.**
-> A 4-hour development session costs ~$62. Use `h100-80gb-sxm-ib.8x` ($31.20/hr) only
-> when benchmarking performance.
+> **Cost control:** $15.60/hr. Shut down immediately after use — billed per hour.
+> For H100 IB, change `--type` to `h100-80gb-sxm-ib.8x` (~$31.20/hr).
 
-#### Step 3: SSH into the VM and Validate Hardware
+**A.4 Validate hardware (Crusoe image has drivers preinstalled):**
 
 ```bash
-# SSH into the VM
-ssh ubuntu@<VM_PUBLIC_IP>
-
-# Verify GPU is present (REAL hardware)
-nvidia-smi
-# Expected for a100-80gb-sxm-ib.8x: 8x A100 SXM 80GB listed
-# Expected for h100-80gb-sxm-ib.8x: 8x H100 SXM 80GB listed
-
-# Verify InfiniBand NIC is present (REAL hardware)
-ibv_devinfo
-# Expected: mlx5_0 through mlx5_7 (8 HCAs, one per GPU), state PORT_ACTIVE
-# The recommended ubuntu22.04-nvidia-sxm-docker image has drivers pre-installed
-
-# Verify RDMA works (REAL hardware) — loopback test
-# Terminal 1:
-ib_write_bw -d mlx5_1 -p 18515 &
-# Terminal 2 (same VM, tests local RDMA path):
-ib_write_bw -d mlx5_1 -p 18515 localhost
-# Expected for A100 IB: ~24 GB/sec (200 Gbps HDR InfiniBand)
-# Expected for H100 IB: ~48 GB/sec (400 Gbps NDR InfiniBand)
-
-# Verify nvidia_peermem for GPUDirect RDMA
-lsmod | grep nvidia_peermem
-# If not loaded: sudo modprobe nvidia_peermem
+ssh $VM_USER@$VM_IP 'nvidia-smi && ibv_devinfo | head -30 && lsmod | grep nvidia_peermem'
+# Expected: 8x A100 SXM, mlx5_0..mlx5_7 with state PORT_ACTIVE, nvidia_peermem loaded.
 ```
 
-#### Step 4: Run Environment Setup Script
+**A.5 Tear down:**
 
 ```bash
-# Copy the setup script to the VM
-scp setup-gpu-env.sh ubuntu@<VM_PUBLIC_IP>:~/
-
-# Run it
-ssh ubuntu@<VM_PUBLIC_IP> 'bash setup-gpu-env.sh'
-
-# Validate
-ssh ubuntu@<VM_PUBLIC_IP> 'bash validate-env.sh'
+crusoe compute vms stop   ozone-rdma-dev   # billing stops
+crusoe compute vms delete ozone-rdma-dev   # also releases reserved capacity
 ```
 
-#### Step 5: Build Ozone with Native Library
+---
+
+#### 7.4.B — Vultr Bare Metal H100 (lowest $/H100-IB-hour, most manual setup)
+
+**B.1 Create account + API key:** sign up at [my.vultr.com](https://my.vultr.com/),
+add payment, then generate an API key at Account → API. Export it:
 
 ```bash
-ssh ubuntu@<VM_PUBLIC_IP>
-
-# Clone the repo
-git clone https://github.com/apache/ozone.git && cd ozone
-git checkout gpudirect
-
-# Build Java (no native first, to verify build works)
-mvn install -DskipTests
-
-# Build with native library (requires cuObjServer SDK)
-export CUOBJSERVER_HOME=/usr/local/cuobjserver
-mvn install -DskipTests -Pnative -pl hadoop-hdds/container-service-native
+export VULTR_API_KEY=<key-from-console>
 ```
 
-#### Step 6: Start Ozone and Run Tests
+**B.2 Install `vultr-cli` (official CLI, VERIFIED):**
 
 ```bash
-# Configure RDMA (copy ozone-site-rdma.xml properties into ozone-site.xml)
-# See Section 7.11 for the configuration template
+# macOS:
+brew install vultr/vultr-cli/vultr-cli
 
-# Start single-node dev cluster
-ozone --daemon start scm && sleep 5
-ozone --daemon start om && sleep 5
-ozone --daemon start datanode && sleep 5
-ozone --daemon start s3g && sleep 3
+# Linux (any distro, via Go):
+go install github.com/vultr/vultr-cli/v3@latest
 
-# Create test volume/bucket and upload test data
-ozone sh volume create /vol1
-ozone sh bucket create /vol1/test-rdma
-dd if=/dev/urandom bs=1M count=256 of=/tmp/test-256m.bin
-ozone sh key put /vol1/test-rdma/test-256m /tmp/test-256m.bin
-
-# Run unit tests (MockRdmaTransferService - SIMULATED RDMA)
-mvn test -pl hadoop-hdds/container-service-native
-
-# Run integration tests (MockRdmaTransferService - SIMULATED RDMA)
-mvn test -pl hadoop-ozone/integration-test -Dtest=TestRdmaReadBlock
-
-# Run E2E test with REAL RDMA hardware
-# (Requires cuObjClient C++ test client - see Section 8.4)
+# Or download a prebuilt release binary:
+# https://github.com/vultr/vultr-cli/releases
 ```
 
-#### Step 7: Shut Down to Stop Billing
+**B.3 Find an H100 bare-metal plan in a region that stocks it (region inventory
+is dynamic; ALWAYS query at launch time — Vultr does not publish a static map):**
 
 ```bash
-# Stop Ozone
-bash cleanup-env.sh
+# List all regions
+vultr-cli regions list
 
-# IMPORTANT: Shut down or delete the VM via Crusoe console or CLI
-# The VM is billed per hour while running!
-crusoe compute vms stop ozone-rdma-dev
-# Or delete entirely:
-# crusoe compute vms delete ozone-rdma-dev
+# List every bare-metal plan — filter to GPU SKUs
+vultr-cli bare-metal plan list | grep -iE 'h100|a100|gpu'
+# Note the Plan ID (e.g., vbm-... or a specific H100 SKU identifier).
+
+# Check H100 availability in a region (replace <region-id>):
+vultr-cli bare-metal plan list | grep <h100-plan-id>
+# If the plan doesn't show for your region, pick a different region.
 ```
+
+**B.4 Provision an H100 bare-metal server with an Ubuntu 22.04 image:**
+
+```bash
+# List OS IDs — pick Ubuntu 22.04 x64
+vultr-cli os list | grep 22.04
+
+vultr-cli bare-metal create \
+  --region <region-id> \
+  --plan   <h100-bare-metal-plan-id> \
+  --os     <ubuntu-22.04-os-id> \
+  --host   ozone-rdma-dev \
+  --sshkey <your-sshkey-id>
+
+# Wait for state=active (5-15 minutes for bare metal provisioning).
+# Vultr emails the root password unless you supplied an SSH key.
+vultr-cli bare-metal list
+export VM_IP=<main-ip-from-list-output>
+export VM_USER=root
+export CLOUD=vultr
+```
+
+> **Cost:** listed at ~$2.30-$2.99/GPU-hour (8x H100 = ~$18-$24/hr). Pricing is
+> UNCONFIRMED against the live dashboard — check `vultr-cli bare-metal plan list`
+> for the exact `monthly_cost` / `hourly_cost` fields before committing.
+
+**B.5 Installer gap — Ubuntu 22.04 on Vultr ships without drivers. After SSH in:**
+
+```bash
+ssh $VM_USER@$VM_IP
+# 1. Install NVIDIA driver (>=545 for GDS 1.8+; match to your CUDA target).
+# 2. Install MLNX_OFED or DOCA-for-Host that matches your Ubuntu 22.04 point
+#    release. Check nvidia-fs compat matrix at
+#    docs.nvidia.com/gpudirect-storage before picking a version —
+#    Ubuntu 22.04.3 is notably unsupported by older MOFED releases.
+# 3. Load kernel modules:
+sudo modprobe mlx5_core mlx5_ib ib_uverbs rdma_cm rdma_ucm nvidia_peermem
+# 4. Install nvidia-fs kernel module + libcufile (the GDS user-space lib).
+# 5. Run setup-gpu-env.sh from §7.6, then validate-env.sh from §7.8.
+```
+
+**B.6 Tear down:**
+
+```bash
+vultr-cli bare-metal delete <instance-id>
+# Bare metal is billed per hour while allocated, prorated to the minute on delete.
+```
+
+---
+
+#### 7.4.C — Lambda Labs (real IB only on 1-Click Clusters; 2-week minimum)
+
+> **Critical caveat.** Lambda's **on-demand** tier does NOT expose IB between
+> nodes — only intra-node NVLink. Multi-host RDMA requires a **1-Click Cluster**,
+> which has a **16-GPU floor** and a **2-week minimum reservation** (~$16.5K).
+> If all you need is intra-node loopback RDMA testing (SoftRoCE-equivalent with
+> kernel `rdma_rxe`), pick the on-demand `gpu_8x_h100_sxm5` path (7.4.C.2). For
+> a real cross-host RDMA test, use 7.4.C.3.
+
+**C.1 Create account + API key:** sign up at
+[cloud.lambda.ai/sign-up](https://cloud.lambda.ai/sign-up), add payment, then
+go to API Keys and generate one. Export:
+
+```bash
+export LAMBDA_API_KEY=<key>
+```
+
+**C.2 On-demand single-node H100 (no multi-host IB — good for code-path tests):**
+
+Lambda does **not ship a first-party CLI** as of 2026-04. Use the documented
+REST API directly:
+
+```bash
+# List instance types and their availability:
+curl -s -u "$LAMBDA_API_KEY:" \
+  https://cloud.lambdalabs.com/api/v1/instance-types | jq .
+
+# Launch a gpu_8x_h100_sxm5 instance in us-east-1:
+curl -s -u "$LAMBDA_API_KEY:" \
+  -H "Content-Type: application/json" \
+  -X POST https://cloud.lambdalabs.com/api/v1/instance-operations/launch \
+  -d '{
+    "region_name": "us-east-1",
+    "instance_type_name": "gpu_8x_h100_sxm5",
+    "ssh_key_names": ["my-key"],
+    "quantity": 1
+  }' | jq .
+
+# Poll for running + public IP:
+curl -s -u "$LAMBDA_API_KEY:" \
+  https://cloud.lambdalabs.com/api/v1/instances | jq '.data[] | {id, status, ip}'
+
+export VM_IP=<ip-from-output>
+export VM_USER=ubuntu
+export CLOUD=lambda
+```
+
+> **Cost:** `gpu_8x_h100_sxm5` at ~$3.99/GPU/hr = ~$31.92/hr for 8 GPUs.
+> Lambda Stack image ships NVIDIA driver + CUDA + cuDNN. `nvidia-fs` /
+> `libcufile` are **not confirmed preinstalled** — run `dpkg -l | grep -E
+> 'cufile|nvidia-fs'` after SSH to check, then install from NVIDIA if missing.
+
+**C.3 1-Click Cluster for real Quantum-2 IB (16+ H100 SXM):**
+
+Provision via the Lambda console:
+1. Go to [cloud.lambda.ai/1-click-clusters](https://cloud.lambda.ai/1-click-clusters).
+2. Pick `H100 Tensor Core` + 16 (smallest), 2-week minimum, 3200 Gb/s IB.
+3. Generate SSH key or upload existing.
+4. Confirm reservation (triggers card charge — ~$16.5K for 2 weeks @ $6.16/GPU-hr).
+5. After provisioning (up to several hours), Lambda emails IPs for each head +
+   worker node. IB between nodes comes up via Quantum-2 NICs; validate as in A.4.
+
+**C.4 Tear down:**
+
+```bash
+# On-demand:
+curl -s -u "$LAMBDA_API_KEY:" \
+  -H "Content-Type: application/json" \
+  -X POST https://cloud.lambdalabs.com/api/v1/instance-operations/terminate \
+  -d '{"instance_ids": ["<instance-id>"]}'
+
+# 1-Click Cluster: terminate from the web console only (reservation-based billing).
+```
+
+---
+
+#### 7.4.D — AWS p4d / p5 with EFA (NOT true IB — see §7.3.3)
+
+> **Caveat repeated.** AWS EFA is a libfabric provider, not ibverbs. Confirm
+> your cuObjServer build has EFA support before booking time. If it only speaks
+> ibverbs, skip AWS for Phase 1.
+
+**D.1 Configure `aws` CLI:** already installed on most dev machines. If not:
+
+```bash
+# macOS:
+brew install awscli
+# Linux:
+# see https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+aws configure   # enter access key / secret / region
+```
+
+**D.2 Find the latest Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04):**
+
+```bash
+aws ec2 describe-images --owners amazon \
+  --filters "Name=name,Values=Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04)*" \
+  --query 'Images | sort_by(@, &CreationDate)[-1].{ImageId:ImageId,Name:Name}' \
+  --output table
+export AMI_ID=<ImageId-from-output>
+```
+
+**D.3 Create a cluster placement group + EFA-enabled security group:**
+
+```bash
+aws ec2 create-placement-group --group-name gds-test-cpg --strategy cluster
+
+# Create a VPC SG that allows all traffic from itself (required for EFA):
+export SG_ID=$(aws ec2 create-security-group --group-name gds-sg \
+  --description "EFA all-self-traffic" --vpc-id <your-vpc-id> --query GroupId --output text)
+aws ec2 authorize-security-group-ingress --group-id $SG_ID --protocol -1 --source-group $SG_ID
+aws ec2 authorize-security-group-ingress --group-id $SG_ID --protocol tcp --port 22 --cidr 0.0.0.0/0
+export SUBNET_ID=<your-subnet-in-same-az-as-placement-group>
+```
+
+**D.4 Launch a `p4d.24xlarge` with one EFA interface (cheapest on-demand GDS-capable SKU):**
+
+```bash
+aws ec2 run-instances \
+  --image-id $AMI_ID \
+  --instance-type p4d.24xlarge \
+  --count 1 \
+  --key-name <your-keypair> \
+  --placement GroupName=gds-test-cpg \
+  --network-interfaces "[{\"DeviceIndex\":0,\"NetworkCardIndex\":0,\"SubnetId\":\"$SUBNET_ID\",\"Groups\":[\"$SG_ID\"],\"InterfaceType\":\"efa\",\"AssociatePublicIpAddress\":true}]" \
+  --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=ozone-rdma-dev}]'
+
+# For p5.48xlarge, swap --instance-type; p5 may require EC2 Capacity Blocks
+# (aws ec2 purchase-capacity-block-offering) — on-demand is supply-limited.
+```
+
+**D.5 Get the IP and set env vars:**
+
+```bash
+export VM_IP=$(aws ec2 describe-instances --filters Name=tag:Name,Values=ozone-rdma-dev \
+  Name=instance-state-name,Values=running \
+  --query 'Reservations[].Instances[].PublicIpAddress' --output text)
+export VM_USER=ubuntu
+export CLOUD=aws
+```
+
+**D.6 Validate EFA + GPU (the DLAMI has drivers preinstalled, but confirm):**
+
+```bash
+ssh $VM_USER@$VM_IP 'nvidia-smi && fi_info -p efa && lsmod | grep nvidia_peermem'
+# Expected: 8x A100 40GB (p4d) or 8x H100 80GB (p5), fi_info lists an efa provider,
+# nvidia_peermem loaded. ibv_devinfo on p4d shows an EFA-backed IB device — do
+# NOT confuse this with a Mellanox HCA.
+```
+
+**D.7 Tear down:**
+
+```bash
+aws ec2 terminate-instances --instance-ids <instance-id>
+aws ec2 delete-security-group   --group-id   $SG_ID
+aws ec2 delete-placement-group  --group-name gds-test-cpg
+```
+
+---
+
+#### 7.4.Z — Provider-agnostic Steps: Build, Run, Test
+
+These steps assume `$VM_IP`, `$VM_USER`, and `$CLOUD` are exported from one of
+the provisioning stanzas above.
+
+**Z.1 Copy setup scripts to the VM and run:**
+
+```bash
+scp setup-gpu-env.sh validate-env.sh $VM_USER@$VM_IP:~/
+ssh $VM_USER@$VM_IP 'bash setup-gpu-env.sh'
+ssh $VM_USER@$VM_IP 'bash validate-env.sh'
+```
+
+**Z.2 Build Ozone with the native library:**
+
+```bash
+ssh $VM_USER@$VM_IP bash <<'EOF'
+  git clone https://github.com/apache/ozone.git && cd ozone
+  git checkout gpudirect
+  mvn install -DskipTests
+  export CUOBJSERVER_HOME=/usr/local/cuobjserver
+  mvn install -DskipTests -Pnative -pl hadoop-hdds/container-service-native
+EOF
+```
+
+**Z.3 Start a single-node Ozone cluster and run tests:**
+
+```bash
+ssh $VM_USER@$VM_IP bash <<'EOF'
+  cd ozone
+  # (Apply ozone-site.xml from §7.11 before starting.)
+  ozone --daemon start scm      && sleep 5
+  ozone --daemon start om       && sleep 5
+  ozone --daemon start datanode && sleep 5
+  ozone --daemon start s3g      && sleep 3
+
+  ozone sh volume create /vol1
+  ozone sh bucket create /vol1/test-rdma
+  dd if=/dev/urandom bs=1M count=256 of=/tmp/test-256m.bin
+  ozone sh key put /vol1/test-rdma/test-256m /tmp/test-256m.bin
+
+  mvn test -pl hadoop-hdds/container-service-native                           # mock RDMA
+  mvn test -pl hadoop-ozone/integration-test -Dtest=TestRdmaReadBlock         # integration
+EOF
+```
+
+**Z.4 Shut down (provider-specific) — see §7.4.A.5, §7.4.B.6, §7.4.C.4, §7.4.D.7.
+A running VM with an H100 chassis bills $20-$100/hr depending on provider —
+always teardown at end of day.**
 
 ### 7.5 How to Run Ozone for Development
 
@@ -3410,20 +3887,64 @@ mvn test -pl hadoop-hdds/container-service-native        # Unit tests (mock)
 mvn test -pl hadoop-ozone/integration-test -Dtest=TestRdmaReadBlock  # Integration
 ```
 
-#### B. Cloud GPU VM (Crusoe Cloud, REAL RDMA)
+#### B. Cloud GPU VM with REAL RDMA — pick one provider
 
+Each stanza below provisions a single-node GPU+RDMA box. After it comes up,
+all four providers share the same build/test cookbook at §7.4.Z.
+
+**B.1. Crusoe (cheapest real IB, drivers preinstalled):**
 ```bash
-# 1. Sign up at console.crusoecloud.com with credit card
-# 2. Install CLI: brew install crusoecloud/cli/crusoe && crusoe auth login
-# 3. Create A100 IB VM (cheapest IB, $15.60/hr):
-#    crusoe compute vms create --name ozone-rdma-dev --type a100-80gb-sxm-ib.8x \
-#      --location us-east1-a --image ubuntu22.04-nvidia-sxm-docker:latest \
-#      --ssh-key "$(cat ~/.ssh/id_rsa.pub)" --disk-size 200
-# 4. scp setup-gpu-env.sh ubuntu@<IP>:~/ && ssh ubuntu@<IP> 'bash setup-gpu-env.sh'
-# 5. ssh ubuntu@<IP> 'bash validate-env.sh'
-# 6. Build: export CUOBJSERVER_HOME=/usr/local/cuobjserver && mvn install -Pnative -DskipTests
-# 7. Start Ozone, upload test data, run tests (Section 7.4 Steps 5-6)
-# 8. SHUT DOWN VM: crusoe compute vms stop ozone-rdma-dev
+brew install crusoecloud/cli/crusoe && crusoe auth login
+crusoe compute vms create --name ozone-rdma-dev --type a100-80gb-sxm-ib.8x \
+  --location us-east1-a --image ubuntu22.04-nvidia-sxm-docker:latest \
+  --ssh-key "$(cat ~/.ssh/id_rsa.pub)" --disk-size 200
+export VM_IP=<ip>; export VM_USER=ubuntu; export CLOUD=crusoe
+# Teardown: crusoe compute vms delete ozone-rdma-dev
+```
+
+**B.2. Vultr (real Quantum-2 IB on H100 bare metal, manual MOFED install):**
+```bash
+brew install vultr/vultr-cli/vultr-cli   # or: go install github.com/vultr/vultr-cli/v3@latest
+export VULTR_API_KEY=<key>
+vultr-cli bare-metal plan list | grep -iE 'h100|a100'
+vultr-cli bare-metal create --region <r> --plan <h100-plan-id> \
+  --os <ubuntu-22.04-os-id> --host ozone-rdma-dev --sshkey <sshkey-id>
+export VM_IP=<main-ip>; export VM_USER=root; export CLOUD=vultr
+# Teardown: vultr-cli bare-metal delete <instance-id>
+```
+
+**B.3. Lambda (on-demand H100 single node — no cross-host IB):**
+```bash
+export LAMBDA_API_KEY=<key>
+curl -s -u "$LAMBDA_API_KEY:" -H "Content-Type: application/json" \
+  -X POST https://cloud.lambdalabs.com/api/v1/instance-operations/launch \
+  -d '{"region_name":"us-east-1","instance_type_name":"gpu_8x_h100_sxm5",
+       "ssh_key_names":["my-key"],"quantity":1}'
+# Poll: curl -s -u "$LAMBDA_API_KEY:" https://cloud.lambdalabs.com/api/v1/instances
+export VM_IP=<ip>; export VM_USER=ubuntu; export CLOUD=lambda
+# Teardown via POST to /instance-operations/terminate
+# For real cross-host IB: use Lambda 1-Click Clusters (web console only, 16-GPU min, 2-week min).
+```
+
+**B.4. AWS p4d (EFA, not IB — check cuObjServer/EFA compatibility first, §7.3.3):**
+```bash
+AMI_ID=$(aws ec2 describe-images --owners amazon \
+  --filters "Name=name,Values=Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04)*" \
+  --query 'Images | sort_by(@,&CreationDate)[-1].ImageId' --output text)
+aws ec2 create-placement-group --group-name gds-test-cpg --strategy cluster
+# ...create SG allowing all-self-traffic, then:
+aws ec2 run-instances --image-id $AMI_ID --instance-type p4d.24xlarge --count 1 \
+  --key-name <kp> --placement GroupName=gds-test-cpg \
+  --network-interfaces "[{\"DeviceIndex\":0,\"NetworkCardIndex\":0,\"SubnetId\":\"$SUBNET_ID\",\"Groups\":[\"$SG_ID\"],\"InterfaceType\":\"efa\",\"AssociatePublicIpAddress\":true}]"
+export VM_IP=<ip>; export VM_USER=ubuntu; export CLOUD=aws
+# Teardown: aws ec2 terminate-instances --instance-ids <id>
+```
+
+**Build + run (all providers):**
+```bash
+scp setup-gpu-env.sh validate-env.sh $VM_USER@$VM_IP:~/
+ssh $VM_USER@$VM_IP 'bash setup-gpu-env.sh && bash validate-env.sh'
+# Continue with §7.4.Z
 ```
 
 ### 7.11 Ozone RDMA Configuration Template
