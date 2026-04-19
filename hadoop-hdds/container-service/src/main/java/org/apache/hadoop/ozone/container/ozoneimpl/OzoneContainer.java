@@ -83,8 +83,11 @@ import org.apache.hadoop.ozone.container.common.report.IncrementalReportSender;
 import org.apache.hadoop.ozone.container.common.statemachine.DatanodeConfiguration;
 import org.apache.hadoop.ozone.container.common.statemachine.StateContext;
 import org.apache.hadoop.ozone.container.common.transport.server.XceiverServerGrpc;
+import org.apache.hadoop.ozone.container.common.transport.server.XceiverServerRdma;
 import org.apache.hadoop.ozone.container.common.transport.server.XceiverServerSpi;
 import org.apache.hadoop.ozone.container.common.transport.server.ratis.XceiverServerRatis;
+import org.apache.hadoop.ozone.container.keyvalue.KeyValueHandler;
+import org.apache.hadoop.ozone.container.rdma.RdmaTransferService;
 import org.apache.hadoop.ozone.container.common.utils.ContainerInspectorUtil;
 import org.apache.hadoop.ozone.container.common.utils.HddsVolumeUtil;
 import org.apache.hadoop.ozone.container.common.volume.HddsVolume;
@@ -128,6 +131,7 @@ public class OzoneContainer {
   private final ContainerSet containerSet;
   private final XceiverServerSpi writeChannel;
   private final XceiverServerSpi readChannel;
+  private final XceiverServerRdma xceiverServerRdma;
   private final ContainerController controller;
   private BackgroundContainerMetadataScanner metadataScanner;
   private OnDemandContainerScanner onDemandScanner;
@@ -249,6 +253,42 @@ public class OzoneContainer {
 
     readChannel = new XceiverServerGrpc(
         datanodeDetails, config, hddsDispatcher, certClient);
+
+    // Build the RDMA engine and advertise the port on DatanodeDetails so S3G
+    // clients can discover it. If hdds.datanode.rdma.enabled=false or engine
+    // init fails (native lib missing, SDK unavailable, etc.), rdma stays
+    // null — KeyValueHandler.handleRdmaReadBlock returns RDMA_NOT_AVAILABLE
+    // for every RDMA request on that datanode.
+    XceiverServerRdma rdma = null;
+    if (conf.getBoolean(XceiverServerRdma.RDMA_ENABLED_KEY,
+        XceiverServerRdma.RDMA_ENABLED_DEFAULT)) {
+      try {
+        String serviceClass = conf.get(
+            XceiverServerRdma.RDMA_TRANSFER_SERVICE_CLASS_KEY,
+            XceiverServerRdma.RDMA_TRANSFER_SERVICE_CLASS_DEFAULT);
+        RdmaTransferService rdmaService = (RdmaTransferService)
+            Class.forName(serviceClass).getDeclaredConstructor().newInstance();
+        rdma = new XceiverServerRdma(config, rdmaService);
+        datanodeDetails.setPort(DatanodeDetails.newPort(
+            Name.RDMA, rdma.getRdmaPort()));
+        LOG.info("RDMA engine initialized on port {}", rdma.getRdmaPort());
+      } catch (Exception e) {
+        LOG.warn("Failed to initialize RDMA engine. Datanode will operate "
+            + "without RDMA support. Reason: {}", e.getMessage());
+        rdma = null;
+      }
+    }
+    this.xceiverServerRdma = rdma;
+
+    // Wire the RDMA engine into already-constructed handlers. Safe even
+    // when rdma == null: setter stores null and handleRdmaReadBlock returns
+    // RDMA_NOT_AVAILABLE on the datapath.
+    for (Handler h : handlers.values()) {
+      if (h instanceof KeyValueHandler) {
+        ((KeyValueHandler) h).setXceiverServerRdma(rdma);
+      }
+    }
+
     Duration blockDeletingSvcInterval = dnConf.getBlockDeletionInterval();
 
     long blockDeletingServiceTimeout = config
@@ -596,6 +636,13 @@ public class OzoneContainer {
     replicationServer.stop();
     writeChannel.stop();
     readChannel.stop();
+    if (xceiverServerRdma != null) {
+      try {
+        xceiverServerRdma.close();
+      } catch (IOException e) {
+        LOG.warn("Failed to close XceiverServerRdma cleanly", e);
+      }
+    }
     this.handlers.values().forEach(Handler::stop);
     hddsDispatcher.shutdown();
     volumeChecker.shutdownAndWait(0, TimeUnit.SECONDS);
@@ -667,6 +714,14 @@ public class OzoneContainer {
 
   public XceiverServerSpi getReadChannel() {
     return readChannel;
+  }
+
+  /**
+   * @return the RDMA engine, or {@code null} when RDMA is disabled or
+   *     failed to initialize on this datanode.
+   */
+  public XceiverServerRdma getXceiverServerRdma() {
+    return xceiverServerRdma;
   }
 
   public ContainerController getController() {
