@@ -1,7 +1,7 @@
 # DN-Direct RDMA Implementation Specification for Apache Ozone
 ## Phase 1: Read Path — Dual-Mode: GPU Memory and Host-Memory RDMA Transfers
 
-**Version:** 12.1
+**Version:** 12.2
 **Date:** 2026-04-18
 **Status:** Draft — v11.0 audit fixes + post-review additions applied.
 v12.0: shared-helper plumbing for `RdmaReadBlock`, `OzoneContainer`→
@@ -17,6 +17,24 @@ self-service), §4.7.0 Maven↔CMake integration via `maven-antrun-plugin` +
 `maven-resources-plugin`, §4.7.2 distribution packaging of
 `libcuobj_server_bridge.so`, and RoCEv2 detection/tuning in
 `setup-gpu-env.sh` + `validate-env.sh`.
+v12.2: post-v12.1 verification fixes — architecture diagram library name
+aligned to `libcuobj_server_bridge.so`; §5.2 build description aligned to
+`maven-antrun-plugin` + `maven-resources-plugin` (dropping the stale
+`cmake-maven-plugin` reference); §4.3 module dependency direction corrected
+(`container-service` depends on `container-service-native`, not the reverse)
+plus `hadoop-hdds/pom.xml` reactor entry; §4.7.0 jar fallback path corrected
+to jar-root (`NativeLibraryLoader` does not prepend `native/`); §4.7.2 dist
+layout corrected to `share/ozone/lib` with an explicit `JAVA_LIBRARY_PATH`
+export in `ozone-env.sh`; §4.1.4 `RDMA_BUFFER_POOL_EXHAUSTED` and
+`RDMA_TRANSFER_FAILED` now actually emitted via specific catches; new
+§4.11.1 wires `hdds.datanode.rdma.checksum.enabled`; §4.14.3 adds volume
+IO stats + container byte stats parity with `readBlockImpl`; §4.2 adds
+`RDMA` to `DatanodeDetails.IO_PORTS`; §4.13 rewritten to reflect the
+audit-action mapping added in §4.13-pre D (previous "no changes required"
+text was contradicted by v12.0 additions); §4.1.2 wording for
+`perChunkChecksum` clarified so implementers know the field is always
+populated, with `type = NONE` and an empty CRC list for `CHECKSUM_NONE`
+blocks.
 **Target Branch:** `master` (Apache Ozone `2.2.0-SNAPSHOT`)
 **Scope:** Phase 1 — S3 GET (Read Path) Only — GPU and Host-Memory Client Modes
 
@@ -123,6 +141,24 @@ first-time implementer.
 | R5 | `setup-gpu-env.sh` treated every Mellanox NIC the same and did not tune for RoCEv2 | Script now detects `link_layer: InfiniBand` vs `Ethernet` via `ibv_devinfo`, runs `cma_roce_mode -m 2` for RoCE, applies `mlnx_qos` PFC on priority 3, enables ECN, sets `CUFILE_ETH_SL=3`. |
 | R6 | `validate-env.sh` did not tell the operator whether they were on IB, RoCEv2, or SoftRoCE | Added a fabric classification block that reports `REAL InfiniBand`, `REAL RoCEv2`, or `SIMULATED SoftRoCE`, and asserts PFC+CUFILE_ETH_SL on the RoCE path. |
 | R7 | §4.7 documented `CMakeLists.txt` but did not show HOW Maven invokes CMake or how the built `.so` gets into the jar | Added §4.7.0 (Maven-antrun plugin invokes cmake during `compile`; maven-resources plugin copies `libcuobj_server_bridge.so` into `target/classes/native/`) and §4.7.2 (distribution-tarball packaging under `share/hadoop/ozone/lib/native/`). |
+
+### Issues Fixed in v12.2 (Post-v12.1 Verification)
+
+Verification pass against the actual repo state caught a cluster of
+implementation-blocking inconsistencies introduced over v10.0–v12.1.
+
+| # | v12.1 gap | v12.2 fix |
+|---|---|---|
+| V1 | §4.3 declared `container-service-native` depends on `container-service`, but `XceiverServerRdma` in `container-service` imports `RdmaTransferService`/`RdmaBufferPool`/`CuObjRdmaTransferService` from `container-service-native` — the declared direction is the reverse of what the class layout requires, which is a Maven cycle. Reactor entry in `hadoop-hdds/pom.xml` was also missing. | §4.3 rewritten to declare the correct direction (`container-service` → `container-service-native`) and to add the `<module>container-service-native</module>` entry. |
+| V2 | §4.7.0 claimed `NativeLibraryLoader` falls back to `native/libcuobj_server_bridge.so`; the actual loader in `hadoop-hdds/rocks-native/.../NativeLibraryLoader.java` searches the jar root for a bare `libcuobj_server_bridge.so`, no `native/` prefix. | §4.7.0 corrected: staged to both jar root and `native/` sub-path via two `maven-resources-plugin` executions; load-path description rewritten. |
+| V3 | §4.7.2 shipped the `.so` under `share/hadoop/ozone/lib/native/`, but the repo's `dist-layout-stitching` stages libraries under `share/ozone/lib`. `ozone-functions.sh` was also assumed to set `java.library.path` automatically; it only appends when `JAVA_LIBRARY_PATH` is already set. | §4.7.2 corrected to `share/ozone/lib/native/`, with `dist-layout-stitching` additions and an explicit `JAVA_LIBRARY_PATH` export in `ozone-env.sh`. |
+| V4 | §4.1.4 declared `RDMA_BUFFER_POOL_EXHAUSTED` and `RDMA_TRANSFER_FAILED` but neither was ever emitted — `handleRdmaReadBlock`'s generic `IOException` catch collapsed both into `IO_EXCEPTION`, and `handleRdmaRead` threw plain `IOException` on transfer failures. | §4.11 introduces `RdmaTransferException`; §4.14.3 adds specific catches before the generic `IOException` branch so both codes actually reach the wire. |
+| V5 | §7.11 and Appendix F listed `hdds.datanode.rdma.checksum.enabled` as a user-facing toggle, but no Java code read it. | Added `RDMA_CHECKSUM_ENABLED_KEY` constant + constructor field in `XceiverServerRdma`; gated the `Checksum.verifyChecksum(...)` call on the flag. |
+| V6 | `handleRdmaReadBlock` did not record `volume.getVolumeIOStats().recordReadOperation(...)` or `metrics.incContainerBytesStats(...)` even though `readBlockImpl` does — RDMA reads were invisible to every existing datanode read dashboard. | §4.14.3 wraps the call with the same `startTime` + stats pattern used by `readBlockImpl`, attributing RDMA bytes to `Type.RdmaReadBlock`. |
+| V7 | §4.2 added `Port.Name.RDMA` but did not update `DatanodeDetails.IO_PORTS`, so the proto serializer's `IO_PORTS` filter path hid the new port from clients. | §4.2 updates `IO_PORTS` to include `RDMA` and notes the layout-version annotation protects pre-RDMA clients. |
+| V8 | §4.13 still read "No changes required" while §4.13-pre D (added in v12.0) explicitly added `DNAction.RDMA_READ_BLOCK` + `msgToAction` case to `HddsDispatcher`. Internal self-contradiction. | §4.13 rewritten to "audit-action mapping only", cross-referencing §4.13-pre D. |
+| V9 | Architecture diagram still showed `libgds_jni.so`; §5.2 still said "CMake + `cmake-maven-plugin`". Both contradicted the rest of the spec. | Diagram updated to `libcuobj_server_bridge.so`; §5.2 rewritten to match §4.7.0's `maven-antrun-plugin` + `maven-resources-plugin` story. |
+| V10 | §4.1.2 comment on `perChunkChecksum` said "empty only when block was written with `CHECKSUM_NONE`", but `handleRdmaRead` always appends a per-chunk entry regardless of type — the field is populated with `type = NONE` + empty CRC list for `CHECKSUM_NONE` blocks, not omitted. | §4.1.2 comment rewritten so clients branch on per-entry `type == NONE`, not on emptiness of the outer repeated field. |
 
 ### Issues Fixed in v11.0 (Post-v10.0 Audit)
 
@@ -282,7 +318,7 @@ Every cuObject API call in this spec links inline to its NVIDIA documentation re
   - [4.10 RdmaBuffer.java and RdmaBufferPool.java](#410-rdmabufferjava-and-rdmabufferpooljava)
   - [4.11 XceiverServerRdma.java](#411-xceiverserverrdmajava)
   - [4.12 OzoneContainer.java Modifications](#412-ozonecontainerjava-modifications)
-  - [4.13 HddsDispatcher — No changes required](#413-hddsdispatcher--no-changes-required)
+  - [4.13 HddsDispatcher — audit-action mapping only](#413-hddsdispatcher--audit-action-mapping-only)
   - [4.14 KeyValueHandler Modifications](#414-keyvaluehandler-modifications)
   - [4.15 S3 Gateway: ObjectEndpoint Modifications](#415-s3-gateway-objectendpoint-modifications)
   - [4.16 S3 Gateway: RdmaRequestFilter](#416-s3-gateway-rdmarequestfilter)
@@ -603,7 +639,7 @@ flowchart TB
     XceiverRdma["XceiverServerRdma.java<br/>RDMA engine: buffer pool + cuObjServer"]
     RdmaService["RdmaTransferService.java<br/>Interface for mock/real switching"]
     JNIBridge["CuObjServerBridge.java<br/>JNI native method declarations"]
-    NativeLib["libgds_jni.so (C++)<br/>cuObjServer JNI implementation"]
+    NativeLib["libcuobj_server_bridge.so (C++)<br/>cuObjServer JNI implementation"]
     RdmaFilter["RdmaRequestFilter.java"]
     NativeModule["container-service-native/"]
   end
@@ -992,7 +1028,15 @@ message RdmaReadBlockResponseProto {
   // bytes that arrived in its RDMA buffer — catching memory/DMA corruption
   // between the NIC write and the client application.
   //
-  // The list is empty only when the block was written with CHECKSUM_NONE.
+  // The field is populated for every stored chunk that was transferred
+  // (the server always calls `addPerChunkChecksum(storedChunk.getChecksumData())`
+  // — see §4.11 `handleRdmaRead`). For blocks written with
+  // `CHECKSUM_NONE`, each entry still appears but carries
+  // `type = NONE` with an empty `checksums` list, because that is how
+  // the stored `ChecksumData` is persisted in `BlockData`. Clients that
+  // want to skip post-transfer verification should branch on
+  // `type == NONE` (per-entry), not on emptiness of the outer repeated
+  // field.
   repeated ChecksumData perChunkChecksum = 2;
   // Byte offset within the client's registered RDMA buffer where the FIRST
   // stored chunk's bytes were written. Subsequent entries in perChunkChecksum
@@ -1052,6 +1096,25 @@ RDMA_NOT_AVAILABLE = 51;         // Permanent: RDMA not enabled or native lib no
 Add `RDMA` to `Port.Name` enum with `@BelongsToHDDSLayoutVersion(RDMA_PORT_IN_DATANODEDETAILS)`.
 Add `RDMA_PORT_IN_DATANODEDETAILS` to `HDDSLayoutFeature` enum.
 
+**v12.2 audit fix.** The current `DatanodeDetails.IO_PORTS` definition
+(`DatanodeDetails.java:1049-1050`) enumerates the ports that the proto
+serializer `toProto(int, Set<Port.Name>)` will expose when callers pass
+`Name.IO_PORTS` as the filter set. Without adding `RDMA` there, the new
+port exists in the enum but is invisible to the normal client-facing
+serialization path — S3G and the RDMA client will never see the RDMA
+port in the datanode's proto reply. Update the set alongside the enum
+change:
+
+```java
+// DatanodeDetails.java (existing set):
+public static final Set<Name> IO_PORTS = ImmutableSet.copyOf(
+    EnumSet.of(STANDALONE, RATIS, RATIS_DATASTREAM, RDMA));   // <<< ADD RDMA
+```
+
+The layout-version annotation on the enum value ensures older clients
+still skip the port during serialization, so this does not break
+wire compatibility with pre-RDMA datanodes.
+
 ### 4.3 New Maven Module: `container-service-native`
 
 ```
@@ -1073,22 +1136,53 @@ hadoop-hdds/container-service-native/
     +-- test/java/...
 ```
 
-**Required pom dependencies.** `container-service-native/pom.xml` must declare
-dependencies on (at minimum):
+**Required pom dependencies (dependency direction).** `XceiverServerRdma`
+lives in `container-service` (§4.11) and imports `RdmaTransferService`,
+`RdmaBufferPool`, and `CuObjRdmaTransferService` from
+`container-service-native`. The dependency therefore goes **one way only**:
+`container-service` → `container-service-native`. `container-service-native`
+must **not** depend back on `container-service` — doing so produces a Maven
+cycle. The required dependency set for each side is:
+
+`container-service-native/pom.xml` declares (no reverse edge):
 
 - `org.apache.ozone:hadoop-hdds-common` — for `ChecksumByteBufferFactory`,
-  `BlockID`, etc.
-- `org.apache.ozone:hadoop-hdds-container-service` — for container/key-value
-  handler types used by `XceiverServerRdma`.
+  `BlockID`, `ContainerProtos`, etc.
 - `org.apache.ozone:hadoop-hdds-rocks-native` — **required** because
   `CuObjServerBridge` reuses `org.apache.hadoop.hdds.utils.NativeLibraryLoader`,
   which lives in the `rocks-native` module. The class is a generic JNI loader
   despite the module name; this reuse is deliberate to avoid duplicating the
   temp-copy-from-jar logic.
 
+`hadoop-hdds/container-service/pom.xml` adds:
+
+- `org.apache.ozone:hadoop-hdds-container-service-native` — so
+  `XceiverServerRdma`, `KeyValueHandler.handleRdmaReadBlock()`, and
+  `OzoneContainer` can compile against the RDMA classes.
+
 Reusing a RocksDB-adjacent loader for a cuObjServer bridge is pragmatic but
 architecturally notable — if at some point `NativeLibraryLoader` is moved into a
-dedicated utility module, `container-service-native` should follow.
+dedicated utility module, both `container-service-native` and `container-service`
+should follow.
+
+**Reactor entry (`hadoop-hdds/pom.xml`).** The new module is not discovered
+automatically; add it alongside the existing `container-service` module so
+Maven builds it in the HDDS reactor:
+
+```xml
+<!-- hadoop-hdds/pom.xml -->
+<modules>
+  <!-- ... existing modules ... -->
+  <module>container-service</module>
+  <module>container-service-native</module>   <!-- <<< ADD -->
+  <!-- ... remaining modules ... -->
+</modules>
+```
+
+Because `container-service` now depends on `container-service-native`, the
+reactor ordering `container-service-native` → `container-service` happens
+automatically from the pom dependency; the `<modules>` list is declarative,
+not order-sensitive.
 
 ### 4.4 RdmaTransferService Interface
 
@@ -1571,13 +1665,70 @@ Add the following to `hadoop-hdds/container-service-native/pom.xml`:
 
 **Runtime load path.** `NativeLibraryLoader.loadLibrary("cuobj_server_bridge", ...)`
 in `CuObjServerBridge` (§4.5) will:
-1. Look in `java.library.path` first.
-2. Fall back to extracting `native/libcuobj_server_bridge.so` from the
-   `container-service-native` jar to a temp directory and loading from there.
 
-The datanode start script (`bin/ozone`) already sets `java.library.path` to
-include `share/hadoop/ozone/lib/native/`. Distribution packaging must copy
-`libcuobj_server_bridge.so` there — see §4.7.2.
+1. First call `System.loadLibrary("cuobj_server_bridge")`, which resolves
+   through `java.library.path`.
+2. If that fails, it searches the classpath for the bare resource
+   `libcuobj_server_bridge.so` **at the jar root** — the loader does
+   **not** prepend a `native/` package. See
+   `NativeLibraryLoader.getJniLibraryFileName(...)` and
+   `NativeLibraryLoader.getResourceStream(...)` in
+   `hadoop-hdds/rocks-native/src/main/java/org/apache/hadoop/hdds/utils/NativeLibraryLoader.java`.
+
+To keep the fallback working, the `maven-resources-plugin` in the `native`
+profile must stage the `.so` at **two** locations:
+
+- `${project.build.outputDirectory}/libcuobj_server_bridge.so` — jar root,
+  consumed by `NativeLibraryLoader.loadLibrary(...)` on the classpath
+  fallback.
+- `${project.build.outputDirectory}/native/libcuobj_server_bridge.so` —
+  under `native/`, consumed by the distribution assembly in §4.7.2 when
+  packaging the runtime tarball. This mirrors how `rocks-native` stages its
+  JNI library for tarball inclusion.
+
+Update the `<outputDirectory>` block in the `copy-native-lib` execution
+above so both locations are populated — either by listing two `<resource>`
+elements, or by running the plugin twice with different `<outputDirectory>`
+values. The simplest form:
+
+```xml
+<execution>
+  <id>copy-native-lib-jar-root</id>
+  <phase>process-classes</phase>
+  <goals><goal>copy-resources</goal></goals>
+  <configuration>
+    <outputDirectory>${project.build.outputDirectory}</outputDirectory>
+    <resources>
+      <resource>
+        <directory>${project.build.directory}/native/install/lib</directory>
+        <includes><include>libcuobj_server_bridge.so</include></includes>
+      </resource>
+    </resources>
+  </configuration>
+</execution>
+<execution>
+  <id>copy-native-lib-dist</id>
+  <phase>process-classes</phase>
+  <goals><goal>copy-resources</goal></goals>
+  <configuration>
+    <outputDirectory>${project.build.outputDirectory}/native</outputDirectory>
+    <resources>
+      <resource>
+        <directory>${project.build.directory}/native/install/lib</directory>
+        <includes><include>libcuobj_server_bridge.so</include></includes>
+      </resource>
+    </resources>
+  </configuration>
+</execution>
+```
+
+The datanode start script does **not** proactively set `java.library.path`.
+`hadoop-ozone/dist/src/shell/ozone/ozone-functions.sh` (around the
+`ozone_translate_cygwin_path JAVA_LIBRARY_PATH` block) only appends
+`-Djava.library.path=${JAVA_LIBRARY_PATH}` when `JAVA_LIBRARY_PATH` is
+**already set** in the environment. Distribution packaging therefore needs
+to both (a) copy the `.so` into the tarball and (b) export
+`JAVA_LIBRARY_PATH` so the existing shell logic picks it up — see §4.7.2.
 
 ### 4.7.1 CMakeLists.txt for Native Build
 
@@ -1613,17 +1764,20 @@ install(TARGETS cuobj_server_bridge
 ### 4.7.2 Distribution packaging
 
 The built `libcuobj_server_bridge.so` must ship in the Ozone distribution
-tarball under `share/hadoop/ozone/lib/native/` so the datanode JVM finds it
-via `java.library.path`. In addition to the jar-embedded copy (used by
-`NativeLibraryLoader`'s fallback), add the library to
-`hadoop-ozone/dist/src/main/assemblies/ozone-src.xml` and the runtime
-assembly descriptor:
+tarball so the datanode JVM can load it via `java.library.path`. The repo's
+dist layout stages Ozone libraries under **`share/ozone/lib`** (not
+`share/hadoop/ozone/lib/...`) — see `hadoop-ozone/dist/dev-support/bin/dist-layout-stitching`.
+To keep the native `.so` separate from the JAR directory (and to match the
+`rocks-native` convention), place it under
+**`share/ozone/lib/native/`**.
+
+Add the library to the runtime assembly descriptor:
 
 ```xml
 <!-- hadoop-ozone/dist/src/main/assemblies/ozone.xml -->
 <fileSet>
   <directory>${project.basedir}/../../hadoop-hdds/container-service-native/target/native/install/lib</directory>
-  <outputDirectory>share/hadoop/ozone/lib/native</outputDirectory>
+  <outputDirectory>share/ozone/lib/native</outputDirectory>
   <includes>
     <include>libcuobj_server_bridge.so</include>
   </includes>
@@ -1631,8 +1785,40 @@ assembly descriptor:
 </fileSet>
 ```
 
+Then modify `hadoop-ozone/dist/dev-support/bin/dist-layout-stitching` (the
+script that assembles the runtime tree) to create the `native` subdirectory
+and copy the `.so` there:
+
+```bash
+# dist-layout-stitching additions (near the existing `./share/ozone/lib` line)
+run mkdir -p ./share/ozone/lib/native
+run cp -p \
+  "${ROOT}/hadoop-hdds/container-service-native/target/native/install/lib/libcuobj_server_bridge.so" \
+  ./share/ozone/lib/native/ || true
+```
+
+The `|| true` keeps the dist build green when `-Pnative` is **not**
+activated (the `.so` simply won't exist).
+
+Because `ozone-functions.sh` only injects `-Djava.library.path=...` when
+`JAVA_LIBRARY_PATH` is already exported, add an explicit export to the
+default datanode env file:
+
+```bash
+# hadoop-ozone/dist/src/shell/conf/ozone-env.sh — datanode section
+# Prepend RDMA native-lib path so cuObjServerBridge can load libcuobj_server_bridge.so.
+if [ -d "${OZONE_HOME}/share/ozone/lib/native" ]; then
+  export JAVA_LIBRARY_PATH="${OZONE_HOME}/share/ozone/lib/native${JAVA_LIBRARY_PATH:+:${JAVA_LIBRARY_PATH}}"
+fi
+```
+
 The native profile must also be activated when building the dist tarball:
 `mvn package -Pnative,dist -pl hadoop-ozone/dist -am -DskipTests`.
+
+**Fallback note.** Even when the dist script copies the `.so` into
+`share/ozone/lib/native/`, the jar-embedded copy (§4.7.0) must still be at
+the jar root — `NativeLibraryLoader` only falls back to the jar root, not
+to a `native/` subdirectory inside the jar.
 
 **Non-native builds.** When `-Pnative` is NOT set, the jar contains no `.so`,
 `NativeLibraryLoader.loadLibrary(...)` returns `false`, and
@@ -2104,6 +2290,16 @@ public class XceiverServerRdma implements Closeable {
   public static final String RDMA_MAX_CONCURRENT_TRANSFERS_KEY =
       "hdds.datanode.rdma.max.concurrent.transfers";
   public static final int RDMA_MAX_CONCURRENT_TRANSFERS_DEFAULT = 32;
+  // v12.2: wires the `hdds.datanode.rdma.checksum.enabled` toggle documented
+  // in §7.11 and in the Appendix F config table. When false, the server skips
+  // the stored-checksum verification step before RDMA_WRITE (trust-the-disk
+  // mode) — intended for benchmarking or for deployments where the underlying
+  // filesystem already provides end-to-end integrity. Default is `true`
+  // because disk corruption at read time is the primary reason this path
+  // verifies the stored CRC at all.
+  public static final String RDMA_CHECKSUM_ENABLED_KEY =
+      "hdds.datanode.rdma.checksum.enabled";
+  public static final boolean RDMA_CHECKSUM_ENABLED_DEFAULT = true;
 
   private static final long MAX_RDMA_OP_SIZE = 1L * 1024 * 1024 * 1024;
   private static final long JAVA_SIDE_BLOCK_TIMEOUT_MS = 5 * 60 * 1000;
@@ -2112,6 +2308,7 @@ public class XceiverServerRdma implements Closeable {
   private final RdmaBufferPool bufferPool;
   private final int rdmaPort;
   private final Semaphore transferSemaphore;
+  private final boolean checksumVerificationEnabled;
 
   public XceiverServerRdma(ConfigurationSource conf,
       RdmaTransferService transferService) throws IOException {
@@ -2121,13 +2318,16 @@ public class XceiverServerRdma implements Closeable {
     int maxConcurrentTransfers = conf.getInt(
         RDMA_MAX_CONCURRENT_TRANSFERS_KEY, RDMA_MAX_CONCURRENT_TRANSFERS_DEFAULT);
     this.transferSemaphore = new Semaphore(maxConcurrentTransfers);
+    this.checksumVerificationEnabled = conf.getBoolean(
+        RDMA_CHECKSUM_ENABLED_KEY, RDMA_CHECKSUM_ENABLED_DEFAULT);
 
     String bindAddress = conf.get(RDMA_BIND_ADDRESS_KEY, RDMA_BIND_ADDRESS_DEFAULT);
 
     transferService.initialize(bindAddress, rdmaPort);
     this.bufferPool = new RdmaBufferPool(conf, transferService);
 
-    LOG.info("XceiverServerRdma started: bind={}, port={}", bindAddress, rdmaPort);
+    LOG.info("XceiverServerRdma started: bind={}, port={}, checksumVerification={}",
+        bindAddress, rdmaPort, checksumVerificationEnabled);
   }
 
   /**
@@ -2260,9 +2460,15 @@ public class XceiverServerRdma implements Closeable {
         // readChunk path (see ChunkUtils.readData + Checksum.verifyChecksum).
         // Disk corruption MUST be caught at the datanode so bad bytes never
         // DMA into client memory.
+        //
+        // v12.2 audit fix: also gated by the `hdds.datanode.rdma.checksum.enabled`
+        // config (RDMA_CHECKSUM_ENABLED_KEY). When false, verification is
+        // skipped entirely — the stored ChecksumData is still appended to
+        // perChunkChecksum so the client can verify post-DMA if it wants.
         final ContainerProtos.ChecksumData storedCsProto =
             storedChunk.getChecksumData();
-        if (storedCsProto.getType() != ContainerProtos.ChecksumType.NONE) {
+        if (checksumVerificationEnabled
+            && storedCsProto.getType() != ContainerProtos.ChecksumType.NONE) {
           buffer.flip();
           try {
             Checksum.verifyChecksum(
@@ -2537,19 +2743,37 @@ sort path. Leaving it unpatched is a latent bug for any future caller.
 - `TestXceiverClientGrpc` (or equivalent) should assert `getRequestBlockID`
   extracts the block ID from an `RdmaReadBlock` request.
 
-### 4.13 HddsDispatcher — No changes required
+### 4.13 HddsDispatcher — audit-action mapping only
 
-> **Important clarification (v11.0 audit correction).** `HddsDispatcher.dispatchRequest()`
-> (`common/impl/HddsDispatcher.java:205-371`) has **no per-request Type switch**. Token
-> verification already happens once per request at `validateToken(msg)` (line 245), and
-> container-type routing is done by `handler.handle(msg, container, dispatcherContext)`
-> (line 371), which delegates to `KeyValueHandler.dispatchRequest(...)` — *that* is where
-> the Type switch lives, and *that* is the correct insertion point for the RdmaReadBlock
-> case. See §4.14.2.
+> **History (v11.0 → v12.2).** Earlier drafts (v6.0–v10.0) incorrectly
+> described adding a case to a `Type` switch inside
+> `HddsDispatcher.dispatchRequest()`. That switch does not exist — the v11.0
+> audit correctly removed that direction. But v12.0 then introduced
+> `DNAction.RDMA_READ_BLOCK` and a new `HddsDispatcher.msgToAction(...)`
+> case for it (see §4.13-pre D). Earlier versions of §4.13 kept the "no
+> changes required" wording, which contradicted §4.13-pre D. This section
+> is rewritten to state the actual required change explicitly.
 >
-> Earlier drafts of this spec (v6.0–v10.0) described adding a case to a Type switch in
-> HddsDispatcher. That switch does not exist; the entries were misplaced. No
-> modifications to HddsDispatcher are required for Phase 1.
+> **What does NOT change.** `HddsDispatcher.dispatchRequest()`
+> (`common/impl/HddsDispatcher.java:205-371`) has **no per-request Type
+> switch**. Token verification already happens once per request at
+> `validateToken(msg)` (line 245), and container-type routing is done by
+> `handler.handle(msg, container, dispatcherContext)` (line 371), which
+> delegates to `KeyValueHandler.dispatchRequest(...)` — *that* is where the
+> Type switch lives, and *that* is the correct insertion point for the
+> `RdmaReadBlock` dispatch case. See §4.14.2.
+>
+> **What DOES change (and must not be skipped).**
+> `HddsDispatcher.msgToAction(...)` (around `HddsDispatcher.java:920`) maps
+> every `ContainerProtos.Type` to a `DNAction` for audit logging. It must
+> gain the `RdmaReadBlock → DNAction.RDMA_READ_BLOCK` case already specified
+> in §4.13-pre D. Without this, `msgToAction(RdmaReadBlock)` returns `null`
+> and the audit log line you see today for `ReadBlock` is missing entirely
+> for the RDMA path — an observability regression, not a functional one.
+>
+> In short: no new Type dispatch case is needed in `HddsDispatcher`, but the
+> audit-action mapping must be updated. The code for that update lives in
+> §4.13-pre D, not duplicated here.
 
 ### 4.14 KeyValueHandler Modifications
 
@@ -2621,9 +2845,12 @@ import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.RdmaReadBl
 import org.apache.hadoop.hdds.scm.container.common.helpers.StorageContainerException;
 import org.apache.hadoop.ozone.container.common.helpers.BlockData;
 import org.apache.hadoop.ozone.container.common.helpers.ContainerUtils;
+import org.apache.hadoop.ozone.container.common.volume.HddsVolume;
 import org.apache.hadoop.ozone.container.keyvalue.KeyValueContainer;
 import org.apache.hadoop.ozone.container.keyvalue.KeyValueContainerData;
 import org.apache.hadoop.ozone.container.keyvalue.helpers.BlockUtils;
+import org.apache.hadoop.util.Time;
+import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.Type;
 ```
 
 ```java
@@ -2676,9 +2903,24 @@ ContainerCommandResponseProto handleRdmaReadBlock(
 
       long blockSize = fileChannel.size();
 
+      // v12.2 audit fix: record volume IO stats + container byte stats in
+      // parity with readBlockImpl (KeyValueHandler.java:2088-2096). Without
+      // this, RDMA reads are invisible to every existing dashboard that
+      // reads VolumeIOStats and ContainerMetrics — a functional regression.
+      final long startTime = Time.monotonicNow();
       RdmaReadBlockResponseProto rdmaResponse =
           xceiverServerRdma.handleRdmaRead(
               rdmaRequest, fileChannel, blockSize, storedChunks);
+      final long bytesRead = rdmaResponse.getBytesTransferred();
+
+      HddsVolume volume = containerData.getVolume();
+      if (volume != null) {
+        volume.getVolumeIOStats().recordReadOperation(startTime, bytesRead);
+      }
+      // Use Type.RdmaReadBlock so RDMA traffic is attributable separately
+      // from TCP ReadBlock in the ContainerMetrics MBean. Dashboards that
+      // want the combined figure can sum the two.
+      metrics.incContainerBytesStats(Type.RdmaReadBlock, bytesRead);
 
       // getSuccessResponse already sets cmdType = request.getCmdType() and
       // result = SUCCESS — do NOT also call setCmdType().
@@ -2695,6 +2937,27 @@ ContainerCommandResponseProto handleRdmaReadBlock(
         new StorageContainerException("RDMA read interrupted: " + ex.getMessage(),
             ex, ContainerProtos.Result.IO_EXCEPTION),
         request);
+  } catch (RdmaBufferPoolExhaustedException ex) {
+    // Transient buffer-pool saturation — maps to a distinct result code so
+    // the client (S3G) can fall back to TCP or surface HTTP 503 + Retry-After
+    // instead of a generic IO_EXCEPTION. Must catch BEFORE the generic
+    // IOException branch because RdmaBufferPoolExhaustedException extends
+    // IOException.
+    return ContainerUtils.logAndReturnError(LOG,
+        new StorageContainerException("RDMA buffer pool exhausted: " + ex.getMessage(),
+            ex, ContainerProtos.Result.RDMA_BUFFER_POOL_EXHAUSTED),
+        request);
+  } catch (RdmaTransferException ex) {
+    // Wire-level RDMA transfer failure (bad status from cuObjServer,
+    // partial write, channel-allocation failure). Mapped to
+    // RDMA_TRANSFER_FAILED so the client knows the RDMA path failed and
+    // can retry via TCP rather than retrying the same path. Must precede
+    // the generic IOException branch.
+    LOG.error("RDMA transfer failed for block {}", rdmaRequest.getBlockID(), ex);
+    return ContainerUtils.logAndReturnError(LOG,
+        new StorageContainerException("RDMA transfer failed: " + ex.getMessage(),
+            ex, ContainerProtos.Result.RDMA_TRANSFER_FAILED),
+        request);
   } catch (IOException ex) {
     LOG.error("RDMA read failed for block {}", rdmaRequest.getBlockID(), ex);
     return ContainerUtils.logAndReturnError(LOG,
@@ -2703,6 +2966,47 @@ ContainerCommandResponseProto handleRdmaReadBlock(
         request);
   }
 }
+```
+
+**New exception class.** `XceiverServerRdma.handleRdmaRead(...)` must
+throw `RdmaTransferException` on wire-level failures (instead of the
+current generic `IOException`) so `KeyValueHandler.handleRdmaReadBlock(...)`
+can catch it specifically. Add alongside `RdmaBufferPoolExhaustedException`:
+
+```java
+// hadoop-hdds/container-service-native/src/main/java/org/apache/hadoop/ozone/container/rdma/RdmaTransferException.java
+package org.apache.hadoop.ozone.container.rdma;
+
+import java.io.IOException;
+
+/**
+ * Wire-level RDMA transfer failure: cuObjServer returned a non-positive
+ * byte count, channel allocation failed, or an ibverbs status propagated
+ * up. Mapped to {@code ContainerProtos.Result.RDMA_TRANSFER_FAILED} at the
+ * handler boundary.
+ */
+public class RdmaTransferException extends IOException {
+  public RdmaTransferException(String message) { super(message); }
+  public RdmaTransferException(String message, Throwable cause) { super(message, cause); }
+}
+```
+
+Update the two existing throw sites in `XceiverServerRdma.handleRdmaRead`:
+
+```java
+// Replace: throw new IOException("handleGetObject returned " + written);
+throw new RdmaTransferException("handleGetObject returned " + written);
+
+// Replace: throw new IOException("RDMA transfer semaphore exhausted");
+// (keep as IOException — semaphore timeout is NOT a transfer failure;
+//  it is load shedding and should map to IO_EXCEPTION, not RDMA_TRANSFER_FAILED.)
+```
+
+Imports in `KeyValueHandler.java` §4.14.3 must be extended accordingly:
+
+```java
+import org.apache.hadoop.ozone.container.rdma.RdmaBufferPoolExhaustedException;
+import org.apache.hadoop.ozone.container.rdma.RdmaTransferException;
 ```
 
 ### 4.15 S3 Gateway: `ObjectEndpoint` Modifications
@@ -3354,7 +3658,15 @@ ssize_t handleGetObject(
 JNI architecture: Java (KeyValueHandler -> XceiverServerRdma -> CuObjRdmaTransferService ->
 CuObjServerBridge) -> Native C++ (cuobj_server_bridge.cc -> libcuobjserver.so) -> Kernel (rdma_cm / ibverbs).
 
-Build: CMake + `cmake-maven-plugin`, activated via `-Pnative` Maven profile.
+Build: CMake invoked via `maven-antrun-plugin` (cmake + make), with
+`maven-resources-plugin` staging the built `libcuobj_server_bridge.so`
+into the jar under `native/`. Activated via the `-Pnative` Maven profile.
+See §4.7.0 for the exact plugin configuration — this mirrors the build
+pattern used by `hadoop-hdds/rocks-native` and does **not** use
+`cmake-maven-plugin`. Note that `${project.build.outputDirectory}/native/`
+is the on-disk staging location used during the build; at runtime
+`NativeLibraryLoader` still extracts from the jar root (see §4.7.0 for the
+load-path details).
 
 | Component | Minimum Version |
 |---|---|
