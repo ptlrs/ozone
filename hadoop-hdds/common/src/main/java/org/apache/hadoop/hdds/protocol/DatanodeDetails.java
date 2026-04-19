@@ -19,6 +19,7 @@ package org.apache.hadoop.hdds.protocol;
 
 import static org.apache.hadoop.hdds.upgrade.HDDSLayoutFeature.HADOOP_PRC_PORTS_IN_DATANODEDETAILS;
 import static org.apache.hadoop.hdds.upgrade.HDDSLayoutFeature.RATIS_DATASTREAM_PORT_IN_DATANODEDETAILS;
+import static org.apache.hadoop.hdds.upgrade.HDDSLayoutFeature.RDMA_PORT_IN_DATANODEDETAILS;
 import static org.apache.hadoop.hdds.upgrade.HDDSLayoutFeature.WEBUI_PORTS_IN_DATANODEDETAILS;
 import static org.apache.hadoop.ozone.ClientVersion.VERSION_HANDLES_UNKNOWN_DN_PORTS;
 
@@ -1039,7 +1040,9 @@ public class DatanodeDetails extends NodeImpl implements Comparable<DatanodeDeta
       @BelongsToHDDSLayoutVersion(WEBUI_PORTS_IN_DATANODEDETAILS)
       HTTPS,
       @BelongsToHDDSLayoutVersion(HADOOP_PRC_PORTS_IN_DATANODEDETAILS)
-      CLIENT_RPC;
+      CLIENT_RPC,
+      @BelongsToHDDSLayoutVersion(RDMA_PORT_IN_DATANODEDETAILS)
+      RDMA;
 
       public static final Set<Name> ALL_PORTS = ImmutableSet.copyOf(
           Name.values());
@@ -1047,7 +1050,7 @@ public class DatanodeDetails extends NodeImpl implements Comparable<DatanodeDeta
           EnumSet.of(STANDALONE, RATIS, REST));
 
       public static final Set<Name> IO_PORTS = ImmutableSet.copyOf(
-          EnumSet.of(STANDALONE, RATIS, RATIS_DATASTREAM));
+          EnumSet.of(STANDALONE, RATIS, RATIS_DATASTREAM, RDMA));
     }
 
     /**
