@@ -1,7 +1,7 @@
 # DN-Direct RDMA Implementation Specification for Apache Ozone
 ## Phase 1: Read Path — Dual-Mode: GPU Memory and Host-Memory RDMA Transfers
 
-**Version:** 12.4
+**Version:** 12.5
 **Date:** 2026-04-18
 **Status:** Draft — v11.0 audit fixes + post-review additions applied.
 v12.0: shared-helper plumbing for `RdmaReadBlock`, `OzoneContainer`→
@@ -55,6 +55,41 @@ to match the dominant filter convention in the s3gateway module
 `XmlNamespaceFilter` is under `s3.endpoint`); §4.15.4 now requires an
 explicit `import org.apache.hadoop.ozone.s3.RdmaRequestFilter;` in
 `ObjectEndpoint` since the two classes no longer share a package.
+v12.5: post-v12.4 grep-audit fixes
+(`docs/gds-dn-direct-rdma-implementation-spec-v12.4-grep-audit.md`,
+R-1..R-8): R-1 (BLOCKER) — deleted the orphan
+`hdds.datanode.rdma.checksum.verify.stored` row from §10 (no reader
+existed; the single `RDMA_CHECKSUM_ENABLED_KEY` at §4.11 already gates
+stored-checksum verification, so the second key was an editing
+artifact); R-2 — added a new §4.13-pre G closing
+`HddsDispatcher.getAuditParams(Type)` for `RdmaReadBlock` (mirrors
+`case ReadChunk` with BlockID + offset + length), correcting the
+pre-existing inherited gap for a new code path; R-3 — extracted three
+hardcoded config-key strings to named constants
+(`RDMA_TRANSFER_SERVICE_CLASS_KEY` in §4.11 `XceiverServerRdma` with
+§4.12 `OzoneContainer` switched to reference it; and
+`OZONE_S3G_RDMA_MIN_OBJECT_SIZE_KEY` +
+`OZONE_S3G_RDMA_ALLOW_ENCRYPTED_BUCKETS_KEY` added to
+`hadoop-ozone/s3gateway/.../S3GatewayConfigKeys.java` to match the
+existing S3G `OZONE_S3G_*_KEY` convention; §4.15.5 `handleRdmaGet`
+reads updated); R-4 — §7.11 XML split into two labeled templates
+(`datanode ozone-site.xml` and `s3g ozone-site.xml`) with
+`ozone.s3g.rdma.min.object.size` moved to the S3G block; R-5 —
+added `hdds.datanode.rdma.buffer.acquire.timeout.ms`,
+`hdds.datanode.rdma.transfer.service.class`, and
+`ozone.s3g.rdma.allow.encrypted.buckets` rows to the §7.11 template;
+R-6 — added `org.apache.ozone:hdds-config` to the §4.3
+container-service-native dep list (currently resolved transitively);
+R-7 — annotated §4.7.0 plugin blocks to note that
+`maven-antrun-plugin` (3.2.0) and `maven-resources-plugin` (3.5.0)
+versions are declared in the root `pom.xml` `<pluginManagement>`
+(verified at `pom.xml:1721` / `1897` / `2310`), so child poms
+intentionally omit `<version>`; R-8 — added inline
+`// NOTE: replaced with RdmaTransferException in §4.14.3` comment
+at the `handleGetObject returned` throw site in §4.11 and a
+`// NOTE: remains IOException — load-shedding, not transfer failure`
+at the semaphore-exhausted throw site so the split-block update is
+self-documenting.
 v12.3: post-v12.2 audit fixes (`docs/gds-dn-direct-rdma-implementation-spec-audit-analysis.md`):
 §4.3 Maven coordinates corrected from `org.apache.ozone:hadoop-hdds-*`
 to the repo's actual `hdds-*` artifactId convention; every
@@ -1239,6 +1274,12 @@ cycle. The required dependency set for each side is:
   `BlockID`, `ContainerProtos`, etc. (Repository convention: HDDS Maven
   artifactIds use the bare `hdds-*` prefix, not `hadoop-hdds-*`. Verify
   against `hadoop-hdds/common/pom.xml` if in doubt.)
+- `org.apache.ozone:hdds-config` — **v12.5 (grep-audit R-6):** required
+  for `ConfigurationSource`, imported by `RdmaBufferPool` (§4.10) and
+  `XceiverServerRdma` (§4.11). The dependency is currently resolved
+  transitively through `hdds-common`, which is fragile — `hdds-common`
+  can drop the transitive at any time. Declare it explicitly so the
+  new module's imports are backed by direct deps.
 - `org.apache.ozone:hdds-rocks-native` — **required** because
   `CuObjServerBridge` reuses `org.apache.hadoop.hdds.utils.NativeLibraryLoader`,
   which lives in the `rocks-native` module. The class is a generic JNI loader
@@ -1685,6 +1726,17 @@ Java_org_apache_hadoop_ozone_container_rdma_CuObjServerBridge_nativeHandleGetObj
 > classpath via `build-helper-maven-plugin` so `NativeLibraryLoader` can
 > extract it at runtime — identical to how `rocks-native` ships its JNI
 > library.
+
+> **v12.5 (grep-audit R-7): plugin version pinning.** The
+> `maven-antrun-plugin` and `maven-resources-plugin` blocks below
+> intentionally omit `<version>`. Versions are declared in the root
+> `pom.xml` under `<pluginManagement>` (`pom.xml:1721`) and inherited by
+> every child pom — `<maven-antrun-plugin.version>` is `3.2.0` at
+> `pom.xml:131`/`pom.xml:2311`, and `<maven-resources-plugin.version>`
+> is `3.5.0` at `pom.xml:146`/`pom.xml:1898`. Redundant `<version>` in
+> this child pom would be shadowed by the parent on build but creates
+> drift risk when the root bumps. **Do not** pin here; if the root
+> ever stops managing these plugins, add pins then.
 
 Add the following to `hadoop-hdds/container-service-native/pom.xml`:
 
@@ -2394,6 +2446,16 @@ public class XceiverServerRdma implements Closeable {
   public static final String RDMA_CHECKSUM_ENABLED_KEY =
       "hdds.datanode.rdma.checksum.enabled";
   public static final boolean RDMA_CHECKSUM_ENABLED_DEFAULT = true;
+  // v12.5 (grep-audit R-3a): extract the transfer-service class key out of
+  // the OzoneContainer hardcoded-string reader (§4.12) so the constant is
+  // grep-discoverable and available to test harnesses that override the
+  // impl (e.g., MiniOzoneCluster injecting MockRdmaTransferService).
+  // NOTE: the default remains the class *name* — consumers that want the
+  // Mock service set this key to the FQCN of MockRdmaTransferService.
+  public static final String RDMA_TRANSFER_SERVICE_CLASS_KEY =
+      "hdds.datanode.rdma.transfer.service.class";
+  public static final String RDMA_TRANSFER_SERVICE_CLASS_DEFAULT =
+      "org.apache.hadoop.ozone.container.rdma.CuObjRdmaTransferService";
 
   private static final long MAX_RDMA_OP_SIZE = 1L * 1024 * 1024 * 1024;
   private static final long JAVA_SIDE_BLOCK_TIMEOUT_MS = 5 * 60 * 1000;
@@ -2475,6 +2537,10 @@ public class XceiverServerRdma implements Closeable {
 
     if (!transferSemaphore.tryAcquire(
         bufferPool.getAcquireTimeoutMs(), TimeUnit.MILLISECONDS)) {
+      // NOTE: remains IOException — §4.14.3 intentionally keeps this as
+      // IOException because semaphore timeout is load shedding, not a
+      // transfer failure, and maps to IO_EXCEPTION rather than
+      // RDMA_TRANSFER_FAILED at the handler boundary. (v12.5 R-8 comment.)
       throw new IOException("RDMA transfer semaphore exhausted");
     }
 
@@ -2596,6 +2662,13 @@ public class XceiverServerRdma implements Closeable {
               bufClipLen - rdmaSent,
               channelId);
           if (written <= 0) {
+            // NOTE: replaced with RdmaTransferException in §4.14.3 —
+            // wire-level failure must surface as
+            // Result.RDMA_TRANSFER_FAILED (distinct code so S3G can skip
+            // RDMA retry and go straight to TCP). This is a split-block
+            // update: keep the throw as shown here when reading §4.11
+            // in isolation, but the §4.14.3 "new exception class" block
+            // rewrites the exception type. (v12.5 R-8 comment.)
             throw new IOException("handleGetObject returned " + written);
           }
           rdmaSent += written;
@@ -2672,9 +2745,13 @@ XceiverServerRdma rdma = null;
 if (conf.getBoolean(XceiverServerRdma.RDMA_ENABLED_KEY,
     XceiverServerRdma.RDMA_ENABLED_DEFAULT)) {
   try {
+    // v12.5 (grep-audit R-3a): key + default now come from the named
+    // constants in XceiverServerRdma (§4.11). The default literal is the
+    // FQCN of CuObjRdmaTransferService; keep the Class.getName() reference
+    // below as a compile-time guard against renames/moves of the class.
     String serviceClass = conf.get(
-        "hdds.datanode.rdma.transfer.service.class",
-        CuObjRdmaTransferService.class.getName());
+        XceiverServerRdma.RDMA_TRANSFER_SERVICE_CLASS_KEY,
+        XceiverServerRdma.RDMA_TRANSFER_SERVICE_CLASS_DEFAULT);
     RdmaTransferService rdmaService = (RdmaTransferService)
         Class.forName(serviceClass).getDeclaredConstructor().newInstance();
     rdma = new XceiverServerRdma(conf, rdmaService);
@@ -2849,6 +2926,58 @@ sort path. Leaving it unpatched is a latent bug for any future caller.
   package-private `@VisibleForTesting`, otherwise drive
   `sortDatanodes(request, ...)` (which calls `getRequestBlockID` internally)
   and assert the resulting datanode-selection behavior, or use reflection.
+- **v12.5:** `TestHddsDispatcher` should also assert that an `RdmaReadBlock`
+  request populates `blockData` / `offset` / `length` in the audit-params map
+  (§4.13-pre G). The same `getAuditParams(Type)` visibility caveat applies —
+  it is `private static`. Prefer widening to `@VisibleForTesting`, or drive
+  a real `dispatch(...)` and inspect the spy `AuditLogger`'s captured
+  `AuditMessage.getParams()`.
+
+#### G. `HddsDispatcher.getAuditParams(Type)` — add `RdmaReadBlock` case (v12.5)
+
+**File:** `hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/impl/HddsDispatcher.java`
+(real-file lines 927-1073 — the `private static Map<String, String>
+getAuditParams(ContainerCommandRequestProto msg)` switch).
+
+**v12.5 fix (grep audit R-2).** `getAuditAction` (§4.13-pre D) now maps
+`RdmaReadBlock → DNAction.RDMA_READ_BLOCK`, but without a matching
+`getAuditParams` case the audit log line emits the `DNAction` label
+without the block-ID/offset/length context an operator needs to triage
+a failed RDMA read. The current switch has `case ReadChunk:` entries
+(lines 992-999) that populate `BlockID`, offset, and length; the
+`ReadBlock` case is intentionally absent today — that pre-existing gap
+would be silently inherited by `RdmaReadBlock` unless we close it
+explicitly. Audit parity > inherited gap for a new code path: add the
+case now.
+
+```java
+// HddsDispatcher.getAuditParams(...) — mirror the ReadChunk pattern
+// (real-file lines 992-999) so RDMA reads log BlockID + offset + length.
+case RdmaReadBlock:                                                   // <<< ADD
+  RdmaReadBlockRequestProto rdmaRead = msg.getRdmaReadBlock();        // <<< ADD
+  auditParams.put("blockData",                                        // <<< ADD
+      BlockID.getFromProtobuf(rdmaRead.getBlockID()).toString());     // <<< ADD
+  auditParams.put("offset",                                           // <<< ADD
+      String.valueOf(rdmaRead.hasOffset() ? rdmaRead.getOffset() : 0)); // <<< ADD
+  auditParams.put("length",                                           // <<< ADD
+      String.valueOf(rdmaRead.hasLength() ? rdmaRead.getLength() : 0)); // <<< ADD
+  return auditParams;                                                 // <<< ADD
+```
+
+Import (verify, do not duplicate — `BlockID` is already imported by
+`HddsDispatcher` for unrelated use sites; the proto import is new):
+
+```java
+import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.RdmaReadBlockRequestProto;
+```
+
+**Note on the pre-existing `ReadBlock` gap.** The v12.4 grep audit
+documents that `case ReadBlock:` is also absent from this switch — TCP
+`ReadBlock` requests log with `DNAction.READ_BLOCK` but no params. That
+gap pre-dates this spec and is out of scope here; closing it is a
+separate change that would touch the legacy TCP audit contract.
+`RdmaReadBlock` closes its own gap via the case above and does not
+inherit the legacy behavior.
 
 ### 4.13 HddsDispatcher — audit-action mapping only
 
@@ -3167,6 +3296,33 @@ private static final ExecutorService RDMA_DISPATCH_POOL =
             .build());
 ```
 
+**v12.5 (grep-audit R-3b/c): new named constants in
+`S3GatewayConfigKeys`.** Add to
+`hadoop-ozone/s3gateway/src/main/java/org/apache/hadoop/ozone/s3/S3GatewayConfigKeys.java`
+(append alongside the existing `OZONE_S3G_*_KEY` block, matching the
+file's convention verified at `S3GatewayConfigKeys.java:30-49`):
+
+```java
+// RDMA path — consumed by ObjectEndpoint.handleRdmaGet() in §4.15.5.
+// Keys kept in S3GatewayConfigKeys so operators / tooling can find them
+// in the same place as the existing S3G tunables.
+public static final String OZONE_S3G_RDMA_MIN_OBJECT_SIZE_KEY =
+    "ozone.s3g.rdma.min.object.size";
+public static final long OZONE_S3G_RDMA_MIN_OBJECT_SIZE_DEFAULT =
+    1024L * 1024L;  // 1 MiB — below this, RDMA setup cost > TCP stream cost
+
+public static final String OZONE_S3G_RDMA_ALLOW_ENCRYPTED_BUCKETS_KEY =
+    "ozone.s3g.rdma.allow.encrypted.buckets";
+public static final boolean OZONE_S3G_RDMA_ALLOW_ENCRYPTED_BUCKETS_DEFAULT =
+    false;  // TDE decrypts in the JVM on the TCP path; RDMA would bypass it
+```
+
+Add the corresponding import to `ObjectEndpoint.java`:
+
+```java
+import org.apache.hadoop.ozone.s3.S3GatewayConfigKeys;
+```
+
 #### 4.15.2 Obtaining XceiverClientFactory
 
 ```java
@@ -3323,15 +3479,20 @@ private Response handleRdmaGet(OzoneKeyDetails keyDetails, String rdmaToken,
   // getOzoneConfiguration() is protected on EndpointBase (EndpointBase.java:559)
   // — the `ozoneConfiguration` field itself is private. Do NOT reference the
   // field directly.
+  // v12.5 (grep-audit R-3b/c): config keys and defaults now come from named
+  // constants in S3GatewayConfigKeys (see §4.15.1), matching the existing
+  // `OZONE_S3G_*_KEY` convention in that class.
   final long minRdmaSize = getOzoneConfiguration().getLong(
-      "ozone.s3g.rdma.min.object.size", 1048576);
+      S3GatewayConfigKeys.OZONE_S3G_RDMA_MIN_OBJECT_SIZE_KEY,
+      S3GatewayConfigKeys.OZONE_S3G_RDMA_MIN_OBJECT_SIZE_DEFAULT);
   if (objectSize < minRdmaSize) {
     return null;
   }
 
   if (keyDetails.getFileEncryptionInfo() != null) {
     if (!getOzoneConfiguration().getBoolean(
-        "ozone.s3g.rdma.allow.encrypted.buckets", false)) {
+        S3GatewayConfigKeys.OZONE_S3G_RDMA_ALLOW_ENCRYPTED_BUCKETS_KEY,
+        S3GatewayConfigKeys.OZONE_S3G_RDMA_ALLOW_ENCRYPTED_BUCKETS_DEFAULT)) {
       return null;
     }
   }
@@ -4898,6 +5059,23 @@ ssh $VM_USER@$VM_IP 'bash setup-gpu-env.sh && bash validate-env.sh'
 
 ### 7.11 Ozone RDMA Configuration Template
 
+> **v12.5 (grep-audit R-4, R-5).** The template is now split into two
+> scope-labeled blocks: `hdds.datanode.rdma.*` keys are read by the
+> datanode process (§4.11 `XceiverServerRdma`, §4.12 `OzoneContainer`)
+> and belong in the datanode's `ozone-site.xml`; `ozone.s3g.rdma.*`
+> keys are read by the S3 Gateway process (§4.15.5 `handleRdmaGet`)
+> and belong in the gateway's `ozone-site.xml`. Placing the S3G keys
+> under the datanode block (as earlier drafts did) is harmless on a
+> co-located dev cluster but misleading on any production topology
+> where the S3G runs on a separate host from the datanodes. R-5
+> additionally adds rows for three keys that existed in Java but were
+> not in the template:
+> `hdds.datanode.rdma.buffer.acquire.timeout.ms`,
+> `hdds.datanode.rdma.transfer.service.class`, and
+> `ozone.s3g.rdma.allow.encrypted.buckets`.
+
+**Datanode `ozone-site.xml`** (deploy alongside each `datanode` role):
+
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
@@ -4909,8 +5087,34 @@ ssh $VM_USER@$VM_IP 'bash setup-gpu-env.sh && bash validate-env.sh'
   <property><name>hdds.datanode.rdma.max.concurrent.transfers</name><value>32</value></property>
   <property><name>hdds.datanode.rdma.buffer.size</name><value>4194304</value></property>
   <property><name>hdds.datanode.rdma.buffer.count</name><value>64</value></property>
+  <!-- v12.5 R-5: buffer acquire timeout (ms) — surfaces pool exhaustion
+       to the handler as RdmaBufferPoolExhaustedException instead of a
+       silent stall. Raise for large-object, low-concurrency workloads. -->
+  <property><name>hdds.datanode.rdma.buffer.acquire.timeout.ms</name><value>5000</value></property>
   <property><name>hdds.datanode.rdma.checksum.enabled</name><value>true</value></property>
+  <!-- v12.5 R-5: transfer-service FQCN. Switch to
+       org.apache.hadoop.ozone.container.rdma.MockRdmaTransferService
+       in CI/dev environments without a cuObjServer SDK. -->
+  <property>
+    <name>hdds.datanode.rdma.transfer.service.class</name>
+    <value>org.apache.hadoop.ozone.container.rdma.CuObjRdmaTransferService</value>
+  </property>
+</configuration>
+```
+
+**S3 Gateway `ozone-site.xml`** (deploy alongside each `s3g` role):
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <!-- Minimum object size (bytes) for which the S3G will attempt RDMA
+       before falling back to TCP streaming. Default: 1 MiB. -->
   <property><name>ozone.s3g.rdma.min.object.size</name><value>1048576</value></property>
+  <!-- v12.5 R-5: opt-in allow-list for TDE buckets. Default is `false`
+       because RDMA bypasses JVM-side decryption; enable only if your
+       deployment accepts the "ciphertext to client; client decrypts"
+       contract. See §3 Security and Encryption. -->
+  <property><name>ozone.s3g.rdma.allow.encrypted.buckets</name><value>false</value></property>
 </configuration>
 ```
 
@@ -5334,8 +5538,7 @@ cuObjClient API (Section 2.10 examples) running against a live Ozone cluster on 
 | `hdds.datanode.rdma.max.concurrent.transfers` | `32` | int | Semaphore permits |
 | `ozone.s3g.rdma.min.object.size` | `1048576` | long | Min object size for RDMA (1 MiB) |
 | `ozone.s3g.rdma.allow.encrypted.buckets` | `false` | boolean | Allow RDMA for TDE buckets |
-| `hdds.datanode.rdma.checksum.enabled` | `true` | boolean | Compute CRC32C on RDMA reads |
-| `hdds.datanode.rdma.checksum.verify.stored` | `true` | boolean | Verify against stored checksums |
+| `hdds.datanode.rdma.checksum.enabled` | `true` | boolean | Gate stored-checksum verification on RDMA reads (§4.11 `RDMA_CHECKSUM_ENABLED_KEY`). When `true`, `Checksum.verifyChecksum` is called against the stored `ChecksumData` BEFORE `rdmaWriteToRemote`; disk corruption is surfaced as `IOException` and no bytes leave the server. When `false`, verification is skipped (trust-the-disk; the stored `ChecksumData` is still returned to the client via `perChunkChecksum` for optional post-DMA verification). v12.5: the historical `hdds.datanode.rdma.checksum.verify.stored` row was removed — it had no reader in §4.11, and this single key already covers the behavior described by that row's "Description" text. |
 
 **Memory footprint:** `buffer.size x buffer.count = 4 MiB x 64 = 256 MiB` pinned memory per datanode.
 
