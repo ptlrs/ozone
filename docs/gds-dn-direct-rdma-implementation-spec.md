@@ -1,7 +1,7 @@
 # DN-Direct RDMA Implementation Specification for Apache Ozone
 ## Phase 1: Read Path — Dual-Mode: GPU Memory and Host-Memory RDMA Transfers
 
-**Version:** 12.3
+**Version:** 12.4
 **Date:** 2026-04-18
 **Status:** Draft — v11.0 audit fixes + post-review additions applied.
 v12.0: shared-helper plumbing for `RdmaReadBlock`, `OzoneContainer`→
@@ -35,6 +35,26 @@ text was contradicted by v12.0 additions); §4.1.2 wording for
 `perChunkChecksum` clarified so implementers know the field is always
 populated, with `type = NONE` and an empty CRC list for `CHECKSUM_NONE`
 blocks.
+v12.4: post-v12.3 verification fixes
+(`docs/gds-dn-direct-rdma-implementation-spec-verification-analysis.md`):
+§4.14.2 inline path comment for `KeyValueHandler.dispatchRequest()`
+corrected from the wrong `common/impl/KeyValueHandler.java` to the actual
+`hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/keyvalue/KeyValueHandler.java`;
+§4.12.F test bullets for `TestHddsDispatcher` and `TestXceiverClientGrpc`
+rewritten to acknowledge that `HddsDispatcher.getAuditAction(Type)` and
+`XceiverClientGrpc.getRequestBlockID(...)` are both `private static` —
+each bullet now lists the three concrete fix options (preferred:
+`@VisibleForTesting` widening; alternatives: drive through public
+behavior or use reflection) rather than implying the test can call the
+private method directly; §4.16 `RdmaRequestFilter` package moved from
+`org.apache.hadoop.ozone.s3.endpoint` to `org.apache.hadoop.ozone.s3`
+to match the dominant filter convention in the s3gateway module
+(`AuthorizationFilter`, `ClientIpFilter`, `TracingFilter`,
+`VirtualHostStyleFilter`, `EmptyContentTypeFilter`,
+`CommonHeadersContainerResponseFilter` all live in `s3`; only
+`XmlNamespaceFilter` is under `s3.endpoint`); §4.15.4 now requires an
+explicit `import org.apache.hadoop.ozone.s3.RdmaRequestFilter;` in
+`ObjectEndpoint` since the two classes no longer share a package.
 v12.3: post-v12.2 audit fixes (`docs/gds-dn-direct-rdma-implementation-spec-audit-analysis.md`):
 §4.3 Maven coordinates corrected from `org.apache.ozone:hadoop-hdds-*`
 to the repo's actual `hdds-*` artifactId convention; every
@@ -2813,9 +2833,22 @@ sort path. Leaving it unpatched is a latent bug for any future caller.
 
 - `TestHddsUtils` (if it exists) should gain `isReadOnly` / `requireBlockToken`
   cases for `RdmaReadBlock`.
-- `TestHddsDispatcher` should assert `getAuditAction(RdmaReadBlock) == RDMA_READ_BLOCK`.
-- `TestXceiverClientGrpc` (or equivalent) should assert `getRequestBlockID`
-  extracts the block ID from an `RdmaReadBlock` request.
+- `TestHddsDispatcher` should assert that an `RdmaReadBlock` request maps to
+  `DNAction.RDMA_READ_BLOCK`. Note that `HddsDispatcher.getAuditAction(Type)`
+  is `private static`, so the test cannot call it directly. Choose one of:
+  (a) widen visibility to package-private `@VisibleForTesting`,
+  (b) drive a real `dispatch(...)` call with a stub `RdmaReadBlock` request
+  and assert the captured `AuditMessage.getOp()` from a spy `AuditLogger`, or
+  (c) invoke the method via reflection (`Method.setAccessible(true)`).
+  Option (a) is preferred and matches existing `@VisibleForTesting` usage in
+  `HddsDispatcher`.
+- `TestXceiverClientGrpc` (or equivalent) should assert that the block ID is
+  correctly extracted from an `RdmaReadBlock` request. Note that
+  `XceiverClientGrpc.getRequestBlockID(...)` is also `private static`, so the
+  test cannot call it directly. Same fix options apply: prefer widening to
+  package-private `@VisibleForTesting`, otherwise drive
+  `sortDatanodes(request, ...)` (which calls `getRequestBlockID` internally)
+  and assert the resulting datanode-selection behavior, or use reflection.
 
 ### 4.13 HddsDispatcher — audit-action mapping only
 
@@ -2893,9 +2926,11 @@ other read cases. The type-level switch is already exited via `return`, so
 no `break` is needed and no fall-through is possible.
 
 ```java
-// In KeyValueHandler.dispatchRequest() (common/impl/KeyValueHandler.java,
-// switch around line 326). Caller passes `KeyValueContainer kvContainer`,
-// not `Container`, so the signature below takes KeyValueContainer directly
+// In KeyValueHandler.dispatchRequest()
+// (hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/
+//  container/keyvalue/KeyValueHandler.java, switch around line 326).
+// Caller passes `KeyValueContainer kvContainer`, not `Container`,
+// so the signature below takes KeyValueContainer directly
 // — matching peer handlers (handleGetBlock, handleReadChunk).
 case RdmaReadBlock:
   return handler.handleRdmaReadBlock(request, kvContainer);
@@ -3188,6 +3223,11 @@ Insert the following block in `handleGetRequest()` **immediately after** line
 **before** line 451 (`ResponseBuilder responseBuilder;`). At this insertion
 point `partNumber`, `keyDetails`, `rangeHeader`, `startNanos`, `perf`, and
 `length` are all in scope.
+
+> **Required new import in `ObjectEndpoint.java`:** `RdmaRequestFilter` lives
+> in `org.apache.hadoop.ozone.s3` (matching the dominant filter convention),
+> while `ObjectEndpoint` lives in `org.apache.hadoop.ozone.s3.endpoint`, so
+> add `import org.apache.hadoop.ozone.s3.RdmaRequestFilter;`.
 
 ```java
 // RdmaRequestFilter populates RDMA_TOKEN_PROPERTY on the JAX-RS
@@ -3674,10 +3714,18 @@ private static String bytesToHex(byte[] bytes) {
 
 ### 4.16 S3 Gateway: `RdmaRequestFilter`
 
-**File:** `hadoop-ozone/s3gateway/src/main/java/org/apache/hadoop/ozone/s3/endpoint/RdmaRequestFilter.java`
+**File:** `hadoop-ozone/s3gateway/src/main/java/org/apache/hadoop/ozone/s3/RdmaRequestFilter.java`
+
+This filter sits beside the existing S3 gateway filters (`AuthorizationFilter`,
+`ClientIpFilter`, `TracingFilter`, `VirtualHostStyleFilter`,
+`EmptyContentTypeFilter`, `CommonHeadersContainerResponseFilter`), all of
+which live in `org.apache.hadoop.ozone.s3`. Only `XmlNamespaceFilter` —
+which is response-shaping for a specific endpoint — lives under
+`org.apache.hadoop.ozone.s3.endpoint`. `RdmaRequestFilter` is a generic
+request filter, so it follows the dominant convention.
 
 ```java
-package org.apache.hadoop.ozone.s3.endpoint;
+package org.apache.hadoop.ozone.s3;
 
 import javax.annotation.Priority;
 import javax.ws.rs.container.ContainerRequestContext;
