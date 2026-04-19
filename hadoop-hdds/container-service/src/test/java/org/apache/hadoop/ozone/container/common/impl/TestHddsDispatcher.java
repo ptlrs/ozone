@@ -868,4 +868,35 @@ public class TestHddsDispatcher {
         .setContainer2BCSIDMap(new HashMap<>())
         .build();
   }
+
+  @Test
+  public void testGetAuditActionRdmaReadBlock() {
+    assertEquals(
+        org.apache.hadoop.ozone.audit.DNAction.RDMA_READ_BLOCK,
+        HddsDispatcher.getAuditAction(ContainerProtos.Type.RdmaReadBlock));
+  }
+
+  @Test
+  public void testGetAuditParamsRdmaReadBlock() {
+    ContainerProtos.RdmaReadBlockRequestProto rdmaReq =
+        ContainerProtos.RdmaReadBlockRequestProto.newBuilder()
+            .setBlockID(ContainerProtos.DatanodeBlockID.newBuilder()
+                .setContainerID(11).setLocalID(13).build())
+            .setRdmaToken("abc")
+            .setOffset(128)
+            .setLength(512)
+            .build();
+    ContainerProtos.ContainerCommandRequestProto msg =
+        ContainerProtos.ContainerCommandRequestProto.newBuilder()
+            .setCmdType(ContainerProtos.Type.RdmaReadBlock)
+            .setContainerID(11)
+            .setDatanodeUuid("dn-0")
+            .setRdmaReadBlock(rdmaReq)
+            .build();
+    Map<String, String> params = HddsDispatcher.getAuditParams(msg, null);
+    assertNotNull(params);
+    assertEquals(new BlockID(11, 13).toString(), params.get("blockData"));
+    assertEquals("128", params.get("offset"));
+    assertEquals("512", params.get("size"));
+  }
 }

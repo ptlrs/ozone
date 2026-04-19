@@ -893,7 +893,8 @@ public class HddsDispatcher implements ContainerDispatcher, Auditor {
     }
   }
 
-  private static DNAction getAuditAction(Type cmdType) {
+  @VisibleForTesting
+  static DNAction getAuditAction(Type cmdType) {
     switch (cmdType) {
     case CreateContainer  : return DNAction.CREATE_CONTAINER;
     case ReadContainer    : return DNAction.READ_CONTAINER;
@@ -918,13 +919,15 @@ public class HddsDispatcher implements ContainerDispatcher, Auditor {
     case Echo             : return DNAction.ECHO;
     case GetContainerChecksumInfo: return DNAction.GET_CONTAINER_CHECKSUM_INFO;
     case ReadBlock        : return DNAction.READ_BLOCK;
+    case RdmaReadBlock    : return DNAction.RDMA_READ_BLOCK;
     default :
       LOG.debug("Invalid command type - {}", cmdType);
       return null;
     }
   }
 
-  private static Map<String, String> getAuditParams(
+  @VisibleForTesting
+  static Map<String, String> getAuditParams(
       ContainerCommandRequestProto msg, DispatcherContext dispatcherContext) {
     Map<String, String> auditParams = new TreeMap<>();
     Type cmdType = msg.getCmdType();
@@ -996,6 +999,16 @@ public class HddsDispatcher implements ContainerDispatcher, Auditor {
           String.valueOf(msg.getReadChunk().getChunkData().getOffset()));
       auditParams.put(AUDIT_PARAM_BLOCK_DATA_SIZE,
           String.valueOf(msg.getReadChunk().getChunkData().getLen()));
+      return auditParams;
+
+    case RdmaReadBlock:
+      ContainerProtos.RdmaReadBlockRequestProto rdmaRead = msg.getRdmaReadBlock();
+      auditParams.put(AUDIT_PARAM_BLOCK_DATA,
+          BlockID.getFromProtobuf(rdmaRead.getBlockID()).toString());
+      auditParams.put(AUDIT_PARAM_BLOCK_DATA_OFFSET,
+          String.valueOf(rdmaRead.hasOffset() ? rdmaRead.getOffset() : 0));
+      auditParams.put(AUDIT_PARAM_BLOCK_DATA_SIZE,
+          String.valueOf(rdmaRead.hasLength() ? rdmaRead.getLength() : 0));
       return auditParams;
 
     case DeleteChunk:

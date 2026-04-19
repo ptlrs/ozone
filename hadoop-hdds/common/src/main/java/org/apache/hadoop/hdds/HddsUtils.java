@@ -339,6 +339,7 @@ public final class HddsUtils {
     case ReadContainer:
     case ReadChunk:
     case ReadBlock:
+    case RdmaReadBlock:
     case ListBlock:
     case GetBlock:
     case GetSmallFile:
@@ -400,6 +401,7 @@ public final class HddsUtils {
     case PutSmallFile:
     case ReadChunk:
     case ReadBlock:
+    case RdmaReadBlock:
     case WriteChunk:
     case FinalizeBlock:
       return true;
@@ -478,6 +480,11 @@ public final class HddsUtils {
     case ReadBlock:
       if (msg.hasReadBlock()) {
         blockID = msg.getReadBlock().getBlockID();
+      }
+      break;
+    case RdmaReadBlock:
+      if (msg.hasRdmaReadBlock()) {
+        blockID = msg.getRdmaReadBlock().getBlockID();
       }
       break;
     case WriteChunk:

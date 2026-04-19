@@ -22,6 +22,7 @@ import static org.apache.hadoop.hdds.scm.ScmConfigKeys.OZONE_SCM_DATANODE_PORT_K
 import static org.apache.hadoop.hdds.scm.ScmConfigKeys.OZONE_SCM_PIPELINE_OWNER_CONTAINER_COUNT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -29,7 +30,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
+import org.apache.hadoop.hdds.client.BlockID;
 import org.apache.hadoop.hdds.conf.OzoneConfiguration;
+import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos;
 import org.apache.hadoop.hdds.scm.ScmConfigKeys;
 import org.apache.hadoop.ozone.ha.ConfUtils;
 import org.junit.jupiter.api.Test;
@@ -143,5 +146,45 @@ public class TestHddsUtils {
     assertEquals(processedConf.get("hdds.test.secret.key"), REDACTED_TEXT);
     /* Verify that non-sensitive properties retain their value */
     assertEquals(processedConf.get("ozone.normal.config"), ORIGINAL_VALUE);
+  }
+
+  @Test
+  void testIsReadOnlyRdmaReadBlock() {
+    ContainerProtos.ContainerCommandRequestProto msg =
+        ContainerProtos.ContainerCommandRequestProto.newBuilder()
+            .setCmdType(ContainerProtos.Type.RdmaReadBlock)
+            .setContainerID(1)
+            .setDatanodeUuid("dn-0")
+            .setRdmaReadBlock(rdmaReadBlockRequest(1, 1, "tok"))
+            .build();
+    assertTrue(HddsUtils.isReadOnly(msg));
+  }
+
+  @Test
+  void testRequireBlockTokenRdmaReadBlock() {
+    assertTrue(HddsUtils.requireBlockToken(ContainerProtos.Type.RdmaReadBlock));
+  }
+
+  @Test
+  void testGetBlockIDRdmaReadBlock() {
+    ContainerProtos.ContainerCommandRequestProto msg =
+        ContainerProtos.ContainerCommandRequestProto.newBuilder()
+            .setCmdType(ContainerProtos.Type.RdmaReadBlock)
+            .setContainerID(42)
+            .setDatanodeUuid("dn-0")
+            .setRdmaReadBlock(rdmaReadBlockRequest(42, 7, "tok"))
+            .build();
+    BlockID blockID = HddsUtils.getBlockID(msg);
+    assertEquals(42, blockID.getContainerID());
+    assertEquals(7, blockID.getLocalID());
+  }
+
+  private static ContainerProtos.RdmaReadBlockRequestProto rdmaReadBlockRequest(
+      long containerID, long localID, String rdmaToken) {
+    return ContainerProtos.RdmaReadBlockRequestProto.newBuilder()
+        .setBlockID(ContainerProtos.DatanodeBlockID.newBuilder()
+            .setContainerID(containerID).setLocalID(localID).build())
+        .setRdmaToken(rdmaToken)
+        .build();
   }
 }

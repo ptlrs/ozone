@@ -474,7 +474,8 @@ public class XceiverClientGrpc extends XceiverClientSpi {
     return datanodeList;
   }
 
-  private static DatanodeBlockID getRequestBlockID(ContainerCommandRequestProto request) {
+  @VisibleForTesting
+  static DatanodeBlockID getRequestBlockID(ContainerCommandRequestProto request) {
     DatanodeBlockID blockID = null;
     if (request.getCmdType() == ContainerProtos.Type.GetBlock) {
       blockID = request.getGetBlock().getBlockID();
@@ -484,6 +485,8 @@ public class XceiverClientGrpc extends XceiverClientSpi {
       blockID = request.getGetSmallFile().getBlock().getBlockID();
     } else if (request.getCmdType() == ContainerProtos.Type.ReadBlock) {
       blockID = request.getReadBlock().getBlockID();
+    } else if (request.getCmdType() == ContainerProtos.Type.RdmaReadBlock) {
+      blockID = request.getRdmaReadBlock().getBlockID();
     }
     return blockID;
   }

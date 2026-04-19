@@ -44,7 +44,8 @@ public enum DNAction implements AuditAction {
   FINALIZE_BLOCK,
   ECHO,
   GET_CONTAINER_CHECKSUM_INFO,
-  READ_BLOCK;
+  READ_BLOCK,
+  RDMA_READ_BLOCK;
 
   @Override
   public String getAction() {
