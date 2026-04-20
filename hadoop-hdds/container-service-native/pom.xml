@@ -50,4 +50,108 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <!--
+    The `native` profile builds libcuobj_server_bridge.so via cmake +
+    make, invoked through maven-antrun-plugin during the compile phase.
+    maven-resources-plugin then stages the .so under
+    target/classes/native/ so NativeLibraryLoader can extract it from
+    the jar at runtime (spec §4.7.0).
+
+    Plugin versions intentionally omitted: maven-antrun-plugin (3.2.0)
+    and maven-resources-plugin (3.5.0) are pinned in the root pom's
+    <pluginManagement>. Redundant <version> here would shadow the
+    parent and create drift risk.
+
+    Profile is activeByDefault=false. Default CI / dev builds skip the
+    native step entirely; activation requires `-Pnative` on the mvn
+    command line and $CUOBJSERVER_HOME (or a system-package install
+    of libcuobjserver-dev) on the build host.
+  -->
+  <profiles>
+    <profile>
+      <id>native</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>build-native</id>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+                <phase>compile</phase>
+                <configuration>
+                  <target>
+                    <mkdir dir="${project.build.directory}/native" />
+                    <exec dir="${project.build.directory}/native" executable="cmake" failonerror="true">
+                      <arg value="${basedir}/src/main/native" />
+                      <arg value="-DCMAKE_INSTALL_PREFIX=${project.build.directory}/native/install" />
+                    </exec>
+                    <exec dir="${project.build.directory}/native" executable="make" failonerror="true">
+                      <arg value="-j" />
+                    </exec>
+                    <exec dir="${project.build.directory}/native" executable="make" failonerror="true">
+                      <arg value="install" />
+                    </exec>
+                  </target>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <!--
+            Stage libcuobj_server_bridge.so into the jar at two
+            locations so NativeLibraryLoader's classpath-fallback
+            extraction works (jar root) AND the dist-layout assembly
+            can pick it up from the native/ subdir (§4.7.2).
+          -->
+          <plugin>
+            <artifactId>maven-resources-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>copy-native-lib-jar-root</id>
+                <goals>
+                  <goal>copy-resources</goal>
+                </goals>
+                <phase>process-classes</phase>
+                <configuration>
+                  <outputDirectory>${project.build.outputDirectory}</outputDirectory>
+                  <resources>
+                    <resource>
+                      <directory>${project.build.directory}/native/install/lib</directory>
+                      <includes>
+                        <include>libcuobj_server_bridge.so</include>
+                      </includes>
+                    </resource>
+                  </resources>
+                </configuration>
+              </execution>
+              <execution>
+                <id>copy-native-lib-dist</id>
+                <goals>
+                  <goal>copy-resources</goal>
+                </goals>
+                <phase>process-classes</phase>
+                <configuration>
+                  <outputDirectory>${project.build.outputDirectory}/native</outputDirectory>
+                  <resources>
+                    <resource>
+                      <directory>${project.build.directory}/native/install/lib</directory>
+                      <includes>
+                        <include>libcuobj_server_bridge.so</include>
+                      </includes>
+                    </resource>
+                  </resources>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>
