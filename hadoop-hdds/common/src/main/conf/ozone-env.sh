@@ -292,3 +292,15 @@ export OZONE_OS_TYPE=${OZONE_OS_TYPE:-$(uname -s)}
 #
 # For example, to limit who can execute the om command,
 # export OZONE_OM_USER=ozone
+
+###
+# GPUDirect RDMA native library (libcuobj_server_bridge.so)
+###
+# When the distribution is built with `-Pnative`, the cuObjServer JNI
+# bridge ships under ${OZONE_HOME}/share/ozone/lib/native/. ozone-functions.sh
+# only injects `-Djava.library.path=${JAVA_LIBRARY_PATH}` when that variable
+# is already exported, so we prepend the native dir here on the datanode
+# startup path. No-op when the dir is absent (default / non-native builds).
+if [ -d "${OZONE_HOME}/share/ozone/lib/native" ]; then
+  export JAVA_LIBRARY_PATH="${OZONE_HOME}/share/ozone/lib/native${JAVA_LIBRARY_PATH:+:${JAVA_LIBRARY_PATH}}"
+fi

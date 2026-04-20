@@ -73,6 +73,7 @@ run cp -p "${ROOT}/CONTRIBUTING.md" .
 
 run mkdir -p ./share/ozone/classpath
 run mkdir -p ./share/ozone/lib
+run mkdir -p ./share/ozone/lib/native
 run mkdir -p ./share/ozone/web
 run mkdir -p ./bin
 run mkdir -p ./sbin
@@ -141,6 +142,14 @@ for file in $(find "${ROOT}" -path '*/share/ozone/lib/*jar' | sort); do
   # copy without printing to output due to large number of files
   cp -p "$file" share/ozone/lib/
 done
+
+# Native cuObjServer JNI bridge — only present when the -Pnative profile
+# built hadoop-hdds/container-service-native. Absent in default / CI
+# builds, so `|| true` keeps the dist step green either way.
+RDMA_SO="${ROOT}/hadoop-hdds/container-service-native/target/native/install/lib/libcuobj_server_bridge.so"
+if [ -f "${RDMA_SO}" ]; then
+  run cp -p "${RDMA_SO}" ./share/ozone/lib/native/
+fi
 
 #workaround for https://issues.apache.org/jira/browse/MRESOURCES-236
 find ./compose -name "*.sh" -exec chmod 755 {} \;
