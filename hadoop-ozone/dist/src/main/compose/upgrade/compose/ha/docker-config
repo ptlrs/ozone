@@ -71,3 +71,12 @@ OM_SERVICE_ID=omservice
 # Explicitly enable filesystem snapshot feature for this Docker compose cluster
 # Does not take effect on Ozone versions < 1.4.0
 OZONE-SITE.XML_ozone.filesystem.snapshot.enabled=true
+
+# Enable OM multitenancy in "dev-skip-ranger" mode so upgrade/oneof-workload-generate.robot
+# can exercise the two OMRequest multi-payload call sites that only fire under multitenancy
+# (`CreateTenant` = 11 + 96 and `TenantAssignUserAccessId` = 82 + 100). The flag is a
+# static ozone-site.xml key read at OM startup, so it cannot be set from inside the robot;
+# `dev.skip.ranger=true` keeps the toggle self-contained by short-circuiting Ranger on the
+# tenant paths, which is the same pattern `compose/ozonesecure/docker-config` uses.
+OZONE-SITE.XML_ozone.om.multitenancy.enabled=true
+OZONE-SITE.XML_ozone.om.tenant.dev.skip.ranger=true
