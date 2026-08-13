@@ -77,6 +77,7 @@ import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.Prepare
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.Status;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.Type;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.UserInfo;
+import org.apache.hadoop.ozone.protocol.proto.testing.Proto2OmClientProtocolForOneofMigrationTesting;
 import org.apache.hadoop.ozone.protocolPB.RequestHandler;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.ratis.proto.RaftProtos;
@@ -302,6 +303,81 @@ public class TestOzoneManagerStateMachine {
     Message result = future.get();
 
     assertNotNull(result);
+  }
+
+  /**
+   * End-to-end wire-compat check: pre-migration bytes replay under the
+   * production state machine.
+   *
+   * <p>Encodes an {@code OMRequest} under the fixture schema
+   * ({@code Proto2OmClientProtocolForOneofMigrationTesting}, the verbatim
+   * pre-{@code oneof} layout), stuffs the raw bytes into a
+   * {@code StateMachineLogEntryProto} with {@code stateMachineContext=null},
+   * and calls the real {@link OzoneManagerStateMachine#applyTransaction}.
+   *
+   * <p>This exercises the follower path: the state machine deserializes
+   * the log bytes with the production {@code OMRequest} parser via
+   * {@link OMRatisHelper#convertByteStringToOMRequest}. If the wire layout
+   * ever diverged between the pre-migration schema and the production
+   * {@code oneof} wrapper, dispatch would either fail to parse or land on
+   * the wrong handler branch.
+   */
+  @Test
+  public void testApplyTransactionFromPreMigrationFixtureBytes() throws Exception {
+    // Build the pre-migration equivalent of sampleWriteRequest().
+    Proto2OmClientProtocolForOneofMigrationTesting.OMRequest fixture =
+        Proto2OmClientProtocolForOneofMigrationTesting.OMRequest.newBuilder()
+            .setCmdType(Proto2OmClientProtocolForOneofMigrationTesting.Type.CreateKey)
+            .setClientId("test-client")
+            .setCreateKeyRequest(Proto2OmClientProtocolForOneofMigrationTesting.CreateKeyRequest.newBuilder()
+                .setKeyArgs(Proto2OmClientProtocolForOneofMigrationTesting.KeyArgs.newBuilder()
+                    .setVolumeName("vol")
+                    .setBucketName("bucket")
+                    .setKeyName("key")))
+            .setUserInfo(Proto2OmClientProtocolForOneofMigrationTesting.UserInfo.newBuilder()
+                .setUserName("user")
+                .setHostName("localhost")
+                .setRemoteAddress("127.0.0.1"))
+            .build();
+    byte[] onWire = fixture.toByteArray();
+
+    RaftProtos.StateMachineLogEntryProto logEntry =
+        RaftProtos.StateMachineLogEntryProto.newBuilder()
+            .setLogData(ByteString.copyFrom(onWire))
+            .build();
+    TransactionContext trx = mock(TransactionContext.class);
+    when(trx.getStateMachineLogEntry()).thenReturn(logEntry);
+    // Null context forces the follower path: applyTransaction deserializes
+    // from logData rather than reusing a stashed request object.
+    when(trx.getStateMachineContext()).thenReturn(null);
+    when(trx.getLogEntry()).thenReturn(LogProtoUtils.toLogEntryProto(1, 6, 6));
+
+    OMResponse expectedResponse = OMResponse.newBuilder()
+        .setCmdType(Type.CreateKey)
+        .setStatus(Status.OK)
+        .setSuccess(true)
+        .build();
+    OMClientResponse clientResponse = mock(OMClientResponse.class);
+    when(clientResponse.getOMResponse()).thenReturn(expectedResponse);
+    when(clientResponse.getOmLockDetails()).thenReturn(null);
+    when(handler.handleWriteRequest(any(OMRequest.class), any(), eq(doubleBuffer)))
+        .thenReturn(clientResponse);
+
+    CompletableFuture<Message> future = sm.applyTransaction(trx);
+    Message result = future.get();
+    assertNotNull(result);
+
+    ArgumentCaptor<OMRequest> captor = ArgumentCaptor.forClass(OMRequest.class);
+    verify(handler).handleWriteRequest(captor.capture(), any(), eq(doubleBuffer));
+    OMRequest dispatched = captor.getValue();
+    assertEquals(Type.CreateKey, dispatched.getCmdType());
+    assertEquals("test-client", dispatched.getClientId());
+    assertTrue(dispatched.hasCreateKeyRequest());
+    KeyArgs keyArgs = dispatched.getCreateKeyRequest().getKeyArgs();
+    assertEquals("vol", keyArgs.getVolumeName());
+    assertEquals("bucket", keyArgs.getBucketName());
+    assertEquals("key", keyArgs.getKeyName());
+    assertEquals("user", dispatched.getUserInfo().getUserName());
   }
 
   @Test
