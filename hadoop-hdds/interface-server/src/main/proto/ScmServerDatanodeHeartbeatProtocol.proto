@@ -41,9 +41,11 @@ message SCMDatanodeRequest {
 
   optional string traceID = 2;
 
-  optional SCMVersionRequestProto getVersionRequest = 3;
-  optional SCMRegisterRequestProto registerRequest = 4;
-  optional SCMHeartbeatRequestProto sendHeartbeatRequest = 5;
+  oneof body {
+    SCMVersionRequestProto getVersionRequest = 3;
+    SCMRegisterRequestProto registerRequest = 4;
+    SCMHeartbeatRequestProto sendHeartbeatRequest = 5;
+  }
 }
 
 message SCMDatanodeResponse {
@@ -57,10 +59,11 @@ message SCMDatanodeResponse {
 
   required Status status = 5;
 
-  optional SCMVersionResponseProto getVersionResponse = 6;
-  optional SCMRegisteredResponseProto registerResponse = 7;
-  optional SCMHeartbeatResponseProto sendHeartbeatResponse = 8;
-
+  oneof body {
+    SCMVersionResponseProto getVersionResponse = 6;
+    SCMRegisteredResponseProto registerResponse = 7;
+    SCMHeartbeatResponseProto sendHeartbeatResponse = 8;
+  }
 }
 
 enum Type {
@@ -329,21 +332,22 @@ message SCMCommandProto {
     reconstructECContainersCommand = 11;
     reconcileContainerCommand = 12;
   }
-  // TODO: once we start using protoc 3.x, refactor this message using "oneof"
   required Type commandType = 1;
-  optional ReregisterCommandProto reregisterCommandProto = 2;
-  optional DeleteBlocksCommandProto deleteBlocksCommandProto = 3;
-  optional CloseContainerCommandProto closeContainerCommandProto = 4;
-  optional DeleteContainerCommandProto deleteContainerCommandProto = 5;
-  optional ReplicateContainerCommandProto replicateContainerCommandProto = 6;
-  optional CreatePipelineCommandProto createPipelineCommandProto = 7;
-  optional ClosePipelineCommandProto closePipelineCommandProto = 8;
-  optional SetNodeOperationalStateCommandProto setNodeOperationalStateCommandProto = 9;
-  optional FinalizeNewLayoutVersionCommandProto
-  finalizeNewLayoutVersionCommandProto = 10;
-  optional RefreshVolumeUsageCommandProto refreshVolumeUsageCommandProto = 11;
-  optional ReconstructECContainersCommandProto reconstructECContainersCommandProto = 12;
-  optional ReconcileContainerCommandProto reconcileContainerCommandProto = 13;
+
+  oneof body {
+    ReregisterCommandProto reregisterCommandProto = 2;
+    DeleteBlocksCommandProto deleteBlocksCommandProto = 3;
+    CloseContainerCommandProto closeContainerCommandProto = 4;
+    DeleteContainerCommandProto deleteContainerCommandProto = 5;
+    ReplicateContainerCommandProto replicateContainerCommandProto = 6;
+    CreatePipelineCommandProto createPipelineCommandProto = 7;
+    ClosePipelineCommandProto closePipelineCommandProto = 8;
+    SetNodeOperationalStateCommandProto setNodeOperationalStateCommandProto = 9;
+    FinalizeNewLayoutVersionCommandProto finalizeNewLayoutVersionCommandProto = 10;
+    RefreshVolumeUsageCommandProto refreshVolumeUsageCommandProto = 11;
+    ReconstructECContainersCommandProto reconstructECContainersCommandProto = 12;
+    ReconcileContainerCommandProto reconcileContainerCommandProto = 13;
+  }
 
   // If running upon Ratis, holds term of underlying RaftServer iff current
   // SCM is a leader. If running without Ratis, holds SCMContext.INVALID_TERM.

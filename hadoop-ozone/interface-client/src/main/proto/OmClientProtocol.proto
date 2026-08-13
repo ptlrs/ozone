@@ -192,144 +192,157 @@ message OMRequest {
 
   optional ReadConsistencyHint readConsistencyHint = 7;
 
+  // Fields excluded from the `body` oneof and kept as flat optionals:
+  //   11  createVolumeRequest         — paired with 96 by OMTenantCreateRequest
+  //   49  getS3SecretRequest          — paired with 82 by S3GetSecretRequest
+  //   82  updateGetS3SecretRequest    — paired with 49 (S3GetSecretRequest) and
+  //                                     100 (OMTenantAssignUserAccessIdRequest)
+  //   95  s3Authentication            — cross-cutting metadata, not a payload
+  //   96  CreateTenantRequest         — paired with 11 by OMTenantCreateRequest
+  //  100  TenantAssignUserAccessIdRequest — paired with 82
+  //  143  SetSnapshotPropertyRequests — repeated, forbidden in oneof
   optional CreateVolumeRequest              createVolumeRequest            = 11;
-  optional SetVolumePropertyRequest         setVolumePropertyRequest       = 12;
-  optional CheckVolumeAccessRequest         checkVolumeAccessRequest       = 13;
-  optional InfoVolumeRequest                infoVolumeRequest              = 14;
-  optional DeleteVolumeRequest              deleteVolumeRequest            = 15;
-  optional ListVolumeRequest                listVolumeRequest              = 16;
-
-  optional CreateBucketRequest              createBucketRequest            = 21;
-  optional InfoBucketRequest                infoBucketRequest              = 22;
-  optional SetBucketPropertyRequest         setBucketPropertyRequest       = 23;
-  optional DeleteBucketRequest              deleteBucketRequest            = 24;
-  optional ListBucketsRequest               listBucketsRequest             = 25;
-
-  optional CreateKeyRequest                 createKeyRequest               = 31;
-  optional LookupKeyRequest                 lookupKeyRequest               = 32;
-  optional RenameKeyRequest                 renameKeyRequest               = 33;
-  optional DeleteKeyRequest                 deleteKeyRequest               = 34;
-  optional ListKeysRequest                  listKeysRequest                = 35;
-  optional CommitKeyRequest                 commitKeyRequest               = 36;
-  optional AllocateBlockRequest             allocateBlockRequest           = 37;
-  optional DeleteKeysRequest                deleteKeysRequest              = 38;
-  optional RenameKeysRequest                renameKeysRequest              = 39;
-  optional DeleteOpenKeysRequest            deleteOpenKeysRequest          = 40;
-
-  optional MultipartInfoInitiateRequest     initiateMultiPartUploadRequest = 45;
-  optional MultipartCommitUploadPartRequest commitMultiPartUploadRequest   = 46;
-  optional MultipartUploadCompleteRequest   completeMultiPartUploadRequest = 47;
-  optional MultipartUploadAbortRequest      abortMultiPartUploadRequest    = 48;
   optional GetS3SecretRequest               getS3SecretRequest             = 49;
-  optional MultipartUploadListPartsRequest  listMultipartUploadPartsRequest = 50;
-
-  optional ServiceListRequest               serviceListRequest             = 51;
-  optional DBUpdatesRequest                  dbUpdatesRequest              = 53;
-  optional FinalizeUpgradeRequest           finalizeUpgradeRequest         = 54;
-  optional FinalizeUpgradeProgressRequest   finalizeUpgradeProgressRequest = 55;
-  optional PrepareRequest                   prepareRequest                 = 56;
-  optional PrepareStatusRequest             prepareStatusRequest           = 57;
-  optional CancelPrepareRequest             cancelPrepareRequest           = 58;
-
-  optional hadoop.common.GetDelegationTokenRequestProto getDelegationTokenRequest = 61;
-  optional hadoop.common.RenewDelegationTokenRequestProto renewDelegationTokenRequest= 62;
-  optional hadoop.common.CancelDelegationTokenRequestProto cancelDelegationTokenRequest = 63;
-  optional UpdateGetDelegationTokenRequest updateGetDelegationTokenRequest = 64;
-  optional UpdateRenewDelegationTokenRequest updatedRenewDelegationTokenRequest = 65;
-
-  optional GetFileStatusRequest             getFileStatusRequest           = 70;
-  optional CreateDirectoryRequest           createDirectoryRequest         = 71;
-  optional CreateFileRequest                createFileRequest              = 72;
-  optional LookupFileRequest                lookupFileRequest              = 73;
-  optional ListStatusRequest                listStatusRequest              = 74;
-  optional AddAclRequest                    addAclRequest                  = 75;
-  optional RemoveAclRequest                 removeAclRequest               = 76;
-  optional SetAclRequest                    setAclRequest                  = 77;
-  optional GetAclRequest                    getAclRequest                  = 78;
-
-  optional PurgeKeysRequest                 purgeKeysRequest               = 81;
-
   optional UpdateGetS3SecretRequest         updateGetS3SecretRequest       = 82;
-  optional ListMultipartUploadsRequest      listMultipartUploadsRequest    = 83;
-
-  // Not used anymore due to HDDS-11251
-  optional ListTrashRequest                 listTrashRequest               = 91 [deprecated = true];
-  optional RecoverTrashRequest              RecoverTrashRequest            = 92 [deprecated = true];
-
-  optional RevokeS3SecretRequest            RevokeS3SecretRequest          = 93;
-
-  optional PurgePathsRequest                purgePathsRequest              = 94 [deprecated = true];
-  optional PurgeDirectoriesRequest          purgeDirectoriesRequest        = 108;
-
   optional S3Authentication                 s3Authentication               = 95;
-
   optional CreateTenantRequest              CreateTenantRequest            = 96;
-  optional DeleteTenantRequest              DeleteTenantRequest            = 97;
-  optional ListTenantRequest                ListTenantRequest              = 98;
-
-  optional TenantGetUserInfoRequest         TenantGetUserInfoRequest       = 99;
   optional TenantAssignUserAccessIdRequest  TenantAssignUserAccessIdRequest= 100;
-  optional TenantRevokeUserAccessIdRequest  TenantRevokeUserAccessIdRequest= 101;
-
-  optional TenantAssignAdminRequest         TenantAssignAdminRequest       = 102;
-  optional TenantRevokeAdminRequest         TenantRevokeAdminRequest       = 103;
-
-  optional GetS3VolumeContextRequest        getS3VolumeContextRequest      = 104;
-  optional TenantListUserRequest            tenantListUserRequest          = 105;
-
-  optional SetS3SecretRequest               SetS3SecretRequest             = 106;
-
-  optional SetRangerServiceVersionRequest   SetRangerServiceVersionRequest = 107;
-  optional RangerBGSyncRequest              RangerBGSyncRequest            = 109;
-
-  optional EchoRPCRequest                   EchoRPCRequest                 = 110;
-  optional GetKeyInfoRequest                GetKeyInfoRequest              = 111;
-
-  optional CreateSnapshotRequest            CreateSnapshotRequest          = 112;
-  optional ListSnapshotRequest              ListSnapshotRequest            = 113;
-  optional SnapshotDiffRequest              snapshotDiffRequest            = 114;
-  optional DeleteSnapshotRequest            DeleteSnapshotRequest          = 115;
-  optional SnapshotMoveDeletedKeysRequest   SnapshotMoveDeletedKeysRequest = 116;
-
-  optional hdds.TransferLeadershipRequestProto      TransferOmLeadershipRequest    = 117;
-  optional SnapshotPurgeRequest             SnapshotPurgeRequest           = 118;
-
-  optional RecoverLeaseRequest              RecoverLeaseRequest            = 119;
-  optional SetTimesRequest                  SetTimesRequest                = 120;
-  optional RefetchSecretKeyRequest          RefetchSecretKeyRequest        = 121;
-  optional ListSnapshotDiffJobRequest       ListSnapshotDiffJobRequest     = 122;
-  optional CancelSnapshotDiffRequest        CancelSnapshotDiffRequest      = 123;
-  optional SetSafeModeRequest               SetSafeModeRequest             = 124;
-  optional PrintCompactionLogDagRequest     PrintCompactionLogDagRequest   = 125 [deprecated = true];
-
-  optional MultipartUploadsExpiredAbortRequest multipartUploadsExpiredAbortRequest = 126;
-  optional SetSnapshotPropertyRequest       SetSnapshotPropertyRequest     = 127;
-  optional SnapshotInfoRequest              SnapshotInfoRequest            = 128;
-  optional RenameSnapshotRequest            RenameSnapshotRequest          = 129;
-  optional ListOpenFilesRequest             ListOpenFilesRequest           = 130;
-  optional QuotaRepairRequest               QuotaRepairRequest             = 131;
-
-  optional GetQuotaRepairStatusRequest      GetQuotaRepairStatusRequest    = 133;
-  optional StartQuotaRepairRequest          StartQuotaRepairRequest        = 134;
-  optional SnapshotMoveTableKeysRequest     SnapshotMoveTableKeysRequest   = 135;
-
-  optional GetObjectTaggingRequest          getObjectTaggingRequest        = 140;
-  optional PutObjectTaggingRequest          putObjectTaggingRequest        = 141;
-  optional DeleteObjectTaggingRequest       deleteObjectTaggingRequest     = 142;
   repeated SetSnapshotPropertyRequest       SetSnapshotPropertyRequests    = 143;
-  optional SubmitSnapshotDiffRequest        submitSnapshotDiffRequest      = 144;
-  // TODO: PutBucketTagging — tags in bucketArgs.tags; OM persists to BucketInfo.tags.
-  optional PutBucketTaggingRequest          putBucketTaggingRequest         = 145;
-  // TODO: GetBucketTagging — volume/bucket in bucketArgs; response returns tag list.
-  optional GetBucketTaggingRequest          getBucketTaggingRequest          = 146;
-  // TODO: DeleteBucketTagging — clears tags on target bucket (link resolves in OM).
-  optional DeleteBucketTaggingRequest       deleteBucketTaggingRequest       = 147;
-  optional SetLifecycleConfigurationRequest setLifecycleConfigurationRequest = 148;
-  optional GetLifecycleConfigurationRequest   getLifecycleConfigurationRequest   = 149;
-  optional DeleteLifecycleConfigurationRequest deleteLifecycleConfigurationRequest = 150;
-  optional GetLifecycleServiceStatusRequest getLifecycleServiceStatusRequest = 151;
-  optional SetLifecycleServiceStatusRequest setLifecycleServiceStatusRequest = 152;
-  optional SaveLifecycleScanStateRequest saveLifecycleScanStateRequest = 153;
+
+  oneof body {
+    SetVolumePropertyRequest         setVolumePropertyRequest       = 12;
+    CheckVolumeAccessRequest         checkVolumeAccessRequest       = 13;
+    InfoVolumeRequest                infoVolumeRequest              = 14;
+    DeleteVolumeRequest              deleteVolumeRequest            = 15;
+    ListVolumeRequest                listVolumeRequest              = 16;
+
+    CreateBucketRequest              createBucketRequest            = 21;
+    InfoBucketRequest                infoBucketRequest              = 22;
+    SetBucketPropertyRequest         setBucketPropertyRequest       = 23;
+    DeleteBucketRequest              deleteBucketRequest            = 24;
+    ListBucketsRequest               listBucketsRequest             = 25;
+
+    CreateKeyRequest                 createKeyRequest               = 31;
+    LookupKeyRequest                 lookupKeyRequest               = 32;
+    RenameKeyRequest                 renameKeyRequest               = 33;
+    DeleteKeyRequest                 deleteKeyRequest               = 34;
+    ListKeysRequest                  listKeysRequest                = 35;
+    CommitKeyRequest                 commitKeyRequest               = 36;
+    AllocateBlockRequest             allocateBlockRequest           = 37;
+    DeleteKeysRequest                deleteKeysRequest              = 38;
+    RenameKeysRequest                renameKeysRequest              = 39;
+    DeleteOpenKeysRequest            deleteOpenKeysRequest          = 40;
+
+    MultipartInfoInitiateRequest     initiateMultiPartUploadRequest = 45;
+    MultipartCommitUploadPartRequest commitMultiPartUploadRequest   = 46;
+    MultipartUploadCompleteRequest   completeMultiPartUploadRequest = 47;
+    MultipartUploadAbortRequest      abortMultiPartUploadRequest    = 48;
+    MultipartUploadListPartsRequest  listMultipartUploadPartsRequest = 50;
+
+    ServiceListRequest               serviceListRequest             = 51;
+    DBUpdatesRequest                 dbUpdatesRequest               = 53;
+    FinalizeUpgradeRequest           finalizeUpgradeRequest         = 54;
+    FinalizeUpgradeProgressRequest   finalizeUpgradeProgressRequest = 55;
+    PrepareRequest                   prepareRequest                 = 56;
+    PrepareStatusRequest             prepareStatusRequest           = 57;
+    CancelPrepareRequest             cancelPrepareRequest           = 58;
+
+    hadoop.common.GetDelegationTokenRequestProto getDelegationTokenRequest = 61;
+    hadoop.common.RenewDelegationTokenRequestProto renewDelegationTokenRequest= 62;
+    hadoop.common.CancelDelegationTokenRequestProto cancelDelegationTokenRequest = 63;
+    UpdateGetDelegationTokenRequest updateGetDelegationTokenRequest = 64;
+    UpdateRenewDelegationTokenRequest updatedRenewDelegationTokenRequest = 65;
+
+    GetFileStatusRequest             getFileStatusRequest           = 70;
+    CreateDirectoryRequest           createDirectoryRequest         = 71;
+    CreateFileRequest                createFileRequest              = 72;
+    LookupFileRequest                lookupFileRequest              = 73;
+    ListStatusRequest                listStatusRequest              = 74;
+    AddAclRequest                    addAclRequest                  = 75;
+    RemoveAclRequest                 removeAclRequest               = 76;
+    SetAclRequest                    setAclRequest                  = 77;
+    GetAclRequest                    getAclRequest                  = 78;
+
+    PurgeKeysRequest                 purgeKeysRequest               = 81;
+
+    ListMultipartUploadsRequest      listMultipartUploadsRequest    = 83;
+
+    // Not used anymore due to HDDS-11251
+    ListTrashRequest                 listTrashRequest               = 91 [deprecated = true];
+    RecoverTrashRequest              RecoverTrashRequest            = 92 [deprecated = true];
+
+    RevokeS3SecretRequest            RevokeS3SecretRequest          = 93;
+
+    PurgePathsRequest                purgePathsRequest              = 94 [deprecated = true];
+    PurgeDirectoriesRequest          purgeDirectoriesRequest        = 108;
+
+    DeleteTenantRequest              DeleteTenantRequest            = 97;
+    ListTenantRequest                ListTenantRequest              = 98;
+
+    TenantGetUserInfoRequest         TenantGetUserInfoRequest       = 99;
+    TenantRevokeUserAccessIdRequest  TenantRevokeUserAccessIdRequest= 101;
+
+    TenantAssignAdminRequest         TenantAssignAdminRequest       = 102;
+    TenantRevokeAdminRequest         TenantRevokeAdminRequest       = 103;
+
+    GetS3VolumeContextRequest        getS3VolumeContextRequest      = 104;
+    TenantListUserRequest            tenantListUserRequest          = 105;
+
+    SetS3SecretRequest               SetS3SecretRequest             = 106;
+
+    SetRangerServiceVersionRequest   SetRangerServiceVersionRequest = 107;
+    RangerBGSyncRequest              RangerBGSyncRequest            = 109;
+
+    EchoRPCRequest                   EchoRPCRequest                 = 110;
+    GetKeyInfoRequest                GetKeyInfoRequest              = 111;
+
+    CreateSnapshotRequest            CreateSnapshotRequest          = 112;
+    ListSnapshotRequest              ListSnapshotRequest            = 113;
+    SnapshotDiffRequest              snapshotDiffRequest            = 114;
+    DeleteSnapshotRequest            DeleteSnapshotRequest          = 115;
+    SnapshotMoveDeletedKeysRequest   SnapshotMoveDeletedKeysRequest = 116;
+
+    hdds.TransferLeadershipRequestProto TransferOmLeadershipRequest = 117;
+    SnapshotPurgeRequest             SnapshotPurgeRequest           = 118;
+
+    RecoverLeaseRequest              RecoverLeaseRequest            = 119;
+    SetTimesRequest                  SetTimesRequest                = 120;
+    RefetchSecretKeyRequest          RefetchSecretKeyRequest        = 121;
+    ListSnapshotDiffJobRequest       ListSnapshotDiffJobRequest     = 122;
+    CancelSnapshotDiffRequest        CancelSnapshotDiffRequest      = 123;
+    SetSafeModeRequest               SetSafeModeRequest             = 124;
+    PrintCompactionLogDagRequest     PrintCompactionLogDagRequest   = 125 [deprecated = true];
+
+    MultipartUploadsExpiredAbortRequest multipartUploadsExpiredAbortRequest = 126;
+    SetSnapshotPropertyRequest       SetSnapshotPropertyRequest     = 127;
+    SnapshotInfoRequest              SnapshotInfoRequest            = 128;
+    RenameSnapshotRequest            RenameSnapshotRequest          = 129;
+    ListOpenFilesRequest             ListOpenFilesRequest           = 130;
+    QuotaRepairRequest               QuotaRepairRequest             = 131;
+
+    GetQuotaRepairStatusRequest      GetQuotaRepairStatusRequest    = 133;
+    StartQuotaRepairRequest          StartQuotaRepairRequest        = 134;
+    SnapshotMoveTableKeysRequest     SnapshotMoveTableKeysRequest   = 135;
+
+    GetObjectTaggingRequest          getObjectTaggingRequest        = 140;
+    PutObjectTaggingRequest          putObjectTaggingRequest        = 141;
+    DeleteObjectTaggingRequest       deleteObjectTaggingRequest     = 142;
+    SubmitSnapshotDiffRequest        submitSnapshotDiffRequest      = 144;
+
+    // TODO: PutBucketTagging — tags in bucketArgs.tags; OM persists to BucketInfo.tags.
+    PutBucketTaggingRequest          putBucketTaggingRequest         = 145;
+    // TODO: GetBucketTagging — volume/bucket in bucketArgs; response returns tag list.
+    GetBucketTaggingRequest          getBucketTaggingRequest          = 146;
+    // TODO: DeleteBucketTagging — clears tags on target bucket (link resolves in OM).
+    DeleteBucketTaggingRequest       deleteBucketTaggingRequest       = 147;
+
+    SetLifecycleConfigurationRequest setLifecycleConfigurationRequest = 148;
+    GetLifecycleConfigurationRequest getLifecycleConfigurationRequest   = 149;
+    DeleteLifecycleConfigurationRequest deleteLifecycleConfigurationRequest = 150;
+    GetLifecycleServiceStatusRequest getLifecycleServiceStatusRequest = 151;
+    SetLifecycleServiceStatusRequest setLifecycleServiceStatusRequest = 152;
+    SaveLifecycleScanStateRequest saveLifecycleScanStateRequest = 153;
+  }
 }
 
 message OMResponse {
@@ -347,137 +360,143 @@ message OMResponse {
 
   optional string leaderOMNodeId = 6;
 
-  optional CreateVolumeResponse              createVolumeResponse          = 11;
-  optional SetVolumePropertyResponse         setVolumePropertyResponse     = 12;
-  optional CheckVolumeAccessResponse         checkVolumeAccessResponse     = 13;
-  optional InfoVolumeResponse                infoVolumeResponse            = 14;
-  optional DeleteVolumeResponse              deleteVolumeResponse          = 15;
-  optional ListVolumeResponse                listVolumeResponse            = 16;
-
-  optional CreateBucketResponse              createBucketResponse          = 21;
-  optional InfoBucketResponse                infoBucketResponse            = 22;
-  optional SetBucketPropertyResponse         setBucketPropertyResponse     = 23;
-  optional DeleteBucketResponse              deleteBucketResponse          = 24;
-  optional ListBucketsResponse               listBucketsResponse           = 25;
-
-  optional CreateKeyResponse                 createKeyResponse             = 31;
-  optional LookupKeyResponse                 lookupKeyResponse             = 32;
-  optional RenameKeyResponse                 renameKeyResponse             = 33;
-  optional DeleteKeyResponse                 deleteKeyResponse             = 34;
-  optional ListKeysResponse                  listKeysResponse              = 35;
-  optional CommitKeyResponse                 commitKeyResponse             = 36;
-  optional AllocateBlockResponse             allocateBlockResponse         = 37;
-  optional DeleteKeysResponse                deleteKeysResponse            = 38;
-  optional RenameKeysResponse                renameKeysResponse            = 39;
-
-  optional MultipartInfoInitiateResponse   initiateMultiPartUploadResponse = 45;
-  optional MultipartCommitUploadPartResponse commitMultiPartUploadResponse = 46;
-  optional MultipartUploadCompleteResponse completeMultiPartUploadResponse = 47;
-  optional MultipartUploadAbortResponse    abortMultiPartUploadResponse    = 48;
-  optional GetS3SecretResponse               getS3SecretResponse           = 49;
-  optional MultipartUploadListPartsResponse listMultipartUploadPartsResponse = 50;
-
-  optional ServiceListResponse               ServiceListResponse           = 51;
-  optional DBUpdatesResponse                 dbUpdatesResponse             = 52;
-  optional FinalizeUpgradeResponse           finalizeUpgradeResponse       = 54;
-  optional FinalizeUpgradeProgressResponse finalizeUpgradeProgressResponse = 55;
-  optional PrepareResponse                 prepareResponse                 = 56;
-  optional PrepareStatusResponse           prepareStatusResponse           = 57;
-  optional CancelPrepareResponse           cancelPrepareResponse           = 58;
-
-  optional GetDelegationTokenResponseProto getDelegationTokenResponse = 61;
-  optional RenewDelegationTokenResponseProto renewDelegationTokenResponse = 62;
-  optional CancelDelegationTokenResponseProto cancelDelegationTokenResponse = 63;
-
-  optional GetFileStatusResponse              getFileStatusResponse        = 70;
-  optional CreateDirectoryResponse            createDirectoryResponse      = 71;
-  optional CreateFileResponse                 createFileResponse           = 72;
-  optional LookupFileResponse                 lookupFileResponse           = 73;
-  optional ListStatusResponse                 listStatusResponse           = 74;
-  optional AddAclResponse                    addAclResponse                = 75;
-  optional RemoveAclResponse                 removeAclResponse             = 76;
-  optional SetAclResponse                   setAclResponse                 = 77;
-  optional GetAclResponse                    getAclResponse                = 78;
-
-  optional PurgeKeysResponse                  purgeKeysResponse            = 81;
-
-  optional ListMultipartUploadsResponse listMultipartUploadsResponse = 82;
-
-  // Not used anymore due to HDDS-11251
-  optional ListTrashResponse                  listTrashResponse            = 91 [deprecated = true];
-  optional RecoverTrashResponse               RecoverTrashResponse         = 92 [deprecated = true];
-
-  optional PurgePathsResponse                 purgePathsResponse           = 93 [deprecated = true];
-  optional PurgeDirectoriesResponse           purgeDirectoriesResponse     = 108;
-
-  // Skipped 94/95 to align with OMRequest
-  optional CreateTenantResponse              CreateTenantResponse          = 96;
-  optional DeleteTenantResponse              DeleteTenantResponse          = 97;
-  optional ListTenantResponse                ListTenantResponse            = 98;
-
-  optional TenantGetUserInfoResponse         TenantGetUserInfoResponse     = 99;
-  optional TenantAssignUserAccessIdResponse  TenantAssignUserAccessIdResponse = 100;
-  optional TenantRevokeUserAccessIdResponse  TenantRevokeUserAccessIdResponse = 101;
-
-  optional TenantAssignAdminResponse         TenantAssignAdminResponse     = 102;
-  optional TenantRevokeAdminResponse         TenantRevokeAdminResponse     = 103;
-
-  optional GetS3VolumeContextResponse        getS3VolumeContextResponse    = 104;
-  optional TenantListUserResponse            tenantListUserResponse        = 105;
-
-  optional SetS3SecretResponse               SetS3SecretResponse           = 106;
-
-  optional SetRangerServiceVersionResponse   SetRangerServiceVersionResponse = 107;
-  optional RangerBGSyncResponse              RangerBGSyncResponse          = 109;
-
-  optional EchoRPCResponse                   EchoRPCResponse               = 110;
-  optional GetKeyInfoResponse                GetKeyInfoResponse            = 111;
-
-  optional CreateSnapshotResponse            CreateSnapshotResponse        = 112;
-  optional ListSnapshotResponse              ListSnapshotResponse          = 113;
-  optional SnapshotDiffResponse              snapshotDiffResponse          = 114;
-  optional DeleteSnapshotResponse            DeleteSnapshotResponse        = 115;
-  optional SnapshotMoveDeletedKeysResponse   SnapshotMoveDeletedKeysResponse = 116;
-
-  optional hdds.TransferLeadershipResponseProto   TransferOmLeadershipResponse  = 117;
-  optional SnapshotPurgeResponse              SnapshotPurgeResponse        = 118;
-  optional RecoverLeaseResponse              RecoverLeaseResponse          = 119;
-  optional SetTimesResponse                  SetTimesResponse              = 120;
-  optional RefetchSecretKeyResponse          RefetchSecretKeyResponse      = 121;
-  optional ListSnapshotDiffJobResponse       ListSnapshotDiffJobResponse   = 122;
-  optional CancelSnapshotDiffResponse        cancelSnapshotDiffResponse    = 123;
-  optional SetSafeModeResponse               SetSafeModeResponse           = 124;
-  optional PrintCompactionLogDagResponse     PrintCompactionLogDagResponse = 125 [deprecated = true];
-  optional ListKeysLightResponse             listKeysLightResponse         = 126;
-  optional MultipartUploadsExpiredAbortResponse multipartUploadsExpiredAbortResponse = 127;
-  optional SetSnapshotPropertyResponse       SetSnapshotPropertyResponse   = 128;
-  optional ListStatusLightResponse           listStatusLightResponse       = 129;
-  optional SnapshotInfoResponse              SnapshotInfoResponse          = 130;
+  // omLockDetails (131) is cross-cutting metadata attached alongside any
+  // payload response, not a payload itself. It is kept as a flat optional so it
+  // can co-exist with the `body` oneof.
   optional OMLockDetailsProto                omLockDetails                 = 131;
-  optional RenameSnapshotResponse            RenameSnapshotResponse        = 132;
-  optional ListOpenFilesResponse             ListOpenFilesResponse         = 133;
-  optional QuotaRepairResponse            QuotaRepairResponse        = 134;
-  optional GetQuotaRepairStatusResponse      GetQuotaRepairStatusResponse   = 136;
-  optional StartQuotaRepairResponse          StartQuotaRepairResponse       = 137;
 
-  optional GetObjectTaggingResponse          getObjectTaggingResponse      = 140;
-  optional PutObjectTaggingResponse          putObjectTaggingResponse      = 141;
-  optional DeleteObjectTaggingResponse       deleteObjectTaggingResponse   = 142;
-  optional SubmitSnapshotDiffResponse        submitSnapshotDiffResponse    = 143;
+  oneof body {
+    CreateVolumeResponse              createVolumeResponse          = 11;
+    SetVolumePropertyResponse         setVolumePropertyResponse     = 12;
+    CheckVolumeAccessResponse         checkVolumeAccessResponse     = 13;
+    InfoVolumeResponse                infoVolumeResponse            = 14;
+    DeleteVolumeResponse              deleteVolumeResponse          = 15;
+    ListVolumeResponse                listVolumeResponse            = 16;
 
-  // TODO: Empty ack after OM applies tag set to OmBucketInfo.
-  optional PutBucketTaggingResponse          putBucketTaggingResponse      = 144;
-  // TODO: Tag list for S3G GetBucketTagging XML; empty if no tags.
-  optional GetBucketTaggingResponse          getBucketTaggingResponse      = 145;
-  // TODO: Empty ack after OM clears BucketInfo.tags.
-  optional DeleteBucketTaggingResponse       deleteBucketTaggingResponse    = 146;
+    CreateBucketResponse              createBucketResponse          = 21;
+    InfoBucketResponse                infoBucketResponse            = 22;
+    SetBucketPropertyResponse         setBucketPropertyResponse     = 23;
+    DeleteBucketResponse              deleteBucketResponse          = 24;
+    ListBucketsResponse               listBucketsResponse           = 25;
 
-  optional SetLifecycleConfigurationResponse setLifecycleConfigurationResponse = 147;
-  optional GetLifecycleConfigurationResponse   getLifecycleConfigurationResponse   = 148;
-  optional DeleteLifecycleConfigurationResponse deleteLifecycleConfigurationResponse = 149;
-  optional GetLifecycleServiceStatusResponse getLifecycleServiceStatusResponse = 150;
-  optional SetLifecycleServiceStatusResponse setLifecycleServiceStatusResponse = 151;
-  optional SaveLifecycleScanStateResponse saveLifecycleScanStateResponse = 152;
+    CreateKeyResponse                 createKeyResponse             = 31;
+    LookupKeyResponse                 lookupKeyResponse             = 32;
+    RenameKeyResponse                 renameKeyResponse             = 33;
+    DeleteKeyResponse                 deleteKeyResponse             = 34;
+    ListKeysResponse                  listKeysResponse              = 35;
+    CommitKeyResponse                 commitKeyResponse             = 36;
+    AllocateBlockResponse             allocateBlockResponse         = 37;
+    DeleteKeysResponse                deleteKeysResponse            = 38;
+    RenameKeysResponse                renameKeysResponse            = 39;
+
+    MultipartInfoInitiateResponse     initiateMultiPartUploadResponse = 45;
+    MultipartCommitUploadPartResponse commitMultiPartUploadResponse = 46;
+    MultipartUploadCompleteResponse   completeMultiPartUploadResponse = 47;
+    MultipartUploadAbortResponse      abortMultiPartUploadResponse    = 48;
+    GetS3SecretResponse               getS3SecretResponse           = 49;
+    MultipartUploadListPartsResponse  listMultipartUploadPartsResponse = 50;
+
+    ServiceListResponse               ServiceListResponse           = 51;
+    DBUpdatesResponse                 dbUpdatesResponse             = 52;
+    FinalizeUpgradeResponse           finalizeUpgradeResponse       = 54;
+    FinalizeUpgradeProgressResponse   finalizeUpgradeProgressResponse = 55;
+    PrepareResponse                   prepareResponse               = 56;
+    PrepareStatusResponse             prepareStatusResponse         = 57;
+    CancelPrepareResponse             cancelPrepareResponse         = 58;
+
+    GetDelegationTokenResponseProto   getDelegationTokenResponse    = 61;
+    RenewDelegationTokenResponseProto renewDelegationTokenResponse  = 62;
+    CancelDelegationTokenResponseProto cancelDelegationTokenResponse = 63;
+
+    GetFileStatusResponse             getFileStatusResponse         = 70;
+    CreateDirectoryResponse           createDirectoryResponse       = 71;
+    CreateFileResponse                createFileResponse            = 72;
+    LookupFileResponse                lookupFileResponse            = 73;
+    ListStatusResponse                listStatusResponse            = 74;
+    AddAclResponse                    addAclResponse                = 75;
+    RemoveAclResponse                 removeAclResponse             = 76;
+    SetAclResponse                    setAclResponse                = 77;
+    GetAclResponse                    getAclResponse                = 78;
+
+    PurgeKeysResponse                 purgeKeysResponse             = 81;
+
+    ListMultipartUploadsResponse      listMultipartUploadsResponse  = 82;
+
+    // Not used anymore due to HDDS-11251
+    ListTrashResponse                 listTrashResponse             = 91 [deprecated = true];
+    RecoverTrashResponse              RecoverTrashResponse          = 92 [deprecated = true];
+
+    PurgePathsResponse                purgePathsResponse            = 93 [deprecated = true];
+    PurgeDirectoriesResponse          purgeDirectoriesResponse      = 108;
+
+    // Skipped 94/95 to align with OMRequest
+    CreateTenantResponse              CreateTenantResponse          = 96;
+    DeleteTenantResponse              DeleteTenantResponse          = 97;
+    ListTenantResponse                ListTenantResponse            = 98;
+
+    TenantGetUserInfoResponse         TenantGetUserInfoResponse     = 99;
+    TenantAssignUserAccessIdResponse  TenantAssignUserAccessIdResponse = 100;
+    TenantRevokeUserAccessIdResponse  TenantRevokeUserAccessIdResponse = 101;
+
+    TenantAssignAdminResponse         TenantAssignAdminResponse     = 102;
+    TenantRevokeAdminResponse         TenantRevokeAdminResponse     = 103;
+
+    GetS3VolumeContextResponse        getS3VolumeContextResponse    = 104;
+    TenantListUserResponse            tenantListUserResponse        = 105;
+
+    SetS3SecretResponse               SetS3SecretResponse           = 106;
+
+    SetRangerServiceVersionResponse   SetRangerServiceVersionResponse = 107;
+    RangerBGSyncResponse              RangerBGSyncResponse          = 109;
+
+    EchoRPCResponse                   EchoRPCResponse               = 110;
+    GetKeyInfoResponse                GetKeyInfoResponse            = 111;
+
+    CreateSnapshotResponse            CreateSnapshotResponse        = 112;
+    ListSnapshotResponse              ListSnapshotResponse          = 113;
+    SnapshotDiffResponse              snapshotDiffResponse          = 114;
+    DeleteSnapshotResponse            DeleteSnapshotResponse        = 115;
+    SnapshotMoveDeletedKeysResponse   SnapshotMoveDeletedKeysResponse = 116;
+
+    hdds.TransferLeadershipResponseProto TransferOmLeadershipResponse = 117;
+    SnapshotPurgeResponse             SnapshotPurgeResponse         = 118;
+    RecoverLeaseResponse              RecoverLeaseResponse          = 119;
+    SetTimesResponse                  SetTimesResponse              = 120;
+    RefetchSecretKeyResponse          RefetchSecretKeyResponse      = 121;
+    ListSnapshotDiffJobResponse       ListSnapshotDiffJobResponse   = 122;
+    CancelSnapshotDiffResponse        cancelSnapshotDiffResponse    = 123;
+    SetSafeModeResponse               SetSafeModeResponse           = 124;
+    PrintCompactionLogDagResponse     PrintCompactionLogDagResponse = 125 [deprecated = true];
+    ListKeysLightResponse             listKeysLightResponse         = 126;
+    MultipartUploadsExpiredAbortResponse multipartUploadsExpiredAbortResponse = 127;
+    SetSnapshotPropertyResponse       SetSnapshotPropertyResponse   = 128;
+    ListStatusLightResponse           listStatusLightResponse       = 129;
+    SnapshotInfoResponse              SnapshotInfoResponse          = 130;
+    RenameSnapshotResponse            RenameSnapshotResponse        = 132;
+    ListOpenFilesResponse             ListOpenFilesResponse         = 133;
+    QuotaRepairResponse               QuotaRepairResponse           = 134;
+    GetQuotaRepairStatusResponse      GetQuotaRepairStatusResponse  = 136;
+    StartQuotaRepairResponse          StartQuotaRepairResponse      = 137;
+
+    GetObjectTaggingResponse          getObjectTaggingResponse      = 140;
+    PutObjectTaggingResponse          putObjectTaggingResponse      = 141;
+    DeleteObjectTaggingResponse       deleteObjectTaggingResponse   = 142;
+    SubmitSnapshotDiffResponse        submitSnapshotDiffResponse    = 143;
+
+    // TODO: Empty ack after OM applies tag set to OmBucketInfo.
+    PutBucketTaggingResponse          putBucketTaggingResponse      = 144;
+    // TODO: Tag list for S3G GetBucketTagging XML; empty if no tags.
+    GetBucketTaggingResponse          getBucketTaggingResponse      = 145;
+    // TODO: Empty ack after OM clears BucketInfo.tags.
+    DeleteBucketTaggingResponse       deleteBucketTaggingResponse   = 146;
+
+    SetLifecycleConfigurationResponse setLifecycleConfigurationResponse = 147;
+    GetLifecycleConfigurationResponse getLifecycleConfigurationResponse   = 148;
+    DeleteLifecycleConfigurationResponse deleteLifecycleConfigurationResponse = 149;
+    GetLifecycleServiceStatusResponse getLifecycleServiceStatusResponse = 150;
+    SetLifecycleServiceStatusResponse setLifecycleServiceStatusResponse = 151;
+    SaveLifecycleScanStateResponse saveLifecycleScanStateResponse = 152;
+  }
 }
 
 enum Status {

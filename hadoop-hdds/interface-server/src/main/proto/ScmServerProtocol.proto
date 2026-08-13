@@ -51,12 +51,14 @@ message SCMBlockLocationRequest {
   optional UserInfo userInfo = 3;
   optional uint32 version = 4;
 
-  optional AllocateScmBlockRequestProto       allocateScmBlockRequest   = 11;
-  optional DeleteScmKeyBlocksRequestProto     deleteScmKeyBlocksRequest = 12;
-  optional hadoop.hdds.GetScmInfoRequestProto getScmInfoRequest         = 13;
-  optional SortDatanodesRequestProto          sortDatanodesRequest      = 14;
-  optional hadoop.hdds.AddScmRequestProto     addScmRequestProto       = 15;
-  optional GetClusterTreeRequestProto         getClusterTreeRequest     = 16;
+  oneof body {
+    AllocateScmBlockRequestProto       allocateScmBlockRequest   = 11;
+    DeleteScmKeyBlocksRequestProto     deleteScmKeyBlocksRequest = 12;
+    hadoop.hdds.GetScmInfoRequestProto getScmInfoRequest         = 13;
+    SortDatanodesRequestProto          sortDatanodesRequest      = 14;
+    hadoop.hdds.AddScmRequestProto     addScmRequestProto        = 15;
+    GetClusterTreeRequestProto         getClusterTreeRequest     = 16;
+  }
 }
 
 message SCMBlockLocationResponse {
@@ -76,12 +78,14 @@ message SCMBlockLocationResponse {
 
   optional string leaderSCMNodeId = 7;
 
-  optional AllocateScmBlockResponseProto       allocateScmBlockResponse   = 11;
-  optional DeleteScmKeyBlocksResponseProto     deleteScmKeyBlocksResponse = 12;
-  optional hadoop.hdds.GetScmInfoResponseProto getScmInfoResponse         = 13;
-  optional SortDatanodesResponseProto          sortDatanodesResponse      = 14;
-  optional hadoop.hdds.AddScmResponseProto     addScmResponse        = 15;
-  optional GetClusterTreeResponseProto         getClusterTreeResponse     = 16;
+  oneof body {
+    AllocateScmBlockResponseProto       allocateScmBlockResponse   = 11;
+    DeleteScmKeyBlocksResponseProto     deleteScmKeyBlocksResponse = 12;
+    hadoop.hdds.GetScmInfoResponseProto getScmInfoResponse         = 13;
+    SortDatanodesResponseProto          sortDatanodesResponse      = 14;
+    hadoop.hdds.AddScmResponseProto     addScmResponse             = 15;
+    GetClusterTreeResponseProto         getClusterTreeResponse     = 16;
+  }
 }
 
 /**
