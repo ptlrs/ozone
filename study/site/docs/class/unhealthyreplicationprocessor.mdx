@@ -1,0 +1,73 @@
+---
+slug: /class/unhealthyreplicationprocessor
+title: "UnhealthyReplicationProcessor"
+sidebar_label: "UnhealthyReplicationProcessor"
+atlasGenerated: true
+---
+
+
+# UnhealthyReplicationProcessor
+
+<code className="atlas-fqcn-full">org.apache.hadoop.hdds.scm.container.replication.UnhealthyReplicationProcessor</code>
+
+<ClassBadge kind="abstract" logicWeight="mixed" concurrency="thread-safe" difficulty={3} studyMinutes={30} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>Class used to pick messages from the respective ReplicationManager unhealthy replicated queue, calculate the delete c...</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/scm">SCM</a> / <a href="/component/scm/container-replication">container-replication</a>
+<span>abstract · mixed</span>
+<span>thread-safe · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 188</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 589</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>abstract</code> in <code>SCM/container-replication</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>thread-safe</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>30 min</code>. Difficulty is <code>3/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-hdds/server-scm/src/main/java/org/apache/hadoop/hdds/scm/container/replication/UnhealthyReplicationProcessor.java">hadoop-hdds/server-scm/src/main/java/org/apache/hadoop/hdds/scm/container/replication/UnhealthyReplicationProcessor.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li>&lt;em&gt;No exemplar test classified yet.&lt;/em&gt;</li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-hdds/server-scm/src/main/java/org/apache/hadoop/hdds/scm/container/replication/UnhealthyReplicationProcessor.java" line={159}>UnhealthyReplicationProcessor.java · run()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.hdds.scm.container.ContainerInfo</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.hdds.scm.container.replication.UnhealthyReplicationProcessor" />
+## Read next
+
+<div className="atlas-read-next">In this feature (SCM/container-replication): <Fqcn>org.apache.hadoop.hdds.scm.container.replication.QuasiClosedStuckReplicaCount</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="unhealthyreplicationprocessor" />

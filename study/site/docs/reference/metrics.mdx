@@ -1,0 +1,153 @@
+---
+slug: /reference/metrics
+sidebar_label: "Metrics"
+---
+
+# Metrics Classes
+
+One-liner per `*Metrics` class, grouped by component. Metrics are the fastest way to reverse-engineer what state a service exposes and where it counts events; read the `*Metrics` class alongside its owning service.
+
+Total metrics classes: **93**.
+
+## Client
+
+| fqcn | path | one-liner |
+|---|---|---|
+| <Fqcn>org.apache.hadoop.hdds.scm.ContainerClientMetrics</Fqcn> | <SourceLink path="hadoop-hdds/client/src/main/java/org/apache/hadoop/hdds/scm/ContainerClientMetrics.java"><code>ContainerClientMetrics.java</code></SourceLink> | Container client metrics that describe how data writes are distributed to pipelines. |
+| <Fqcn>org.apache.hadoop.hdds.scm.XceiverClientMetrics</Fqcn> | <SourceLink path="hadoop-hdds/client/src/main/java/org/apache/hadoop/hdds/scm/XceiverClientMetrics.java"><code>XceiverClientMetrics.java</code></SourceLink> | The client metrics for the Storage Container protocol. |
+
+## OM
+
+| fqcn | path | one-liner |
+|---|---|---|
+| <Fqcn>org.apache.hadoop.ozone.om.BucketUtilizationMetrics</Fqcn> | <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/BucketUtilizationMetrics.java"><code>BucketUtilizationMetrics.java</code></SourceLink> | A class for collecting and reporting bucket utilization metrics. |
+| <Fqcn>org.apache.hadoop.ozone.om.DeletingServiceMetrics</Fqcn> | <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/DeletingServiceMetrics.java"><code>DeletingServiceMetrics.java</code></SourceLink> | Class contains metrics related to the OM Deletion services. |
+| <Fqcn>org.apache.hadoop.ozone.om.OMMetrics</Fqcn> | <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/OMMetrics.java"><code>OMMetrics.java</code></SourceLink> | This class is for maintaining Ozone Manager statistics. |
+| <Fqcn>org.apache.hadoop.ozone.om.OMPerformanceMetrics</Fqcn> | <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/OMPerformanceMetrics.java"><code>OMPerformanceMetrics.java</code></SourceLink> | Including OM performance related metrics. |
+| <Fqcn>org.apache.hadoop.ozone.om.OmMetadataReaderMetrics</Fqcn> | <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/OmMetadataReaderMetrics.java"><code>OmMetadataReaderMetrics.java</code></SourceLink> | Interface OM Metadata Reading metrics classes. |
+| <Fqcn>org.apache.hadoop.ozone.om.OmMetricsInfo</Fqcn> | <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/OmMetricsInfo.java"><code>OmMetricsInfo.java</code></SourceLink> | OmMetricsInfo stored in a file, which will be used during OM restart to initialize the metrics. |
+| <Fqcn>org.apache.hadoop.ozone.om.OmSnapshotInternalMetrics</Fqcn> | <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/OmSnapshotInternalMetrics.java"><code>OmSnapshotInternalMetrics.java</code></SourceLink> | This class contains internal Snapshot Operation metrics. |
+| <Fqcn>org.apache.hadoop.ozone.om.OmSnapshotMetrics</Fqcn> | <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/OmSnapshotMetrics.java"><code>OmSnapshotMetrics.java</code></SourceLink> | This class is for maintaining Snapshot Manager statistics. |
+| <Fqcn>org.apache.hadoop.ozone.om.ha.OMHAMetrics</Fqcn> | <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/ha/OMHAMetrics.java"><code>OMHAMetrics.java</code></SourceLink> | Class to maintain metrics and info related to OM HA. |
+| <Fqcn>org.apache.hadoop.ozone.om.ha.OMPeriodicMetrics</Fqcn> | <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/ha/OMPeriodicMetrics.java"><code>OMPeriodicMetrics.java</code></SourceLink> | Generic framework for metrics that need to get updated on a specified interval. |
+| <Fqcn>org.apache.hadoop.ozone.om.lock.OMLockMetrics</Fqcn> | <SourceLink path="hadoop-ozone/interface-storage/src/main/java/org/apache/hadoop/ozone/om/lock/OMLockMetrics.java"><code>OMLockMetrics.java</code></SourceLink> | This class is for maintaining the various Ozone Manager Lock Metrics. |
+| <Fqcn>org.apache.hadoop.ozone.om.ratis.OzoneManagerDoubleBufferMetrics</Fqcn> | <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/ratis/OzoneManagerDoubleBufferMetrics.java"><code>OzoneManagerDoubleBufferMetrics.java</code></SourceLink> | Class which maintains metrics related to OzoneManager DoubleBuffer. |
+| <Fqcn>org.apache.hadoop.ozone.om.service.KeyLifecycleServiceMetrics</Fqcn> | <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/service/KeyLifecycleServiceMetrics.java"><code>KeyLifecycleServiceMetrics.java</code></SourceLink> | Class contains metrics related to the OM KeyLifeCycle services. |
+| <Fqcn>org.apache.hadoop.ozone.om.snapshot.OMSnapshotDirectoryMetrics</Fqcn> | <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/snapshot/OMSnapshotDirectoryMetrics.java"><code>OMSnapshotDirectoryMetrics.java</code></SourceLink> | Metrics for tracking db. |
+
+## SCM
+
+| fqcn | path | one-liner |
+|---|---|---|
+| <Fqcn>org.apache.hadoop.hdds.scm.FetchMetrics</Fqcn> | <SourceLink path="hadoop-hdds/server-scm/src/main/java/org/apache/hadoop/hdds/scm/FetchMetrics.java"><code>FetchMetrics.java</code></SourceLink> | Class used to fetch metrics from MBeanServer. |
+| <Fqcn>org.apache.hadoop.hdds.scm.block.ScmBlockDeletingServiceMetrics</Fqcn> | <SourceLink path="hadoop-hdds/server-scm/src/main/java/org/apache/hadoop/hdds/scm/block/ScmBlockDeletingServiceMetrics.java"><code>ScmBlockDeletingServiceMetrics.java</code></SourceLink> | Metrics related to Block Deleting Service running in SCM. |
+| <Fqcn>org.apache.hadoop.hdds.scm.container.balancer.ContainerBalancerMetrics</Fqcn> | <SourceLink path="hadoop-hdds/server-scm/src/main/java/org/apache/hadoop/hdds/scm/container/balancer/ContainerBalancerMetrics.java"><code>ContainerBalancerMetrics.java</code></SourceLink> | Metrics related to Container Balancer running in SCM. |
+| <Fqcn>org.apache.hadoop.hdds.scm.container.metrics.SCMContainerManagerMetrics</Fqcn> | <SourceLink path="hadoop-hdds/server-scm/src/main/java/org/apache/hadoop/hdds/scm/container/metrics/SCMContainerManagerMetrics.java"><code>SCMContainerManagerMetrics.java</code></SourceLink> | Class contains metrics related to ContainerManager. |
+| <Fqcn>org.apache.hadoop.hdds.scm.container.placement.algorithms.SCMContainerPlacementMetrics</Fqcn> | <SourceLink path="hadoop-hdds/server-scm/src/main/java/org/apache/hadoop/hdds/scm/container/placement/algorithms/SCMContainerPlacementMetrics.java"><code>SCMContainerPlacementMetrics.java</code></SourceLink> | This class is for maintaining Topology aware container placement statistics. |
+| <Fqcn>org.apache.hadoop.hdds.scm.container.placement.metrics.SCMMetrics</Fqcn> | <SourceLink path="hadoop-hdds/server-scm/src/main/java/org/apache/hadoop/hdds/scm/container/placement/metrics/SCMMetrics.java"><code>SCMMetrics.java</code></SourceLink> | This class is for maintaining StorageContainerManager statistics. |
+| <Fqcn>org.apache.hadoop.hdds.scm.container.placement.metrics.SCMPerformanceMetrics</Fqcn> | <SourceLink path="hadoop-hdds/server-scm/src/main/java/org/apache/hadoop/hdds/scm/container/placement/metrics/SCMPerformanceMetrics.java"><code>SCMPerformanceMetrics.java</code></SourceLink> | Including SCM performance related metrics. |
+| <Fqcn>org.apache.hadoop.hdds.scm.container.replication.ReplicationManagerMetrics</Fqcn> | <SourceLink path="hadoop-hdds/server-scm/src/main/java/org/apache/hadoop/hdds/scm/container/replication/ReplicationManagerMetrics.java"><code>ReplicationManagerMetrics.java</code></SourceLink> | Class contains metrics related to ReplicationManager. |
+| <Fqcn>org.apache.hadoop.hdds.scm.ha.SCMHAMetrics</Fqcn> | <SourceLink path="hadoop-hdds/server-scm/src/main/java/org/apache/hadoop/hdds/scm/ha/SCMHAMetrics.java"><code>SCMHAMetrics.java</code></SourceLink> | SCM HA metrics. |
+| <Fqcn>org.apache.hadoop.hdds.scm.node.NodeDecommissionMetrics</Fqcn> | <SourceLink path="hadoop-hdds/server-scm/src/main/java/org/apache/hadoop/hdds/scm/node/NodeDecommissionMetrics.java"><code>NodeDecommissionMetrics.java</code></SourceLink> | Class contains metrics related to the NodeDecommissionManager. |
+| <Fqcn>org.apache.hadoop.hdds.scm.node.SCMNodeMetrics</Fqcn> | <SourceLink path="hadoop-hdds/server-scm/src/main/java/org/apache/hadoop/hdds/scm/node/SCMNodeMetrics.java"><code>SCMNodeMetrics.java</code></SourceLink> | This class maintains Node related metrics. |
+| <Fqcn>org.apache.hadoop.hdds.scm.pipeline.SCMPipelineMetrics</Fqcn> | <SourceLink path="hadoop-hdds/server-scm/src/main/java/org/apache/hadoop/hdds/scm/pipeline/SCMPipelineMetrics.java"><code>SCMPipelineMetrics.java</code></SourceLink> | This class maintains Pipeline related metrics. |
+| <Fqcn>org.apache.hadoop.hdds.scm.safemode.SafeModeMetrics</Fqcn> | <SourceLink path="hadoop-hdds/server-scm/src/main/java/org/apache/hadoop/hdds/scm/safemode/SafeModeMetrics.java"><code>SafeModeMetrics.java</code></SourceLink> | This class is used for maintaining SafeMode metric information, which can be used for monitoring during SCM startup w... |
+| <Fqcn>org.apache.hadoop.hdds.scm.security.RootCARotationMetrics</Fqcn> | <SourceLink path="hadoop-hdds/server-scm/src/main/java/org/apache/hadoop/hdds/scm/security/RootCARotationMetrics.java"><code>RootCARotationMetrics.java</code></SourceLink> | Metrics related to Root CA rotation in SCM. |
+| <Fqcn>org.apache.hadoop.hdds.scm.server.SCMContainerMetrics</Fqcn> | <SourceLink path="hadoop-hdds/server-scm/src/main/java/org/apache/hadoop/hdds/scm/server/SCMContainerMetrics.java"><code>SCMContainerMetrics.java</code></SourceLink> | Metrics source to report number of containers in different states. |
+
+## DN
+
+| fqcn | path | one-liner |
+|---|---|---|
+| <Fqcn>org.apache.hadoop.ozone.container.checksum.ContainerMerkleTreeMetrics</Fqcn> | <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/checksum/ContainerMerkleTreeMetrics.java"><code>ContainerMerkleTreeMetrics.java</code></SourceLink> | Class to collect metrics related to container merkle tree. |
+| <Fqcn>org.apache.hadoop.ozone.container.common.helpers.BlockDeletingServiceMetrics</Fqcn> | <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/helpers/BlockDeletingServiceMetrics.java"><code>BlockDeletingServiceMetrics.java</code></SourceLink> | Metrics related to Block Deleting Service running on Datanode. |
+| <Fqcn>org.apache.hadoop.ozone.container.common.helpers.CommandHandlerMetrics</Fqcn> | <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/helpers/CommandHandlerMetrics.java"><code>CommandHandlerMetrics.java</code></SourceLink> | This class collects and exposes metrics for CommandHandlerMetrics. |
+| <Fqcn>org.apache.hadoop.ozone.container.common.helpers.ContainerMetrics</Fqcn> | <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/helpers/ContainerMetrics.java"><code>ContainerMetrics.java</code></SourceLink> | This class is for maintaining  the various Storage Container DataNode statistics and publishing them through the metr... |
+| <Fqcn>org.apache.hadoop.ozone.container.common.statemachine.DatanodeQueueMetrics</Fqcn> | <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/statemachine/DatanodeQueueMetrics.java"><code>DatanodeQueueMetrics.java</code></SourceLink> | Class contains metrics related to Datanode queues. |
+| <Fqcn>org.apache.hadoop.ozone.container.common.transport.server.ratis.CSMMetrics</Fqcn> | <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/transport/server/ratis/CSMMetrics.java"><code>CSMMetrics.java</code></SourceLink> | This class is for maintaining Container State Machine statistics. |
+| <Fqcn>org.apache.hadoop.ozone.container.common.utils.ContainerCacheMetrics</Fqcn> | <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/utils/ContainerCacheMetrics.java"><code>ContainerCacheMetrics.java</code></SourceLink> | Metrics for the usage of ContainerDB. |
+| <Fqcn>org.apache.hadoop.ozone.container.common.volume.BackgroundVolumeScannerMetrics</Fqcn> | <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/volume/BackgroundVolumeScannerMetrics.java"><code>BackgroundVolumeScannerMetrics.java</code></SourceLink> | This class captures the Background Storage Volume Scanner Metrics. |
+| <Fqcn>org.apache.hadoop.ozone.container.common.volume.VolumeHealthMetrics</Fqcn> | <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/volume/VolumeHealthMetrics.java"><code>VolumeHealthMetrics.java</code></SourceLink> | This class is used to track Volume Health metrics for all volumes on a datanode. |
+| <Fqcn>org.apache.hadoop.ozone.container.common.volume.VolumeInfoMetrics</Fqcn> | <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/volume/VolumeInfoMetrics.java"><code>VolumeInfoMetrics.java</code></SourceLink> | This class is used to track Volume Info stats for each HDDS Volume. |
+| <Fqcn>org.apache.hadoop.ozone.container.diskbalancer.DiskBalancerServiceMetrics</Fqcn> | <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/diskbalancer/DiskBalancerServiceMetrics.java"><code>DiskBalancerServiceMetrics.java</code></SourceLink> | Metrics related to DiskBalancer Service running on Datanode. |
+| <Fqcn>org.apache.hadoop.ozone.container.ec.reconstruction.ECReconstructionMetrics</Fqcn> | <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/ec/reconstruction/ECReconstructionMetrics.java"><code>ECReconstructionMetrics.java</code></SourceLink> | Metrics class for EC Reconstruction. |
+| <Fqcn>org.apache.hadoop.ozone.container.ozoneimpl.AbstractContainerScannerMetrics</Fqcn> | <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/ozoneimpl/AbstractContainerScannerMetrics.java"><code>AbstractContainerScannerMetrics.java</code></SourceLink> | Base class for container scanner metrics. |
+| <Fqcn>org.apache.hadoop.ozone.container.ozoneimpl.ContainerDataScannerMetrics</Fqcn> | <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/ozoneimpl/ContainerDataScannerMetrics.java"><code>ContainerDataScannerMetrics.java</code></SourceLink> | This class captures the container data scanner metrics on the data-node. |
+| <Fqcn>org.apache.hadoop.ozone.container.ozoneimpl.ContainerMetadataScannerMetrics</Fqcn> | <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/ozoneimpl/ContainerMetadataScannerMetrics.java"><code>ContainerMetadataScannerMetrics.java</code></SourceLink> | This class captures the container meta-data scanner metrics on the data-node. |
+| <Fqcn>org.apache.hadoop.ozone.container.ozoneimpl.OnDemandScannerMetrics</Fqcn> | <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/ozoneimpl/OnDemandScannerMetrics.java"><code>OnDemandScannerMetrics.java</code></SourceLink> | This class captures the on-demand container data scanner metrics. |
+| <Fqcn>org.apache.hadoop.ozone.container.replication.ReplicationSupervisorMetrics</Fqcn> | <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/replication/ReplicationSupervisorMetrics.java"><code>ReplicationSupervisorMetrics.java</code></SourceLink> | Metrics source to report number of replication tasks. |
+
+## Ratis-integration
+
+| fqcn | path | one-liner |
+|---|---|---|
+| <Fqcn>org.apache.ratis.metrics.dropwizard3.RatisMetricsUtils</Fqcn> | <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/ratis/metrics/dropwizard3/RatisMetricsUtils.java"><code>RatisMetricsUtils.java</code></SourceLink> | Utilities for ratis metrics dropwizard3. |
+
+## RocksDB
+
+| fqcn | path | one-liner |
+|---|---|---|
+| <Fqcn>org.apache.hadoop.hdds.utils.db.managed.ManagedRocksObjectMetrics</Fqcn> | <SourceLink path="hadoop-hdds/managed-rocksdb/src/main/java/org/apache/hadoop/hdds/utils/db/managed/ManagedRocksObjectMetrics.java"><code>ManagedRocksObjectMetrics.java</code></SourceLink> | Metrics about managed RockObjects. |
+| <Fqcn>org.apache.ozone.rocksdiff.SSTFilePruningMetrics</Fqcn> | <SourceLink path="hadoop-hdds/rocksdb-checkpoint-differ/src/main/java/org/apache/ozone/rocksdiff/SSTFilePruningMetrics.java"><code>SSTFilePruningMetrics.java</code></SourceLink> | Class contains metrics for monitoring SST file pruning operations in RocksDBCheckpointDiffer. |
+
+## HddsCommon
+
+| fqcn | path | one-liner |
+|---|---|---|
+| <Fqcn>org.apache.hadoop.hdds.server.events.EventExecutorMetrics</Fqcn> | <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/server/events/EventExecutorMetrics.java"><code>EventExecutorMetrics.java</code></SourceLink> | Metrics source for EventExecutor implementations. |
+| <Fqcn>org.apache.hadoop.hdds.server.events.EventWatcherMetrics</Fqcn> | <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/server/events/EventWatcherMetrics.java"><code>EventWatcherMetrics.java</code></SourceLink> | Metrics for any event watcher. |
+| <Fqcn>org.apache.hadoop.hdds.server.http.HttpServer2Metrics</Fqcn> | <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/server/http/HttpServer2Metrics.java"><code>HttpServer2Metrics.java</code></SourceLink> | Metrics related to HttpServer threadPool. |
+| <Fqcn>org.apache.hadoop.hdds.server.http.PrometheusMetricsSink</Fqcn> | <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/server/http/PrometheusMetricsSink.java"><code>PrometheusMetricsSink.java</code></SourceLink> | Metrics sink for prometheus exporter. |
+| <Fqcn>org.apache.hadoop.hdds.utils.CpuMetrics</Fqcn> | <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/utils/CpuMetrics.java"><code>CpuMetrics.java</code></SourceLink> | Expose the next JMX metrics. |
+| <Fqcn>org.apache.hadoop.hdds.utils.DBCheckpointMetrics</Fqcn> | <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/utils/DBCheckpointMetrics.java"><code>DBCheckpointMetrics.java</code></SourceLink> | This interface is for maintaining DB checkpoint statistics. |
+| <Fqcn>org.apache.hadoop.hdds.utils.NettyMetrics</Fqcn> | <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/utils/NettyMetrics.java"><code>NettyMetrics.java</code></SourceLink> | This class emits Netty metrics. |
+| <Fqcn>org.apache.hadoop.hdds.utils.PrometheusMetricsSinkUtil</Fqcn> | <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/utils/PrometheusMetricsSinkUtil.java"><code>PrometheusMetricsSinkUtil.java</code></SourceLink> | Util class for &#123;@link org. |
+| <Fqcn>org.apache.hadoop.hdds.utils.ProtocolMessageMetrics</Fqcn> | <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/utils/ProtocolMessageMetrics.java"><code>ProtocolMessageMetrics.java</code></SourceLink> | Metrics to count all the subtypes of a specific message. |
+| <Fqcn>org.apache.hadoop.hdds.utils.RocksDBStoreMetrics</Fqcn> | <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/utils/RocksDBStoreMetrics.java"><code>RocksDBStoreMetrics.java</code></SourceLink> | All Rocksdb metrics. |
+| <Fqcn>org.apache.hadoop.hdds.utils.TableCacheMetrics</Fqcn> | <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/utils/TableCacheMetrics.java"><code>TableCacheMetrics.java</code></SourceLink> | This class emits table level cache metrics. |
+| <Fqcn>org.apache.hadoop.hdds.utils.UgiMetricsUtil</Fqcn> | <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/utils/UgiMetricsUtil.java"><code>UgiMetricsUtil.java</code></SourceLink> | Util class for UGI metrics. |
+| <Fqcn>org.apache.hadoop.hdds.utils.db.RDBMetrics</Fqcn> | <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/utils/db/RDBMetrics.java"><code>RDBMetrics.java</code></SourceLink> | Class to hold RocksDB metrics. |
+| <Fqcn>org.apache.hadoop.ipc_.metrics.RpcDetailedMetrics</Fqcn> | <SourceLink path="hadoop-hdds/common/src/main/java/org/apache/hadoop/ipc_/metrics/RpcDetailedMetrics.java"><code>RpcDetailedMetrics.java</code></SourceLink> | Licensed to the Apache Software Foundation (ASF) under one or more contributor license agreements. |
+| <Fqcn>org.apache.hadoop.ipc_.metrics.RpcMetrics</Fqcn> | <SourceLink path="hadoop-hdds/common/src/main/java/org/apache/hadoop/ipc_/metrics/RpcMetrics.java"><code>RpcMetrics.java</code></SourceLink> | Licensed to the Apache Software Foundation (ASF) under one or more contributor license agreements. |
+| <Fqcn>org.apache.hadoop.ozone.grpc.metrics.GrpcMetrics</Fqcn> | <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/ozone/grpc/metrics/GrpcMetrics.java"><code>GrpcMetrics.java</code></SourceLink> | Class which maintains metrics related to using GRPC. |
+| <Fqcn>org.apache.hadoop.ozone.grpc.metrics.GrpcMetricsServerRequestInterceptor</Fqcn> | <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/ozone/grpc/metrics/GrpcMetricsServerRequestInterceptor.java"><code>GrpcMetricsServerRequestInterceptor.java</code></SourceLink> | Interceptor to gather metrics based on grpc server request. |
+| <Fqcn>org.apache.hadoop.ozone.grpc.metrics.GrpcMetricsServerResponseInterceptor</Fqcn> | <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/ozone/grpc/metrics/GrpcMetricsServerResponseInterceptor.java"><code>GrpcMetricsServerResponseInterceptor.java</code></SourceLink> | Interceptor to gather metrics based on grpc server response. |
+| <Fqcn>org.apache.hadoop.ozone.grpc.metrics.GrpcMetricsServerTransportFilter</Fqcn> | <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/ozone/grpc/metrics/GrpcMetricsServerTransportFilter.java"><code>GrpcMetricsServerTransportFilter.java</code></SourceLink> | Transport filter class for tracking active client connections. |
+| <Fqcn>org.apache.hadoop.ozone.util.CacheMetrics</Fqcn> | <SourceLink path="hadoop-hdds/common/src/main/java/org/apache/hadoop/ozone/util/CacheMetrics.java"><code>CacheMetrics.java</code></SourceLink> | Reusable component that emits cache metrics for a particular cache. |
+| <Fqcn>org.apache.hadoop.ozone.util.PerformanceMetrics</Fqcn> | <SourceLink path="hadoop-hdds/common/src/main/java/org/apache/hadoop/ozone/util/PerformanceMetrics.java"><code>PerformanceMetrics.java</code></SourceLink> | The &#123;@code PerformanceMetrics&#125; class encapsulates a collection of related metrics including a MutableStat, MutableQua... |
+| <Fqcn>org.apache.hadoop.ozone.util.PerformanceMetricsInitializer</Fqcn> | <SourceLink path="hadoop-hdds/common/src/main/java/org/apache/hadoop/ozone/util/PerformanceMetricsInitializer.java"><code>PerformanceMetricsInitializer.java</code></SourceLink> | Utility class for initializing PerformanceMetrics in a MetricsSource. |
+
+## Recon
+
+| fqcn | path | one-liner |
+|---|---|---|
+| <Fqcn>org.apache.hadoop.ozone.recon.MetricsServiceProviderFactory</Fqcn> | <SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/MetricsServiceProviderFactory.java"><code>MetricsServiceProviderFactory.java</code></SourceLink> | Factory class that is used to get the instance of configured Metrics Service Provider. |
+| <Fqcn>org.apache.hadoop.ozone.recon.api.DataNodeMetricsService</Fqcn> | <SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/api/DataNodeMetricsService.java"><code>DataNodeMetricsService.java</code></SourceLink> | Service for collecting and managing DataNode pending deletion metrics. |
+| <Fqcn>org.apache.hadoop.ozone.recon.api.MetricsProxyEndpoint</Fqcn> | <SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/api/MetricsProxyEndpoint.java"><code>MetricsProxyEndpoint.java</code></SourceLink> | Endpoint to fetch metrics data from Prometheus HTTP endpoint. |
+| <Fqcn>org.apache.hadoop.ozone.recon.api.ReconGlobalMetricsService</Fqcn> | <SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/api/ReconGlobalMetricsService.java"><code>ReconGlobalMetricsService.java</code></SourceLink> | Service for getting global storage metric values. |
+| <Fqcn>org.apache.hadoop.ozone.recon.api.types.DataNodeMetricsCompleteResponse</Fqcn> | <SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/api/types/DataNodeMetricsCompleteResponse.java"><code>DataNodeMetricsCompleteResponse.java</code></SourceLink> | Response returned when metrics collection is complete. |
+| <Fqcn>org.apache.hadoop.ozone.recon.api.types.DataNodeMetricsProgressResponse</Fqcn> | <SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/api/types/DataNodeMetricsProgressResponse.java"><code>DataNodeMetricsProgressResponse.java</code></SourceLink> | Response returned while metrics collection is still in progress. |
+| <Fqcn>org.apache.hadoop.ozone.recon.api.types.DatanodeMetrics</Fqcn> | <SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/api/types/DatanodeMetrics.java"><code>DatanodeMetrics.java</code></SourceLink> | Class that represents the datanode metrics captured during decommissioning. |
+| <Fqcn>org.apache.hadoop.ozone.recon.api.types.DatanodePendingDeletionMetrics</Fqcn> | <SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/api/types/DatanodePendingDeletionMetrics.java"><code>DatanodePendingDeletionMetrics.java</code></SourceLink> | Represents pending deletion metrics for a datanode. |
+| <Fqcn>org.apache.hadoop.ozone.recon.metrics.ContainerHealthTaskMetrics</Fqcn> | <SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/metrics/ContainerHealthTaskMetrics.java"><code>ContainerHealthTaskMetrics.java</code></SourceLink> | Runtime metrics for ContainerHealthTask execution. |
+| <Fqcn>org.apache.hadoop.ozone.recon.metrics.OzoneManagerSyncMetrics</Fqcn> | <SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/metrics/OzoneManagerSyncMetrics.java"><code>OzoneManagerSyncMetrics.java</code></SourceLink> | Class for tracking metrics related to Ozone manager sync operations. |
+| <Fqcn>org.apache.hadoop.ozone.recon.metrics.ReconScmContainerSyncMetrics</Fqcn> | <SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/metrics/ReconScmContainerSyncMetrics.java"><code>ReconScmContainerSyncMetrics.java</code></SourceLink> | Metrics for Recon SCM container sync execution. |
+| <Fqcn>org.apache.hadoop.ozone.recon.metrics.ReconSyncMetrics</Fqcn> | <SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/metrics/ReconSyncMetrics.java"><code>ReconSyncMetrics.java</code></SourceLink> | Metrics for Recon OM synchronization operations. |
+| <Fqcn>org.apache.hadoop.ozone.recon.metrics.ReconTaskControllerMetrics</Fqcn> | <SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/metrics/ReconTaskControllerMetrics.java"><code>ReconTaskControllerMetrics.java</code></SourceLink> | Metrics for Recon Task Controller operations. |
+| <Fqcn>org.apache.hadoop.ozone.recon.metrics.ReconTaskMetrics</Fqcn> | <SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/metrics/ReconTaskMetrics.java"><code>ReconTaskMetrics.java</code></SourceLink> | Per-task metrics for Recon task delta processing and reprocess operations. |
+| <Fqcn>org.apache.hadoop.ozone.recon.metrics.ReconTaskStatusMetrics</Fqcn> | <SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/metrics/ReconTaskStatusMetrics.java"><code>ReconTaskStatusMetrics.java</code></SourceLink> | Ship ReconTaskStatus table on persistent DB as a metrics. |
+| <Fqcn>org.apache.hadoop.ozone.recon.spi.MetricsServiceProvider</Fqcn> | <SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/spi/MetricsServiceProvider.java"><code>MetricsServiceProvider.java</code></SourceLink> | Interface to access Ozone metrics. |
+| <Fqcn>org.apache.hadoop.ozone.recon.tasks.DataNodeMetricsCollectionTask</Fqcn> | <SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/tasks/DataNodeMetricsCollectionTask.java"><code>DataNodeMetricsCollectionTask.java</code></SourceLink> | Task for collecting pending deletion metrics from a DataNode using JMX. |
+
+## Interfaces
+
+| fqcn | path | one-liner |
+|---|---|---|
+| <Fqcn>org.apache.hadoop.ozone.s3.metrics.S3GatewayMetrics</Fqcn> | <SourceLink path="hadoop-ozone/s3gateway/src/main/java/org/apache/hadoop/ozone/s3/metrics/S3GatewayMetrics.java"><code>S3GatewayMetrics.java</code></SourceLink> | This class maintains S3 Gateway related metrics. |
+| <Fqcn>org.apache.ozone.fs.http.server.metrics.HttpFSServerMetrics</Fqcn> | <SourceLink path="hadoop-ozone/httpfsgateway/src/main/java/org/apache/ozone/fs/http/server/metrics/HttpFSServerMetrics.java"><code>HttpFSServerMetrics.java</code></SourceLink> | This class is for maintaining  the various HttpFSServer statistics and publishing them through the metrics interfaces. |
+
+## Bench & Insight
+
+| fqcn | path | one-liner |
+|---|---|---|
+| <Fqcn>org.apache.hadoop.ozone.insight.MetricsSubCommand</Fqcn> | <SourceLink path="hadoop-ozone/insight/src/main/java/org/apache/hadoop/ozone/insight/MetricsSubCommand.java"><code>MetricsSubCommand.java</code></SourceLink> | Command line interface to show metrics for a specific component. |

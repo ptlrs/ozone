@@ -1,0 +1,142 @@
+---
+slug: /view/upgrade-finalize
+title: "Upgrade & finalization"
+sidebar_label: "Upgrade & finalization"
+atlasGenerated: true
+---
+# Upgrade & finalization
+<div className="atlas-flow-hero">
+<p>Layout version bumps, upgrade actions, finalization state machine, and the classes that gate cross-service format changes.</p>
+<div className="atlas-flow-hero__meta">650 minutes · 24 classes</div>
+</div>
+## Flow walkthrough
+## Key classes on this path
+
+<div className="atlas-step-grid">
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">1</div>
+<div>
+<strong><a href="/class/versioneddatanodefeatures">VersionedDatanodeFeatures</a></strong>
+<p>Utility class to retrieve the version of a feature that corresponds to the metadata layout version specified by the p...</p>
+<span className="atlas-mono-hint">DN/dn-upgrade · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">2</div>
+<div>
+<strong><a href="/class/scmhafinalizeupgradeactiondatanode">ScmHAFinalizeUpgradeActionDatanode</a></strong>
+<p>Action to run upgrade flow for SCM HA exactly once.</p>
+<span className="atlas-mono-hint">DN/dn-upgrade · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">3</div>
+<div>
+<strong><a href="/class/datanodeupgradefinalizer">DataNodeUpgradeFinalizer</a></strong>
+<p>UpgradeFinalizer for the DataNode.</p>
+<span className="atlas-mono-hint">DN/dn-upgrade · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">4</div>
+<div>
+<strong><a href="/class/containertableschemafinalizeaction">ContainerTableSchemaFinalizeAction</a></strong>
+<p>Upgrade Action for DataNode for update the table schema data of containerIds Table.</p>
+<span className="atlas-mono-hint">DN/dn-upgrade · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">5</div>
+<div>
+<strong><a href="/class/datanodeschemav3finalizeaction">DatanodeSchemaV3FinalizeAction</a></strong>
+<p>Upgrade Action for DataNode for SCHEMA V3.</p>
+<span className="atlas-mono-hint">DN/dn-upgrade · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">6</div>
+<div>
+<strong><a href="/class/datanodeschemav2finalizeaction">DatanodeSchemaV2FinalizeAction</a></strong>
+<p>Upgrade Action for DataNode for the very first first Upgrade Version.</p>
+<span className="atlas-mono-hint">DN/dn-upgrade · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">7</div>
+<div>
+<strong><a href="/class/upgradeutils-76a7e1">UpgradeUtils</a></strong>
+<p>Util methods for upgrade.</p>
+<span className="atlas-mono-hint">DN/dn-upgrade · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">8</div>
+<div>
+<strong><a href="/class/belongstolayoutversion">BelongsToLayoutVersion</a></strong>
+<p>Annotation to mark a class that belongs to a specific Layout Version.</p>
+<span className="atlas-mono-hint">OM/om-upgrade · 20 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">9</div>
+<div>
+<strong><a href="/class/omupgradeaction">OmUpgradeAction</a></strong>
+<p>Upgrade Action for OzoneManager which takes in an 'OM' instance.</p>
+<span className="atlas-mono-hint">OM/om-upgrade · 20 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">10</div>
+<div>
+<strong><a href="/class/upgradeactionom">UpgradeActionOm</a></strong>
+<p>Annotation to specify upgrade action run during Ozone Manager finalization.</p>
+<span className="atlas-mono-hint">OM/om-upgrade · 20 min</span>
+</div>
+</div>
+</div>
+
+## What to understand before moving on
+- Explain the service boundary crossings in this path: DN -> OM -> SCM.
+- Name the entry-point classes and the class that owns each durable state change.
+- Identify the retry, failure, or cleanup behavior that keeps the path correct when a service is slow or unavailable.
+- Open the individual class pages for invariants, sharp edges, source links, and test exemplars.
+- Use these tags as anchors when searching later: `upgrade`.
+## Full reading list
+### DN — 7 classes · 210 min
+
+**[dn-upgrade](/component/dn/dn-upgrade)** · 7 · 210 min
+
+- [VersionedDatanodeFeatures](/class/versioneddatanodefeatures) — Utility class to retrieve the version of a feature that corresponds to the metadata layout version specified by the p... <span className="atlas-mono-hint">30 min</span>
+- [ScmHAFinalizeUpgradeActionDatanode](/class/scmhafinalizeupgradeactiondatanode) — Action to run upgrade flow for SCM HA exactly once. <span className="atlas-mono-hint">30 min</span>
+- [DataNodeUpgradeFinalizer](/class/datanodeupgradefinalizer) — UpgradeFinalizer for the DataNode. <span className="atlas-mono-hint">30 min</span>
+- [ContainerTableSchemaFinalizeAction](/class/containertableschemafinalizeaction) — Upgrade Action for DataNode for update the table schema data of containerIds Table. <span className="atlas-mono-hint">30 min</span>
+- [DatanodeSchemaV3FinalizeAction](/class/datanodeschemav3finalizeaction) — Upgrade Action for DataNode for SCHEMA V3. <span className="atlas-mono-hint">30 min</span>
+- [DatanodeSchemaV2FinalizeAction](/class/datanodeschemav2finalizeaction) — Upgrade Action for DataNode for the very first first Upgrade Version. <span className="atlas-mono-hint">30 min</span>
+- [UpgradeUtils](/class/upgradeutils-76a7e1) — Util methods for upgrade. <span className="atlas-mono-hint">30 min</span>
+
+### OM — 9 classes · 210 min
+
+**[om-upgrade](/component/om/om-upgrade)** · 9 · 210 min
+
+- [BelongsToLayoutVersion](/class/belongstolayoutversion) — Annotation to mark a class that belongs to a specific Layout Version. <span className="atlas-mono-hint">20 min</span>
+- [OmUpgradeAction](/class/omupgradeaction) — Upgrade Action for OzoneManager which takes in an 'OM' instance. <span className="atlas-mono-hint">20 min</span>
+- [UpgradeActionOm](/class/upgradeactionom) — Annotation to specify upgrade action run during Ozone Manager finalization. <span className="atlas-mono-hint">20 min</span>
+- [DisallowedUntilLayoutVersion](/class/disalloweduntillayoutversion) — Annotation used to "disallow" an API if current layout version does not include the associated layout feature. <span className="atlas-mono-hint">20 min</span>
+- [OMLayoutVersionManager](/class/omlayoutversionmanager) — Class to manage layout versions and features for Ozone Manager. <span className="atlas-mono-hint">30 min</span>
+- [OMLayoutFeatureAspect](/class/omlayoutfeatureaspect) — 'Aspect' for OM Layout Feature API. <span className="atlas-mono-hint">30 min</span>
+- [QuotaRepairUpgradeAction](/class/quotarepairupgradeaction) — Quota repair for usages action to be triggered after upgrade. <span className="atlas-mono-hint">30 min</span>
+- [OMUpgradeFinalizer](/class/omupgradefinalizer) — UpgradeFinalizer implementation for the Ozone Manager service. <span className="atlas-mono-hint">30 min</span>
+- [OMLayoutFeature](/class/omlayoutfeature) — List of OM Layout features / versions. <span className="atlas-mono-hint">10 min</span>
+
+### SCM — 8 classes · 230 min
+
+**[upgrade](/component/scm/upgrade)** · 8 · 230 min
+
+- [FinalizationManager](/class/finalizationmanager) — Class to initiate SCM finalization and query its progress. <span className="atlas-mono-hint">20 min</span>
+- [FinalizationStateManager](/class/finalizationstatemanager) — Manages the state of finalization in SCM. <span className="atlas-mono-hint">20 min</span>
+- [FinalizationStateManagerImpl](/class/finalizationstatemanagerimpl) — Manages the state of finalization in SCM. <span className="atlas-mono-hint">45 min</span>
+- [FinalizationManagerImpl](/class/finalizationmanagerimpl) — Class to initiate SCM finalization and query its progress. <span className="atlas-mono-hint">45 min</span>
+- [SCMUpgradeFinalizationContext](/class/scmupgradefinalizationcontext) — Provided to methods in the SCMUpgradeFinalizer to supply objects needed to operate. <span className="atlas-mono-hint">30 min</span>
+- [SCMUpgradeFinalizer](/class/scmupgradefinalizer) — UpgradeFinalizer for the Storage Container Manager service. <span className="atlas-mono-hint">30 min</span>
+- [ScmOnFinalizeActionForDatanodeSchemaV2](/class/scmonfinalizeactionfordatanodeschemav2) — SCM Upgrade Action for the very first Upgrade Version. <span className="atlas-mono-hint">30 min</span>
+- [FinalizationCheckpoint](/class/finalizationcheckpoint) — A finalization checkpoint is an abstraction over SCM's disk state, indicating where finalization left off so it can b... <span className="atlas-mono-hint">10 min</span>

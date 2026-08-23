@@ -1,0 +1,581 @@
+---
+slug: /view/metadata-om
+title: "OM metadata"
+sidebar_label: "OM metadata"
+atlasGenerated: true
+---
+# OM metadata
+<div className="atlas-flow-hero">
+<p>OM RocksDB tables, request/response families, execution flow-control, and HA glue.</p>
+<div className="atlas-flow-hero__meta">9405 minutes · 395 classes</div>
+</div>
+## Flow walkthrough
+## Key classes on this path
+
+<div className="atlas-step-grid">
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">1</div>
+<div>
+<strong><a href="/class/ommetadatamanager">OMMetadataManager</a></strong>
+<p>OM metadata manager interface.</p>
+<span className="atlas-mono-hint">OM/interface-storage · 20 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">2</div>
+<div>
+<strong><a href="/class/iozonemanagerlock">IOzoneManagerLock</a></strong>
+<p>Interface for OM Metadata locks.</p>
+<span className="atlas-mono-hint">OM/interface-storage · 20 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">3</div>
+<div>
+<strong><a href="/class/hierarchicalresourcelockmanager">HierarchicalResourceLockManager</a></strong>
+<p>Interface for Hierachical Resource Lock where the lock order acquired on resource is going to be deterministic and th...</p>
+<span className="atlas-mono-hint">OM/interface-storage · 20 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">4</div>
+<div>
+<strong><a href="/class/omlockdetails">OMLockDetails</a></strong>
+<p>This class is for recording detailed consumed time on Locks.</p>
+<span className="atlas-mono-hint">OM/interface-storage · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">5</div>
+<div>
+<strong><a href="/class/expiredopenkeys">ExpiredOpenKeys</a></strong>
+<p>The expired open keys.</p>
+<span className="atlas-mono-hint">OM/interface-storage · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">6</div>
+<div>
+<strong><a href="/class/ozoneaclstorageutil">OzoneAclStorageUtil</a></strong>
+<p>Helper class for ozone acls operations.</p>
+<span className="atlas-mono-hint">OM/interface-storage · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">7</div>
+<div>
+<strong><a href="/class/ozoneaclstorage">OzoneAclStorage</a></strong>
+<p>OzoneAclStorage classes define bucket ACLs used in OZONE.</p>
+<span className="atlas-mono-hint">OM/interface-storage · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">8</div>
+<div>
+<strong><a href="/class/omprefixinfo">OmPrefixInfo</a></strong>
+<p>Wrapper class for Ozone prefix path info, currently mainly target for ACL but can be extended for other OzFS optimiza...</p>
+<span className="atlas-mono-hint">OM/interface-storage · 10 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">9</div>
+<div>
+<strong><a href="/class/dagleveledresource">DAGLeveledResource</a></strong>
+<p>The DAGLeveledResource enum represents a set of resources that are associated with specific locks in the Ozone Manage...</p>
+<span className="atlas-mono-hint">OM/interface-storage · 10 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">10</div>
+<div>
+<strong><a href="/class/lockusageinfo">LockUsageInfo</a></strong>
+<p>Maintains lock related information useful in updating OMLockMetrics.</p>
+<span className="atlas-mono-hint">OM/interface-storage · 10 min</span>
+</div>
+</div>
+</div>
+
+## What to understand before moving on
+- Explain the service boundary crossings in this path: OM.
+- Name the entry-point classes and the class that owns each durable state change.
+- Identify the retry, failure, or cleanup behavior that keeps the path correct when a service is slow or unavailable.
+- Open the individual class pages for invariants, sharp edges, source links, and test exemplars.
+- Use these tags as anchors when searching later: `metadata-om`.
+## Full reading list
+### OM — 395 classes · 9405 min
+
+**[interface-storage](/component/om/interface-storage)** · 11 · 230 min
+
+- [OzoneAclStorageUtil](/class/ozoneaclstorageutil) — Helper class for ozone acls operations. <span className="atlas-mono-hint">30 min</span>
+- [OzoneAclStorage](/class/ozoneaclstorage) — OzoneAclStorage classes define bucket ACLs used in OZONE. <span className="atlas-mono-hint">30 min</span>
+- [OmPrefixInfo](/class/omprefixinfo) — Wrapper class for Ozone prefix path info, currently mainly target for ACL but can be extended for other OzFS optimiza... <span className="atlas-mono-hint">10 min</span>
+- [IOzoneManagerLock](/class/iozonemanagerlock) — Interface for OM Metadata locks. <span className="atlas-mono-hint">20 min</span>
+- [HierarchicalResourceLockManager](/class/hierarchicalresourcelockmanager) — Interface for Hierachical Resource Lock where the lock order acquired on resource is going to be deterministic and th... <span className="atlas-mono-hint">20 min</span>
+- [OMLockDetails](/class/omlockdetails) — This class is for recording detailed consumed time on Locks. <span className="atlas-mono-hint">30 min</span>
+- [DAGLeveledResource](/class/dagleveledresource) — The DAGLeveledResource enum represents a set of resources that are associated with specific locks in the Ozone Manage... <span className="atlas-mono-hint">10 min</span>
+- [LockUsageInfo](/class/lockusageinfo) — Maintains lock related information useful in updating OMLockMetrics. <span className="atlas-mono-hint">10 min</span>
+- [OMLockMetrics](/class/omlockmetrics) — This class is for maintaining the various Ozone Manager Lock Metrics. <span className="atlas-mono-hint">20 min</span>
+- [OMMetadataManager](/class/ommetadatamanager) — OM metadata manager interface. <span className="atlas-mono-hint">20 min</span>
+- [ExpiredOpenKeys](/class/expiredopenkeys) — The expired open keys. <span className="atlas-mono-hint">30 min</span>
+
+**[om-audit](/component/om/om-audit)** · 2 · 20 min
+
+- [OMAction](/class/omaction) — Enum to define Audit Action types for OzoneManager. <span className="atlas-mono-hint">10 min</span>
+- [OMSystemAction](/class/omsystemaction) — Enum to define Audit Action types for system audit in OzoneManager. <span className="atlas-mono-hint">10 min</span>
+
+**[om-background-services](/component/om/om-background-services)** · 13 · 575 min
+
+- [AbstractKeyDeletingService](/class/abstractkeydeletingservice) — Abstracts common code from KeyDeletingService and DirectoryDeletingService which is now used by SnapshotDeletingServi... <span className="atlas-mono-hint">30 min</span>
+- [KeyLifecycleService](/class/keylifecycleservice) — This is the background service to manage object lifecycle based on bucket lifecycle configuration. <span className="atlas-mono-hint">60 min</span>
+- [QuotaRepairTask](/class/quotarepairtask) — Quota repair task. <span className="atlas-mono-hint">60 min</span>
+- [DirectoryDeletingService](/class/directorydeletingservice) — Background service responsible for purging deleted directories and files in the Ozone Manager (OM) and associated sna... <span className="atlas-mono-hint">60 min</span>
+- [OMRangerBGSyncService](/class/omrangerbgsyncservice) — Background Sync thread that reads Multi-Tenancy state from OM DB and applies it to Ranger. <span className="atlas-mono-hint">60 min</span>
+- [KeyDeletingService](/class/keydeletingservice) — This is the background service to delete keys. <span className="atlas-mono-hint">60 min</span>
+- [SnapshotDeletingService](/class/snapshotdeletingservice) — Background Service to clean-up deleted snapshot and reclaim space. <span className="atlas-mono-hint">45 min</span>
+- [OpenKeyCleanupService](/class/openkeycleanupservice) — This is the background service to delete hanging open keys. <span className="atlas-mono-hint">45 min</span>
+- [SnapshotDiffCleanupService](/class/snapshotdiffcleanupservice) — Background service to clean-up snapDiff jobs which are stable and corresponding reports. <span className="atlas-mono-hint">45 min</span>
+- [MultipartUploadCleanupService](/class/multipartuploadcleanupservice) — This is the background service to abort incomplete Multipart Upload. <span className="atlas-mono-hint">30 min</span>
+- [CompactionService](/class/compactionservice) — This is the background service to compact OM rocksdb tables. <span className="atlas-mono-hint">30 min</span>
+- [CompactDBUtil](/class/compactdbutil) — Utility class for compacting OM RocksDB column families. <span className="atlas-mono-hint">30 min</span>
+- [KeyLifecycleServiceMetrics](/class/keylifecycleservicemetrics) — Class contains metrics related to the OM KeyLifeCycle services. <span className="atlas-mono-hint">20 min</span>
+
+**[om-bucket-manager](/component/om/om-bucket-manager)** · 2 · 50 min
+
+- [BucketManager](/class/bucketmanager) — BucketManager handles all the bucket level operations. <span className="atlas-mono-hint">20 min</span>
+- [BucketManagerImpl](/class/bucketmanagerimpl) — Implementation for BucketManager BucketManager uses MetadataDB to store bucket level information. <span className="atlas-mono-hint">30 min</span>
+
+**[om-codecs](/component/om/om-codecs)** · 2 · 65 min
+
+- [OMDBDefinition](/class/omdbdefinition) — OM database definitions. <span className="atlas-mono-hint">45 min</span>
+- [TokenIdentifierCodec](/class/tokenidentifiercodec) — Codec to serialize/deserialize OzoneTokenIdentifier. <span className="atlas-mono-hint">20 min</span>
+
+**[om-execution](/component/om/om-execution)** · 2 · 60 min
+
+- [ExecutionContext](/class/executioncontext) — Context required for execution of a request. <span className="atlas-mono-hint">30 min</span>
+- [OMExecutionFlow](/class/omexecutionflow) — entry for execution flow for write request. <span className="atlas-mono-hint">30 min</span>
+
+**[om-fs](/component/om/om-fs)** · 1 · 20 min
+
+- [OzoneManagerFS](/class/ozonemanagerfs) — Ozone Manager FileSystem interface. <span className="atlas-mono-hint">20 min</span>
+
+**[om-helpers](/component/om/om-helpers)** · 2 · 75 min
+
+- [OMAuditLogger](/class/omauditlogger) — This class is used for OM Audit logs. <span className="atlas-mono-hint">45 min</span>
+- [OmFSOFile](/class/omfsofile) — This class is used exclusively in FSO buckets.. <span className="atlas-mono-hint">30 min</span>
+
+**[om-key-manager](/component/om/om-key-manager)** · 2 · 80 min
+
+- [KeyManager](/class/keymanager) — Handles key level commands. <span className="atlas-mono-hint">20 min</span>
+- [KeyManagerImpl](/class/keymanagerimpl) — Implementation of keyManager. <span className="atlas-mono-hint">60 min</span>
+
+**[om-locking](/component/om/om-locking)** · 11 · 350 min
+
+- [OzoneLockStrategy](/class/ozonelockstrategy) — This is a common strategy interface for all concrete lock strategies. <span className="atlas-mono-hint">20 min</span>
+- [ResourceLockTracker](/class/resourcelocktracker) — Abstract class that tracks resource locks based on a generic resource type. <span className="atlas-mono-hint">30 min</span>
+- [OzoneManagerLock](/class/ozonemanagerlock) — Provides different locks to handle concurrency in OzoneMaster. <span className="atlas-mono-hint">45 min</span>
+- [PoolBasedHierarchicalResourceLockManager](/class/poolbasedhierarchicalresourcelockmanager) — A lock manager implementation that manages hierarchical resource locks using a pool of reusable ReadWriteLock instances. <span className="atlas-mono-hint">45 min</span>
+- [DAGResourceLockTracker](/class/dagresourcelocktracker) — Specialized implementation of ResourceLockTracker to manage locks for DAGLeveledResource types. <span className="atlas-mono-hint">30 min</span>
+- [OmReadOnlyLock](/class/omreadonlylock) — Read only "lock" for snapshots Uses no lock. <span className="atlas-mono-hint">30 min</span>
+- [OBSKeyPathLockStrategy](/class/obskeypathlockstrategy) — Implementation of OzoneLockStrategy interface. <span className="atlas-mono-hint">30 min</span>
+- [ReadOnlyHierarchicalResourceLockManager](/class/readonlyhierarchicalresourcelockmanager) — A read only lock manager that does not acquire any lock. <span className="atlas-mono-hint">30 min</span>
+- [LeveledResourceLockTracker](/class/leveledresourcelocktracker) — The LeveledResourceLockTracker class is a singleton that extends the ResourceLockTracker to manage locks on leveled r... <span className="atlas-mono-hint">30 min</span>
+- [RegularBucketLockStrategy](/class/regularbucketlockstrategy) — Implementation of OzoneLockStrategy interface. <span className="atlas-mono-hint">30 min</span>
+- [OzoneLockProvider](/class/ozonelockprovider) — OzoneLockProvider class returns the appropriate lock strategy pattern implementation based on the configuration flags... <span className="atlas-mono-hint">30 min</span>
+
+**[om-multitenant](/component/om/om-multitenant)** · 5 · 130 min
+
+- [MultiTenantAccessController](/class/multitenantaccesscontroller) — Defines the operations needed for multi-tenant access control. <span className="atlas-mono-hint">20 min</span>
+- [AuthorizerLock](/class/authorizerlock) — Authorizer access lock interface. <span className="atlas-mono-hint">20 min</span>
+- [InMemoryMultiTenantAccessController](/class/inmemorymultitenantaccesscontroller) — In Memory version of MultiTenantAccessController. <span className="atlas-mono-hint">30 min</span>
+- [AuthorizerLockImpl](/class/authorizerlockimpl) — Implementation of AuthorizerLock. <span className="atlas-mono-hint">30 min</span>
+- [CachedTenantState](/class/cachedtenantstate) — A collection of things that we want to maintain about a tenant in memory. <span className="atlas-mono-hint">30 min</span>
+
+**[om-protocol](/component/om/om-protocol)** · 5 · 160 min
+
+- [RequestHandler](/class/requesthandler) — Handler to handleRequest the OmRequests. <span className="atlas-mono-hint">20 min</span>
+- [OzoneManagerRequestHandler](/class/ozonemanagerrequesthandler) — Command Handler for OM requests. <span className="atlas-mono-hint">60 min</span>
+- [OMAdminProtocolServerSideImpl](/class/omadminprotocolserversideimpl) — This class is the server-side translator that forwards requests received on OMAdminProtocolPB to the OMAdminProtocolS... <span className="atlas-mono-hint">30 min</span>
+- [OMInterServiceProtocolServerSideImpl](/class/ominterserviceprotocolserversideimpl) — This class is the server-side translator that forwards requests received on OMInterServiceProtocolPB to the OzoneMana... <span className="atlas-mono-hint">30 min</span>
+- [OzoneManagerProtocolServerSideTranslatorPB](/class/ozonemanagerprotocolserversidetranslatorpb) — This is the server-side translator that forwards requests received from OzoneManagerProtocolPB to OzoneManager. <span className="atlas-mono-hint">20 min</span>
+
+**[om-ratis](/component/om/om-ratis)** · 7 · 310 min
+
+- [OzoneManagerRatisServer](/class/ozonemanagerratisserver) — Creates a Ratis server endpoint for OM. <span className="atlas-mono-hint">60 min</span>
+- [OzoneManagerStateMachine](/class/ozonemanagerstatemachine) — The OM StateMachine is the state machine for OM Ratis server. <span className="atlas-mono-hint">60 min</span>
+- [OzoneManagerDoubleBuffer](/class/ozonemanagerdoublebuffer) — This class implements DoubleBuffer implementation of OMClientResponse's. <span className="atlas-mono-hint">60 min</span>
+- [OzoneManagerRatisServerConfig](/class/ozonemanagerratisserverconfig) — Class which defines OzoneManager Ratis Server config. <span className="atlas-mono-hint">20 min</span>
+- [OzoneManagerDoubleBufferMetrics](/class/ozonemanagerdoublebuffermetrics) — Class which maintains metrics related to OzoneManager DoubleBuffer. <span className="atlas-mono-hint">20 min</span>
+- [OmRatisSnapshotProvider](/class/omratissnapshotprovider) — OmRatisSnapshotProvider downloads the latest checkpoint from the leader OM and loads the checkpoint into State Machine. <span className="atlas-mono-hint">45 min</span>
+- [OzoneManagerRatisUtils](/class/ozonemanagerratisutils) — Utility class used by OzoneManager HA. <span className="atlas-mono-hint">45 min</span>
+
+**[om-request](/component/om/om-request)** · 25 · 460 min
+
+- [RequestAuditor](/class/requestauditor) — Interface for OM Requests to convert to audit objects. <span className="atlas-mono-hint">20 min</span>
+- [OMClientRequestUtils](/class/omclientrequestutils) — Utility class for OMClientRequest. <span className="atlas-mono-hint">30 min</span>
+- [BucketLayoutAwareOMKeyRequestFactory](/class/bucketlayoutawareomkeyrequestfactory) — Factory class to instantiate bucket layout aware request classes. <span className="atlas-mono-hint">20 min</span>
+- [OMClientRequest](/class/omclientrequest) — OMClientRequest provides methods which every write OM request should implement. <span className="atlas-mono-hint">10 min</span>
+- [OMLifecycleConfigurationSetRequest](/class/omlifecycleconfigurationsetrequest) — Handles SetLifecycleConfiguration Request. <span className="atlas-mono-hint">10 min</span>
+- [OMLifecycleConfigurationDeleteRequest](/class/omlifecycleconfigurationdeleterequest) — Handles DeleteLifecycleConfiguration Request. <span className="atlas-mono-hint">10 min</span>
+- [OMLifecycleSetServiceStatusRequest](/class/omlifecyclesetservicestatusrequest) — Handles SetLifecycleServiceStatus Request. <span className="atlas-mono-hint">10 min</span>
+- [OMLifecycleSaveScanStateRequest](/class/omlifecyclesavescanstaterequest) — Handles SaveLifecycleScanState request. <span className="atlas-mono-hint">10 min</span>
+- [OMGetDelegationTokenRequest](/class/omgetdelegationtokenrequest) — Handle GetDelegationToken Request. <span className="atlas-mono-hint">10 min</span>
+- [OMRenewDelegationTokenRequest](/class/omrenewdelegationtokenrequest) — Handle RenewDelegationToken Request. <span className="atlas-mono-hint">10 min</span>
+- [OMCancelDelegationTokenRequest](/class/omcanceldelegationtokenrequest) — Handle CancelDelegationToken Request. <span className="atlas-mono-hint">10 min</span>
+- [AclOp](/class/aclop) — ACL operation. <span className="atlas-mono-hint">20 min</span>
+- [OMMultipartUploadUtils](/class/ommultipartuploadutils) — Utility class related to OM Multipart Upload. <span className="atlas-mono-hint">30 min</span>
+- [OmResponseUtil](/class/omresponseutil) — Utility class to build OmResponse. <span className="atlas-mono-hint">30 min</span>
+- [ObjectParser](/class/objectparser) — Utility class to parse OzoneObj#getPath(). <span className="atlas-mono-hint">30 min</span>
+- [OmKeyHSyncUtil](/class/omkeyhsyncutil) — Helper methods related to OM key HSync. <span className="atlas-mono-hint">30 min</span>
+- [OMEchoRPCWriteRequest](/class/omechorpcwriterequest) — Handles EchoRPC request (write). <span className="atlas-mono-hint">10 min</span>
+- [OMLayoutVersionValidator](/class/omlayoutversionvalidator) — An annotation to mark methods that do certain request validations based on the server's layout version and capability... <span className="atlas-mono-hint">20 min</span>
+- [RequestFeatureValidator](/class/requestfeaturevalidator) — An annotation to mark methods that do certain request validations. <span className="atlas-mono-hint">20 min</span>
+- [OMClientVersionValidator](/class/omclientversionvalidator) — An annotation to mark methods that do certain request validations based on the request protocol's client version. <span className="atlas-mono-hint">20 min</span>
+- [ValidationContext](/class/validationcontext) — A context that contains useful information for request validator instances. <span className="atlas-mono-hint">20 min</span>
+- [ValidatorRegistry](/class/validatorregistry) — Registry that loads and stores the request validators to be applied by a service. <span className="atlas-mono-hint">30 min</span>
+- [RequestValidations](/class/requestvalidations) — Main class to configure and set up and access the request/response validation framework. <span className="atlas-mono-hint">30 min</span>
+- [VersionExtractor](/class/versionextractor) — Class to extract version out of OM request. <span className="atlas-mono-hint">10 min</span>
+- [ValidationCondition](/class/validationcondition) — Defines conditions for which validators can be assigned to. <span className="atlas-mono-hint">10 min</span>
+
+**[om-request-bucket](/component/om/om-request-bucket)** · 8 · 100 min
+
+- [OMBucketAclRequest](/class/ombucketaclrequest) — Base class for Bucket acl request. <span className="atlas-mono-hint">30 min</span>
+- [OMBucketAddAclRequest](/class/ombucketaddaclrequest) — Handle add Acl request for bucket. <span className="atlas-mono-hint">10 min</span>
+- [OMBucketSetAclRequest](/class/ombucketsetaclrequest) — Handle setAcl request for bucket. <span className="atlas-mono-hint">10 min</span>
+- [OMBucketRemoveAclRequest](/class/ombucketremoveaclrequest) — Handle removeAcl request for bucket. <span className="atlas-mono-hint">10 min</span>
+- [OMBucketCreateRequest](/class/ombucketcreaterequest) — Handles CreateBucket Request. <span className="atlas-mono-hint">10 min</span>
+- [OMBucketSetPropertyRequest](/class/ombucketsetpropertyrequest) — Handle SetBucketProperty Request. <span className="atlas-mono-hint">10 min</span>
+- [OMBucketDeleteRequest](/class/ombucketdeleterequest) — Handles DeleteBucket Request. <span className="atlas-mono-hint">10 min</span>
+- [OMBucketSetOwnerRequest](/class/ombucketsetownerrequest) — Handle set owner request for bucket. <span className="atlas-mono-hint">10 min</span>
+
+**[om-request-file](/component/om/om-request-file)** · 6 · 115 min
+
+- [OMFileCreateRequestWithFSO](/class/omfilecreaterequestwithfso) — Handles create file request layout version1. <span className="atlas-mono-hint">45 min</span>
+- [OMDirectoryCreateRequestWithFSO](/class/omdirectorycreaterequestwithfso) — Handle create directory request. <span className="atlas-mono-hint">30 min</span>
+- [OMFileRequest](/class/omfilerequest) — Base class for file requests. <span className="atlas-mono-hint">10 min</span>
+- [OMFileCreateRequest](/class/omfilecreaterequest) — Handles create file request. <span className="atlas-mono-hint">10 min</span>
+- [OMDirectoryCreateRequest](/class/omdirectorycreaterequest) — Handle create directory request. <span className="atlas-mono-hint">10 min</span>
+- [OMRecoverLeaseRequest](/class/omrecoverleaserequest) — Perform actions for RecoverLease requests. <span className="atlas-mono-hint">10 min</span>
+
+**[om-request-key](/component/om/om-request-key)** · 31 · 715 min
+
+- [OMKeyCommitRequestWithFSO](/class/omkeycommitrequestwithfso) — Handles CommitKey request - prefix layout. <span className="atlas-mono-hint">45 min</span>
+- [OMKeyCreateRequestWithFSO](/class/omkeycreaterequestwithfso) — Handles CreateKey request layout version1. <span className="atlas-mono-hint">45 min</span>
+- [OMAllocateBlockRequestWithFSO](/class/omallocateblockrequestwithfso) — Handles allocate block request - prefix layout. <span className="atlas-mono-hint">30 min</span>
+- [OMKeyCommitRequest](/class/omkeycommitrequest) — Handles CommitKey request. <span className="atlas-mono-hint">10 min</span>
+- [OMKeyCreateRequest](/class/omkeycreaterequest) — Handles CreateKey request. <span className="atlas-mono-hint">10 min</span>
+- [OMAllocateBlockRequest](/class/omallocateblockrequest) — Handles allocate block request. <span className="atlas-mono-hint">10 min</span>
+- [OMDirectoriesPurgeRequestWithFSO](/class/omdirectoriespurgerequestwithfso) — Handles purging of keys from OM DB. <span className="atlas-mono-hint">45 min</span>
+- [OMKeyDeleteRequestWithFSO](/class/omkeydeleterequestwithfso) — Handles DeleteKey request - prefix layout. <span className="atlas-mono-hint">45 min</span>
+- [OmKeysDeleteRequestWithFSO](/class/omkeysdeleterequestwithfso) — Handles DeleteKeys request for recursive bucket deletion. <span className="atlas-mono-hint">30 min</span>
+- [OMKeysDeleteRequest](/class/omkeysdeleterequest) — Handles DeleteKey request. <span className="atlas-mono-hint">10 min</span>
+- [OMKeyDeleteRequest](/class/omkeydeleterequest) — Handles DeleteKey request. <span className="atlas-mono-hint">10 min</span>
+- [OMKeyPurgeRequest](/class/omkeypurgerequest) — Handles purging of keys from OM DB. <span className="atlas-mono-hint">10 min</span>
+- [OMOpenKeysDeleteRequest](/class/omopenkeysdeleterequest) — Handles requests to move open keys from the open key table to the delete table. <span className="atlas-mono-hint">10 min</span>
+- [OMKeyRenameRequestWithFSO](/class/omkeyrenamerequestwithfso) — Handles rename key request - prefix layout. <span className="atlas-mono-hint">45 min</span>
+- [OMKeysRenameRequest](/class/omkeysrenamerequest) — Handles rename keys request. <span className="atlas-mono-hint">10 min</span>
+- [OMKeyRenameRequest](/class/omkeyrenamerequest) — Handles rename key request. <span className="atlas-mono-hint">10 min</span>
+- [OMKeyAclRequest](/class/omkeyaclrequest) — Base class for Bucket acl request. <span className="atlas-mono-hint">30 min</span>
+- [OMPrefixAclRequest](/class/omprefixaclrequest) — Base class for Prefix acl request. <span className="atlas-mono-hint">30 min</span>
+- [OMKeyAclRequestWithFSO](/class/omkeyaclrequestwithfso) — Handles key ACL requests - prefix layout. <span className="atlas-mono-hint">30 min</span>
+- [OMKeySetAclRequestWithFSO](/class/omkeysetaclrequestwithfso) — Handle set Acl request for bucket for prefix layout. <span className="atlas-mono-hint">30 min</span>
+- [OMKeyAddAclRequestWithFSO](/class/omkeyaddaclrequestwithfso) — Handle add Acl request for bucket for prefix layout. <span className="atlas-mono-hint">30 min</span>
+- [OMKeyRemoveAclRequestWithFSO](/class/omkeyremoveaclrequestwithfso) — Handle remove Acl request for bucket for prefix layout. <span className="atlas-mono-hint">30 min</span>
+- [OMKeyRemoveAclRequest](/class/omkeyremoveaclrequest) — Handle add Acl request for bucket. <span className="atlas-mono-hint">10 min</span>
+- [OMKeyAddAclRequest](/class/omkeyaddaclrequest) — Handle add Acl request for bucket. <span className="atlas-mono-hint">10 min</span>
+- [OMKeySetAclRequest](/class/omkeysetaclrequest) — Handle add Acl request for bucket. <span className="atlas-mono-hint">10 min</span>
+- [OMPrefixAddAclRequest](/class/omprefixaddaclrequest) — Handle add Acl request for prefix. <span className="atlas-mono-hint">10 min</span>
+- [OMPrefixRemoveAclRequest](/class/omprefixremoveaclrequest) — Handle remove Acl request for prefix. <span className="atlas-mono-hint">10 min</span>
+- [OMPrefixSetAclRequest](/class/omprefixsetaclrequest) — Handle set Acl request for prefix. <span className="atlas-mono-hint">10 min</span>
+- [OMKeyRequest](/class/omkeyrequest) — Interface for key write requests. <span className="atlas-mono-hint">60 min</span>
+- [OMKeySetTimesRequestWithFSO](/class/omkeysettimesrequestwithfso) — Handle set times request for bucket for prefix layout. <span className="atlas-mono-hint">30 min</span>
+- [OMKeySetTimesRequest](/class/omkeysettimesrequest) — Handle add SetTimes request for key. <span className="atlas-mono-hint">10 min</span>
+
+**[om-request-s3](/component/om/om-request-s3)** · 27 · 445 min
+
+- [S3InitiateMultipartUploadRequestWithFSO](/class/s3initiatemultipartuploadrequestwithfso) — Handles initiate multipart upload request. <span className="atlas-mono-hint">45 min</span>
+- [S3MultipartUploadCompleteRequestWithFSO](/class/s3multipartuploadcompleterequestwithfso) — Handle Multipart upload complete request. <span className="atlas-mono-hint">30 min</span>
+- [S3MultipartUploadCommitPartRequestWithFSO](/class/s3multipartuploadcommitpartrequestwithfso) — Handle Multipart upload commit upload part file. <span className="atlas-mono-hint">30 min</span>
+- [S3MultipartUploadAbortRequestWithFSO](/class/s3multipartuploadabortrequestwithfso) — Handles Abort of multipart upload request. <span className="atlas-mono-hint">30 min</span>
+- [S3MultipartUploadCompleteRequest](/class/s3multipartuploadcompleterequest) — Handle Multipart upload complete request. <span className="atlas-mono-hint">10 min</span>
+- [S3MultipartUploadCommitPartRequest](/class/s3multipartuploadcommitpartrequest) — Handle Multipart upload commit upload part file. <span className="atlas-mono-hint">10 min</span>
+- [S3InitiateMultipartUploadRequest](/class/s3initiatemultipartuploadrequest) — Handles initiate multipart upload request. <span className="atlas-mono-hint">10 min</span>
+- [S3ExpiredMultipartUploadsAbortRequest](/class/s3expiredmultipartuploadsabortrequest) — Handles requests to move both MPU open keys from the open key/file table and MPU part keys to delete table. <span className="atlas-mono-hint">10 min</span>
+- [S3MultipartUploadAbortRequest](/class/s3multipartuploadabortrequest) — Handles Abort of multipart upload request. <span className="atlas-mono-hint">10 min</span>
+- [S3SecretRequestHelper](/class/s3secretrequesthelper) — Common helper function for S3 secret requests. <span className="atlas-mono-hint">30 min</span>
+- [S3GetSecretRequest](/class/s3getsecretrequest) — Handles GetS3Secret request. <span className="atlas-mono-hint">10 min</span>
+- [OMSetSecretRequest](/class/omsetsecretrequest) — Handles SetSecret request. <span className="atlas-mono-hint">10 min</span>
+- [S3RevokeSecretRequest](/class/s3revokesecretrequest) — Handles RevokeS3Secret request. <span className="atlas-mono-hint">10 min</span>
+- [S3BucketTaggingRequestBase](/class/s3buckettaggingrequestbase) — Base class for S3 bucket tagging write requests (put / delete). <span className="atlas-mono-hint">30 min</span>
+- [S3DeleteObjectTaggingRequestWithFSO](/class/s3deleteobjecttaggingrequestwithfso) — Handles delete object tagging request for FSO bucket. <span className="atlas-mono-hint">30 min</span>
+- [S3PutObjectTaggingRequestWithFSO](/class/s3putobjecttaggingrequestwithfso) — Handles put object tagging request for FSO bucket. <span className="atlas-mono-hint">30 min</span>
+- [S3PutObjectTaggingRequest](/class/s3putobjecttaggingrequest) — Handles put object tagging request. <span className="atlas-mono-hint">10 min</span>
+- [S3DeleteObjectTaggingRequest](/class/s3deleteobjecttaggingrequest) — Handles delete object tagging request. <span className="atlas-mono-hint">10 min</span>
+- [S3PutBucketTaggingRequest](/class/s3putbuckettaggingrequest) — Handles PutBucketTagging (S3 bucket tagging). <span className="atlas-mono-hint">10 min</span>
+- [S3DeleteBucketTaggingRequest](/class/s3deletebuckettaggingrequest) — Handles DeleteBucketTagging (S3 bucket tagging). <span className="atlas-mono-hint">10 min</span>
+- [OMTenantCreateRequest](/class/omtenantcreaterequest) — Handles OMTenantCreate request. <span className="atlas-mono-hint">10 min</span>
+- [OMTenantAssignUserAccessIdRequest](/class/omtenantassignuseraccessidrequest) — Handles OMAssignUserToTenantRequest. <span className="atlas-mono-hint">10 min</span>
+- [OMTenantDeleteRequest](/class/omtenantdeleterequest) — Handles OMTenantDelete request. <span className="atlas-mono-hint">10 min</span>
+- [OMTenantRevokeUserAccessIdRequest](/class/omtenantrevokeuseraccessidrequest) — Handles OMTenantRevokeUserAccessIdRequest request. <span className="atlas-mono-hint">10 min</span>
+- [OMTenantAssignAdminRequest](/class/omtenantassignadminrequest) — Handles OMTenantAssignAdminRequest. <span className="atlas-mono-hint">10 min</span>
+- [OMTenantRevokeAdminRequest](/class/omtenantrevokeadminrequest) — Handles OMTenantRevokeAdminRequest. <span className="atlas-mono-hint">10 min</span>
+- [OMSetRangerServiceVersionRequest](/class/omsetrangerserviceversionrequest) — Handles OMSetRangerServiceVersionRequest. <span className="atlas-mono-hint">10 min</span>
+
+**[om-request-snapshot](/component/om/om-request-snapshot)** · 8 · 100 min
+
+- [OMSnapshotMoveUtils](/class/omsnapshotmoveutils) — Utility class for snapshot move requests. <span className="atlas-mono-hint">30 min</span>
+- [OMSnapshotCreateRequest](/class/omsnapshotcreaterequest) — Handles CreateSnapshot Request. <span className="atlas-mono-hint">10 min</span>
+- [OMSnapshotMoveTableKeysRequest](/class/omsnapshotmovetablekeysrequest) — Handles OMSnapshotMoveTableKeysRequest Request. <span className="atlas-mono-hint">10 min</span>
+- [OMSnapshotPurgeRequest](/class/omsnapshotpurgerequest) — Handles OMSnapshotPurge Request. <span className="atlas-mono-hint">10 min</span>
+- [OMSnapshotRenameRequest](/class/omsnapshotrenamerequest) — Changes snapshot name. <span className="atlas-mono-hint">10 min</span>
+- [OMSnapshotDeleteRequest](/class/omsnapshotdeleterequest) — Handles DeleteSnapshot Request. <span className="atlas-mono-hint">10 min</span>
+- [OMSnapshotSetPropertyRequest](/class/omsnapshotsetpropertyrequest) — Updates the exclusive size of the snapshot. <span className="atlas-mono-hint">10 min</span>
+- [OMSnapshotMoveDeletedKeysRequest](/class/omsnapshotmovedeletedkeysrequest) — Handles OMSnapshotMoveDeletedKeys Request. <span className="atlas-mono-hint">10 min</span>
+
+**[om-request-upgrade](/component/om/om-request-upgrade)** · 3 · 30 min
+
+- [OMPrepareRequest](/class/ompreparerequest) — OM Request used to flush all transactions to disk, take a DB snapshot, and purge the logs, leaving Ratis in a clean s... <span className="atlas-mono-hint">10 min</span>
+- [OMCancelPrepareRequest](/class/omcancelpreparerequest) — OM request class to cancel preparation. <span className="atlas-mono-hint">10 min</span>
+- [OMFinalizeUpgradeRequest](/class/omfinalizeupgraderequest) — Handles finalizeUpgrade request. <span className="atlas-mono-hint">10 min</span>
+
+**[om-request-volume](/component/om/om-request-volume)** · 10 · 140 min
+
+- [OMVolumeRequest](/class/omvolumerequest) — Defines common methods required for volume requests. <span className="atlas-mono-hint">30 min</span>
+- [OMVolumeSetQuotaRequest](/class/omvolumesetquotarequest) — Handles set Quota request for volume. <span className="atlas-mono-hint">10 min</span>
+- [OMVolumeSetOwnerRequest](/class/omvolumesetownerrequest) — Handle set owner request for volume. <span className="atlas-mono-hint">10 min</span>
+- [OMVolumeCreateRequest](/class/omvolumecreaterequest) — Handles volume create request. <span className="atlas-mono-hint">10 min</span>
+- [OMQuotaRepairRequest](/class/omquotarepairrequest) — Handle OMQuotaRepairRequest Request. <span className="atlas-mono-hint">10 min</span>
+- [OMVolumeDeleteRequest](/class/omvolumedeleterequest) — Handles volume delete request. <span className="atlas-mono-hint">10 min</span>
+- [OMVolumeAclRequest](/class/omvolumeaclrequest) — Base class for OMVolumeAcl Request. <span className="atlas-mono-hint">30 min</span>
+- [OMVolumeAddAclRequest](/class/omvolumeaddaclrequest) — Handles volume add acl request. <span className="atlas-mono-hint">10 min</span>
+- [OMVolumeRemoveAclRequest](/class/omvolumeremoveaclrequest) — Handles volume remove acl request. <span className="atlas-mono-hint">10 min</span>
+- [OMVolumeSetAclRequest](/class/omvolumesetaclrequest) — Handles volume set acl request. <span className="atlas-mono-hint">10 min</span>
+
+**[om-response](/component/om/om-response)** · 84 · 1270 min
+
+- [OMPrefixAclResponse](/class/omprefixaclresponse) — Response for Prefix Acl request. <span className="atlas-mono-hint">10 min</span>
+- [OMBucketAclResponse](/class/ombucketaclresponse) — Response for Bucket acl request. <span className="atlas-mono-hint">10 min</span>
+- [OMKeyAclResponseWithFSO](/class/omkeyaclresponsewithfso) — Response for Bucket acl request for prefix layout. <span className="atlas-mono-hint">30 min</span>
+- [OMKeyAclResponse](/class/omkeyaclresponse) — Response for Bucket acl request. <span className="atlas-mono-hint">10 min</span>
+- [CleanupTableInfo](/class/cleanuptableinfo) — Annotation to provide information about clean up table information for OMClientResponse. <span className="atlas-mono-hint">20 min</span>
+- [OMClientResponse](/class/omclientresponse) — Interface for OM Responses, each OM response should implement this interface. <span className="atlas-mono-hint">30 min</span>
+- [DummyOMClientResponse](/class/dummyomclientresponse) — A dummy OMClientResponse implementation. <span className="atlas-mono-hint">10 min</span>
+- [OMBucketDeleteResponse](/class/ombucketdeleteresponse) — Response for DeleteBucket request. <span className="atlas-mono-hint">10 min</span>
+- [OMBucketCreateResponse](/class/ombucketcreateresponse) — Response for CreateBucket request. <span className="atlas-mono-hint">10 min</span>
+- [OMBucketSetOwnerResponse](/class/ombucketsetownerresponse) — Response for set owner request. <span className="atlas-mono-hint">10 min</span>
+- [OMBucketSetPropertyResponse](/class/ombucketsetpropertyresponse) — Response for SetBucketProperty request. <span className="atlas-mono-hint">10 min</span>
+- [OMDirectoryCreateResponseWithFSO](/class/omdirectorycreateresponsewithfso) — Response for create directory request. <span className="atlas-mono-hint">30 min</span>
+- [OMFileCreateResponseWithFSO](/class/omfilecreateresponsewithfso) — Response for create file request - prefix layout. <span className="atlas-mono-hint">30 min</span>
+- [OMDirectoryCreateResponse](/class/omdirectorycreateresponse) — Response for create directory request. <span className="atlas-mono-hint">10 min</span>
+- [OMRecoverLeaseResponse](/class/omrecoverleaseresponse) — Performs tasks for RecoverLease request responses. <span className="atlas-mono-hint">10 min</span>
+- [OMFileCreateResponse](/class/omfilecreateresponse) — Response for crate file request. <span className="atlas-mono-hint">10 min</span>
+- [AbstractOMKeyDeleteResponse](/class/abstractomkeydeleteresponse) — Base class for responses that need to move keys from an arbitrary table to the deleted table. <span className="atlas-mono-hint">30 min</span>
+- [OmKeyResponse](/class/omkeyresponse) — OmKeyResponse. <span className="atlas-mono-hint">30 min</span>
+- [OMDirectoriesPurgeResponseWithFSO](/class/omdirectoriespurgeresponsewithfso) — Response for OMDirectoriesPurgeRequestWithFSO request. <span className="atlas-mono-hint">30 min</span>
+- [OMKeysDeleteResponseWithFSO](/class/omkeysdeleteresponsewithfso) — Response for DeleteKeys request. <span className="atlas-mono-hint">30 min</span>
+- [OMKeyRenameResponseWithFSO](/class/omkeyrenameresponsewithfso) — Response for RenameKey request - prefix layout. <span className="atlas-mono-hint">30 min</span>
+- [OMKeyDeleteResponseWithFSO](/class/omkeydeleteresponsewithfso) — Response for DeleteKey request. <span className="atlas-mono-hint">30 min</span>
+- [OMKeyCommitResponseWithFSO](/class/omkeycommitresponsewithfso) — Response for CommitKey request - prefix layout1. <span className="atlas-mono-hint">30 min</span>
+- [OMKeySetTimesResponseWithFSO](/class/omkeysettimesresponsewithfso) — Response for Bucket acl request for prefix layout. <span className="atlas-mono-hint">30 min</span>
+- [OMAllocateBlockResponseWithFSO](/class/omallocateblockresponsewithfso) — Response for AllocateBlock request - prefix layout. <span className="atlas-mono-hint">30 min</span>
+- [OMKeyCreateResponseWithFSO](/class/omkeycreateresponsewithfso) — Response for CreateKey request - prefix layout. <span className="atlas-mono-hint">30 min</span>
+- [OMKeyCommitResponse](/class/omkeycommitresponse) — Response for CommitKey request. <span className="atlas-mono-hint">10 min</span>
+- [OMKeyPurgeResponse](/class/omkeypurgeresponse) — Response for OMKeyPurgeRequest request. <span className="atlas-mono-hint">10 min</span>
+- [OMKeysDeleteResponse](/class/omkeysdeleteresponse) — Response for DeleteKey request. <span className="atlas-mono-hint">10 min</span>
+- [OMKeyRenameResponse](/class/omkeyrenameresponse) — Response for RenameKey request. <span className="atlas-mono-hint">10 min</span>
+- [OMKeysRenameResponse](/class/omkeysrenameresponse) — Response for RenameKeys request. <span className="atlas-mono-hint">10 min</span>
+- [OMKeyCreateResponse](/class/omkeycreateresponse) — Response for CreateKey request. <span className="atlas-mono-hint">10 min</span>
+- [OMKeyDeleteResponse](/class/omkeydeleteresponse) — Response for DeleteKey request. <span className="atlas-mono-hint">10 min</span>
+- [OMOpenKeysDeleteResponse](/class/omopenkeysdeleteresponse) — Handles responses to move open keys from the open key table to the delete table. <span className="atlas-mono-hint">10 min</span>
+- [OMAllocateBlockResponse](/class/omallocateblockresponse) — Response for AllocateBlock request. <span className="atlas-mono-hint">10 min</span>
+- [OMKeySetTimesResponse](/class/omkeysettimesresponse) — Response for Bucket acl request. <span className="atlas-mono-hint">10 min</span>
+- [OMLifecycleSetServiceStatusResponse](/class/omlifecyclesetservicestatusresponse) — Response for SetLifecycleServiceStatus request. <span className="atlas-mono-hint">10 min</span>
+- [OMLifecycleConfigurationDeleteResponse](/class/omlifecycleconfigurationdeleteresponse) — Response for SetLifecycleConfiguration request. <span className="atlas-mono-hint">10 min</span>
+- [OMLifecycleSaveScanStateResponse](/class/omlifecyclesavescanstateresponse) — Response for SaveLifecycleScanState request. <span className="atlas-mono-hint">10 min</span>
+- [OMLifecycleConfigurationSetResponse](/class/omlifecycleconfigurationsetresponse) — Response for SetLifecycleConfiguration request. <span className="atlas-mono-hint">10 min</span>
+- [OMGetDelegationTokenResponse](/class/omgetdelegationtokenresponse) — Handle response for GetDelegationToken request. <span className="atlas-mono-hint">10 min</span>
+- [OMRenewDelegationTokenResponse](/class/omrenewdelegationtokenresponse) — Handle response for RenewDelegationToken request. <span className="atlas-mono-hint">10 min</span>
+- [OMCancelDelegationTokenResponse](/class/omcanceldelegationtokenresponse) — Handle response for CancelDelegationToken request. <span className="atlas-mono-hint">10 min</span>
+- [OMSnapshotMoveDeletedKeysResponse](/class/omsnapshotmovedeletedkeysresponse) — Response for OMSnapshotMoveDeletedKeysRequest. <span className="atlas-mono-hint">10 min</span>
+- [OMSnapshotMoveTableKeysResponse](/class/omsnapshotmovetablekeysresponse) — Response for OMSnapshotMoveDeletedKeysRequest. <span className="atlas-mono-hint">10 min</span>
+- [OMSnapshotPurgeResponse](/class/omsnapshotpurgeresponse) — Response for OMSnapshotPurgeRequest. <span className="atlas-mono-hint">10 min</span>
+- [OMSnapshotRenameResponse](/class/omsnapshotrenameresponse) — Response for OMSnapshotRenameRequest. <span className="atlas-mono-hint">10 min</span>
+- [OMSnapshotSetPropertyResponse](/class/omsnapshotsetpropertyresponse) — Response for OMSnapshotSetPropertyRequest. <span className="atlas-mono-hint">10 min</span>
+- [OMSnapshotCreateResponse](/class/omsnapshotcreateresponse) — Response for OMSnapshotCreateRequest. <span className="atlas-mono-hint">10 min</span>
+- [OMSnapshotDeleteResponse](/class/omsnapshotdeleteresponse) — Response for OMSnapshotDeleteRequest. <span className="atlas-mono-hint">10 min</span>
+- [OMPrepareResponse](/class/omprepareresponse) — Response for prepare request. <span className="atlas-mono-hint">10 min</span>
+- [OMCancelPrepareResponse](/class/omcancelprepareresponse) — Response for cancel prepare. <span className="atlas-mono-hint">10 min</span>
+- [OMFinalizeUpgradeResponse](/class/omfinalizeupgraderesponse) — Response for finalizeUpgrade request. <span className="atlas-mono-hint">10 min</span>
+- [OMEchoRPCWriteResponse](/class/omechorpcwriteresponse) — Response for EchoRPC request (write). <span className="atlas-mono-hint">10 min</span>
+- [OMVolumeSetOwnerResponse](/class/omvolumesetownerresponse) — Response for set owner request. <span className="atlas-mono-hint">10 min</span>
+- [OMVolumeCreateResponse](/class/omvolumecreateresponse) — Response for CreateVolume request. <span className="atlas-mono-hint">10 min</span>
+- [OMVolumeAclOpResponse](/class/omvolumeaclopresponse) — Response for om volume acl operation request. <span className="atlas-mono-hint">10 min</span>
+- [OMVolumeSetQuotaResponse](/class/omvolumesetquotaresponse) — Response for set quota request. <span className="atlas-mono-hint">10 min</span>
+- [OMVolumeDeleteResponse](/class/omvolumedeleteresponse) — Response for DeleteVolume request. <span className="atlas-mono-hint">10 min</span>
+- [OMQuotaRepairResponse](/class/omquotarepairresponse) — Response for OMQuotaRepairRequest request. <span className="atlas-mono-hint">10 min</span>
+- [AbstractS3MultipartAbortResponse](/class/abstracts3multipartabortresponse) — Base class for responses that need to move multipart info part keys to the deleted table. <span className="atlas-mono-hint">30 min</span>
+- [S3MultipartUploadCompleteResponseWithFSO](/class/s3multipartuploadcompleteresponsewithfso) — Response for Multipart Upload Complete request. <span className="atlas-mono-hint">30 min</span>
+- [S3InitiateMultipartUploadResponseWithFSO](/class/s3initiatemultipartuploadresponsewithfso) — Response for S3 Initiate Multipart Upload request for prefix layout. <span className="atlas-mono-hint">30 min</span>
+- [S3MultipartUploadCommitPartResponseWithFSO](/class/s3multipartuploadcommitpartresponsewithfso) — Response for S3MultipartUploadCommitPartWithFSO request. <span className="atlas-mono-hint">30 min</span>
+- [S3MultipartUploadAbortResponseWithFSO](/class/s3multipartuploadabortresponsewithfso) — Response for Multipart Abort Request - prefix layout. <span className="atlas-mono-hint">30 min</span>
+- [S3MultipartUploadCompleteResponse](/class/s3multipartuploadcompleteresponse) — Response for Multipart Upload Complete request. <span className="atlas-mono-hint">10 min</span>
+- [S3MultipartUploadCommitPartResponse](/class/s3multipartuploadcommitpartresponse) — Response for S3MultipartUploadCommitPart request. <span className="atlas-mono-hint">10 min</span>
+- [S3MultipartUploadAbortResponse](/class/s3multipartuploadabortresponse) — Response for Multipart Abort Request. <span className="atlas-mono-hint">10 min</span>
+- [S3InitiateMultipartUploadResponse](/class/s3initiatemultipartuploadresponse) — Response for S3 Initiate Multipart Upload request. <span className="atlas-mono-hint">10 min</span>
+- [S3ExpiredMultipartUploadsAbortResponse](/class/s3expiredmultipartuploadsabortresponse) — Handles response to abort expired MPUs. <span className="atlas-mono-hint">10 min</span>
+- [S3RevokeSecretResponse](/class/s3revokesecretresponse) — Response for RevokeS3Secret request. <span className="atlas-mono-hint">10 min</span>
+- [S3GetSecretResponse](/class/s3getsecretresponse) — Response for GetS3Secret request. <span className="atlas-mono-hint">10 min</span>
+- [OMSetSecretResponse](/class/omsetsecretresponse) — Response for SetSecret request. <span className="atlas-mono-hint">10 min</span>
+- [S3DeleteObjectTaggingResponseWithFSO](/class/s3deleteobjecttaggingresponsewithfso) — Response for delete object tagging request for FSO bucket. <span className="atlas-mono-hint">30 min</span>
+- [S3PutObjectTaggingResponseWithFSO](/class/s3putobjecttaggingresponsewithfso) — Response for put object tagging request for FSO bucket. <span className="atlas-mono-hint">30 min</span>
+- [S3DeleteObjectTaggingResponse](/class/s3deleteobjecttaggingresponse) — Response for delete object tagging request. <span className="atlas-mono-hint">10 min</span>
+- [S3PutObjectTaggingResponse](/class/s3putobjecttaggingresponse) — Response for put object tagging request. <span className="atlas-mono-hint">10 min</span>
+- [OMTenantRevokeUserAccessIdResponse](/class/omtenantrevokeuseraccessidresponse) — Response for OMTenantRevokeUserAccessIdRequest. <span className="atlas-mono-hint">10 min</span>
+- [OMTenantCreateResponse](/class/omtenantcreateresponse) — Response for OMTenantCreate request. <span className="atlas-mono-hint">10 min</span>
+- [OMTenantAssignUserAccessIdResponse](/class/omtenantassignuseraccessidresponse) — Response for OMAssignUserToTenantRequest. <span className="atlas-mono-hint">10 min</span>
+- [OMTenantDeleteResponse](/class/omtenantdeleteresponse) — Response for DeleteTenant request. <span className="atlas-mono-hint">10 min</span>
+- [OMTenantAssignAdminResponse](/class/omtenantassignadminresponse) — Response for OMTenantAssignAdminRequest. <span className="atlas-mono-hint">10 min</span>
+- [OMTenantRevokeAdminResponse](/class/omtenantrevokeadminresponse) — Response for OMTenantAssignAdminRequest. <span className="atlas-mono-hint">10 min</span>
+- [OMSetRangerServiceVersionResponse](/class/omsetrangerserviceversionresponse) — Response for OMSetRangerServiceVersionRequest. <span className="atlas-mono-hint">10 min</span>
+
+**[om-security](/component/om/om-security)** · 10 · 325 min
+
+- [BekInfoUtils](/class/bekinfoutils) — Utility class for common bucket encryption key operations. <span className="atlas-mono-hint">30 min</span>
+- [OzoneDelegationTokenSecretManager](/class/ozonedelegationtokensecretmanager) — SecretManager for Ozone Master. <span className="atlas-mono-hint">60 min</span>
+- [OMCertificateClient](/class/omcertificateclient) — Certificate client for OzoneManager. <span className="atlas-mono-hint">30 min</span>
+- [OzoneSecretStore](/class/ozonesecretstore) — SecretStore for Ozone Master. <span className="atlas-mono-hint">30 min</span>
+- [AWSV4AuthValidator](/class/awsv4authvalidator) — AWS v4 authentication payload validator. <span className="atlas-mono-hint">30 min</span>
+- [S3SecurityUtil](/class/s3securityutil) — Utility class which holds methods required for parse/validation of S3 Authentication Information which is part of OMR... <span className="atlas-mono-hint">30 min</span>
+- [OzoneManagerAuthorizer](/class/ozonemanagerauthorizer) — A subinterface of IAccessAuthorizer specifically for Ozone Manager. <span className="atlas-mono-hint">20 min</span>
+- [OzoneNativeAuthorizer](/class/ozonenativeauthorizer) — Native (internal) implementation of IAccessAuthorizer. <span className="atlas-mono-hint">45 min</span>
+- [SharedTmpDirAuthorizer](/class/sharedtmpdirauthorizer) — SharedTmp implementation of IAccessAuthorizer. <span className="atlas-mono-hint">30 min</span>
+- [OzoneAuthorizerFactory](/class/ozoneauthorizerfactory) — Creates IAccessAuthorizer instances based on configuration. <span className="atlas-mono-hint">20 min</span>
+
+**[om-server](/component/om/om-server)** · 70 · 2215 min
+
+- [OMService](/class/omservice) — Interface for stateful background service in OM. <span className="atlas-mono-hint">20 min</span>
+- [OMHANodeDetails](/class/omhanodedetails) — Class which maintains peer information and it's own OM node information. <span className="atlas-mono-hint">45 min</span>
+- [OMServiceManager](/class/omservicemanager) — Manipulate background services in OM. <span className="atlas-mono-hint">30 min</span>
+- [OMHAMetrics](/class/omhametrics) — Class to maintain metrics and info related to OM HA. <span className="atlas-mono-hint">20 min</span>
+- [OMPeriodicMetrics](/class/omperiodicmetrics) — Generic framework for metrics that need to get updated on a specified interval. <span className="atlas-mono-hint">20 min</span>
+- [OMServiceException](/class/omserviceexception) — Checked exceptions thrown by an OMService. <span className="atlas-mono-hint">10 min</span>
+- [S3SecretStoreProvider](/class/s3secretstoreprovider) — S3 secret store provider. <span className="atlas-mono-hint">20 min</span>
+- [S3SecretCacheProvider](/class/s3secretcacheprovider) — Provider of S3SecretCache. <span className="atlas-mono-hint">20 min</span>
+- [S3SecretStoreConfigurationKeys](/class/s3secretstoreconfigurationkeys) — Configuration keys for S3 secret store and cache. <span className="atlas-mono-hint">30 min</span>
+- [LocalS3StoreProvider](/class/locals3storeprovider) — Implementation of provider with local S3 secret store. <span className="atlas-mono-hint">30 min</span>
+- [ListIterator](/class/listiterator) — Common class to do listing of resources after merging rocksDB table cache and actual table. <span className="atlas-mono-hint">20 min</span>
+- [OMMultiTenantManager](/class/ommultitenantmanager) — OM MultiTenant manager interface. <span className="atlas-mono-hint">20 min</span>
+- [OzoneManagerStarter](/class/ozonemanagerstarter) — This class provides a command line interface to start the OM using Picocli. <span className="atlas-mono-hint">20 min</span>
+- [SnapshotChainInfo](/class/snapshotchaininfo) — SnapshotChain supporting SnapshotInfo class. <span className="atlas-mono-hint">20 min</span>
+- [S3SecretManager](/class/s3secretmanager) — Interface to manager s3 secret. <span className="atlas-mono-hint">20 min</span>
+- [S3SecretFunction](/class/s3secretfunction) — Functional interface for s3 secret locked actions. <span className="atlas-mono-hint">20 min</span>
+- [TenantOp](/class/tenantop) — Interface for tenant operations. <span className="atlas-mono-hint">20 min</span>
+- [OMStarterInterface](/class/omstarterinterface) — This interface is used by the OzoneManagerStarter class to allow the dependencies to be injected to the CLI class. <span className="atlas-mono-hint">20 min</span>
+- [IOzoneAcl](/class/iozoneacl) — Interface for Ozone Acl management. <span className="atlas-mono-hint">20 min</span>
+- [S3SecretStore](/class/s3secretstore) — S3 secret store interface. <span className="atlas-mono-hint">20 min</span>
+- [PrefixManager](/class/prefixmanager) — Handles prefix commands. <span className="atlas-mono-hint">20 min</span>
+- [OMMXBean](/class/ommxbean) — This is the JMX management interface for OM information. <span className="atlas-mono-hint">20 min</span>
+- [S3SecretCache](/class/s3secretcache) — Cache layer of S3 secrets. <span className="atlas-mono-hint">20 min</span>
+- [S3Batcher](/class/s3batcher) — Batcher for write and read operations. <span className="atlas-mono-hint">20 min</span>
+- [OzoneManager](/class/ozonemanager) — inferred(from-md): Central OM service: owns the Ratis server, protocol servers, metadata manager, key/bucket managers, security services... <span className="atlas-mono-hint">60 min</span>
+- [OmMetadataManagerImpl](/class/ommetadatamanagerimpl) — Ozone metadata manager interface. <span className="atlas-mono-hint">60 min</span>
+- [OmSnapshotManager](/class/omsnapshotmanager) — This class is used to manage/create OM snapshots. <span className="atlas-mono-hint">60 min</span>
+- [OMMultiTenantManagerImpl](/class/ommultitenantmanagerimpl) — Implements OMMultiTenantManager. <span className="atlas-mono-hint">60 min</span>
+- [OmMetadataReader](/class/ommetadatareader) — OM Metadata Reading class for the OM and Snapshot managers. <span className="atlas-mono-hint">60 min</span>
+- [OMDBCheckpointServlet](/class/omdbcheckpointservlet) — Provides the current checkpoint Snapshot of the OM DB. <span className="atlas-mono-hint">60 min</span>
+- [TrashOzoneFileSystem](/class/trashozonefilesystem) — FileSystem to be used by the Trash Emptier. <span className="atlas-mono-hint">60 min</span>
+- [SnapshotChainManager](/class/snapshotchainmanager) — This class is used for creating and accessing Snapshot Chains. <span className="atlas-mono-hint">60 min</span>
+- [OMDBCheckpointServletInodeBasedXfer](/class/omdbcheckpointservletinodebasedxfer) — Specialized OMDBCheckpointServlet implementation that transfers Ozone Manager database checkpoints using inode-based... <span className="atlas-mono-hint">45 min</span>
+- [PrefixManagerImpl](/class/prefixmanagerimpl) — Implementation of PrefixManager. <span className="atlas-mono-hint">45 min</span>
+- [OmSnapshot](/class/omsnapshot) — Metadata Reading class for OM Snapshots. <span className="atlas-mono-hint">45 min</span>
+- [TrashPolicyOzone](/class/trashpolicyozone) — TrashPolicy for Ozone Specific Trash Operations.Through this implementation of TrashPolicy ozone-specific trash optim... <span className="atlas-mono-hint">45 min</span>
+- [OzoneListStatusHelper](/class/ozoneliststatushelper) — Helper class for fetching List Status for a path. <span className="atlas-mono-hint">45 min</span>
+- [OmSnapshotLocalData](/class/omsnapshotlocaldata) — OmSnapshotLocalData is the in-memory representation of snapshot local metadata. <span className="atlas-mono-hint">45 min</span>
+- [SstFilteringService](/class/sstfilteringservice) — a from all the tables (columnFamilies) defined in the rocksdb This is a background service which will cleanup and fil... <span className="atlas-mono-hint">45 min</span>
+- [OmSnapshotLocalDataYaml](/class/omsnapshotlocaldatayaml) — Class for creating and reading snapshot local properties / data YAML files. <span className="atlas-mono-hint">45 min</span>
+- [OzoneManagerPrepareState](/class/ozonemanagerpreparestate) — Controls the prepare state of the OzoneManager containing the instance. <span className="atlas-mono-hint">45 min</span>
+- [ScmClient](/class/scmclient-d55a92) — Wrapper class for Scm protocol clients. <span className="atlas-mono-hint">45 min</span>
+- [GrpcOzoneManagerServer](/class/grpcozonemanagerserver) — Separated network server for gRPC transport OzoneManagerService s3g-&amp;gt;OM. <span className="atlas-mono-hint">30 min</span>
+- [OMDBArchiver](/class/omdbarchiver) — Class for handling operations relevant to archiving the OM DB tarball. <span className="atlas-mono-hint">30 min</span>
+- [OMStorage](/class/omstorage) — Ozone Manager VERSION file representation. <span className="atlas-mono-hint">30 min</span>
+- [OzonePrefixPathImpl](/class/ozoneprefixpathimpl) — Implementation of OzonePrefixPath interface. <span className="atlas-mono-hint">30 min</span>
+- [ResolvedBucket](/class/resolvedbucket) — Bundles information about a bucket, which is possibly a symlink, and the real bucket that it resolves to, if it is in... <span className="atlas-mono-hint">30 min</span>
+- [PendingKeysDeletion](/class/pendingkeysdeletion) — Tracks metadata for keys pending deletion and their associated blocks. <span className="atlas-mono-hint">30 min</span>
+- [ServiceInfoProvider](/class/serviceinfoprovider) — n the responsibility of caching the actual CA certificates in PEM format, and handle the update of these cached value... <span className="atlas-mono-hint">30 min</span>
+- [OzoneAclUtils](/class/ozoneaclutils) — Ozone Acl Wrapper class. <span className="atlas-mono-hint">30 min</span>
+- [S3SecretManagerImpl](/class/s3secretmanagerimpl) — S3 Secret manager. <span className="atlas-mono-hint">30 min</span>
+- [S3SecretLockedManager](/class/s3secretlockedmanager) — Wrapper with lock logic of S3SecretManager. <span className="atlas-mono-hint">30 min</span>
+- [OzoneManagerUtils](/class/ozonemanagerutils) — Ozone Manager utility class. <span className="atlas-mono-hint">30 min</span>
+- [OzoneManagerHttpServer](/class/ozonemanagerhttpserver) — HttpServer wrapper for the OzoneManager. <span className="atlas-mono-hint">30 min</span>
+- [OzoneManagerServiceGrpc](/class/ozonemanagerservicegrpc) — Grpc Service for handling S3 gateway OzoneManagerProtocol client requests. <span className="atlas-mono-hint">30 min</span>
+- [OzoneConfigUtil](/class/ozoneconfigutil) — Utility class for ozone configurations. <span className="atlas-mono-hint">30 min</span>
+- [SnapshotListJSONServlet](/class/snapshotlistjsonservlet) — Provides REST access to Ozone Snapshot List. <span className="atlas-mono-hint">30 min</span>
+- [DeleteKeysResult](/class/deletekeysresult) — Used in org.apache.hadoop.ozone.om.service.DirectoryDeletingService to capture the result of each delete task. <span className="atlas-mono-hint">30 min</span>
+- [OMPolicyProvider](/class/ompolicyprovider) — PolicyProvider for OM protocols. <span className="atlas-mono-hint">30 min</span>
+- [ServiceListJSONServlet](/class/servicelistjsonservlet) — Provides REST access to Ozone Service List. <span className="atlas-mono-hint">30 min</span>
+- [S3InMemoryCache](/class/s3inmemorycache) — S3 secret cache implementation based on in-memory cache. <span className="atlas-mono-hint">30 min</span>
+- [OzoneTrash](/class/ozonetrash) — OzoneTrash which takes an OM as parameter . <span className="atlas-mono-hint">30 min</span>
+- [OMMetrics](/class/ommetrics) — This class is for maintaining Ozone Manager statistics. <span className="atlas-mono-hint">20 min</span>
+- [OMPerformanceMetrics](/class/omperformancemetrics) — Including OM performance related metrics. <span className="atlas-mono-hint">20 min</span>
+- [DeletingServiceMetrics](/class/deletingservicemetrics) — Class contains metrics related to the OM Deletion services. <span className="atlas-mono-hint">20 min</span>
+- [OmSnapshotMetrics](/class/omsnapshotmetrics) — This class is for maintaining Snapshot Manager statistics. <span className="atlas-mono-hint">20 min</span>
+- [OmSnapshotInternalMetrics](/class/omsnapshotinternalmetrics) — This class contains internal Snapshot Operation metrics. <span className="atlas-mono-hint">20 min</span>
+- [BucketUtilizationMetrics](/class/bucketutilizationmetrics) — A class for collecting and reporting bucket utilization metrics. <span className="atlas-mono-hint">20 min</span>
+- [OmMetricsInfo](/class/ommetricsinfo) — OmMetricsInfo stored in a file, which will be used during OM restart to initialize the metrics. <span className="atlas-mono-hint">20 min</span>
+- [OmMetadataReaderMetrics](/class/ommetadatareadermetrics) — Interface OM Metadata Reading metrics classes. <span className="atlas-mono-hint">20 min</span>
+
+**[om-snapshot](/component/om/om-snapshot)** · 37 · 1105 min
+
+- [DeltaFileComputer](/class/deltafilecomputer) — The DeltaFileComputer interface defines a contract for computing delta files that represent changes between two snaps... <span className="atlas-mono-hint">20 min</span>
+- [FileLinkDeltaFileComputer](/class/filelinkdeltafilecomputer) — The FileLinkDeltaFileComputer is an abstract class that provides a base implementation for the DeltaFileComputer inte... <span className="atlas-mono-hint">30 min</span>
+- [CompositeDeltaDiffComputer](/class/compositedeltadiffcomputer) — CompositeDeltaDiffComputer is responsible for computing the delta file differences between two snapshots, utilizing d... <span className="atlas-mono-hint">30 min</span>
+- [RDBDifferComputer](/class/rdbdiffercomputer) — Computes RocksDB SST file differences between two snapshots and materializes differing SST files as hard links in the... <span className="atlas-mono-hint">30 min</span>
+- [FullDiffComputer](/class/fulldiffcomputer) — FullDiffComputer is a specialized implementation of FileLinkDeltaFileComputer that computes the delta files between t... <span className="atlas-mono-hint">30 min</span>
+- [SnapshotDiffObjectInfo](/class/snapshotdiffobjectinfo) — Represents information about an object in a snapshot difference. <span className="atlas-mono-hint">10 min</span>
+- [PersistentList](/class/persistentlist) — Define an interface for persistent list. <span className="atlas-mono-hint">20 min</span>
+- [ReferenceCountedCallback](/class/referencecountedcallback) — Callback interface for ReferenceCounted. <span className="atlas-mono-hint">20 min</span>
+- [RequireSnapshotFeatureState](/class/requiresnapshotfeaturestate) — Annotation used to check that the snapshot feature in desired state. <span className="atlas-mono-hint">20 min</span>
+- [PersistentMap](/class/persistentmap) — Define an interface for persistent map. <span className="atlas-mono-hint">20 min</span>
+- [PersistentSet](/class/persistentset) — Define an interface for persistent set. <span className="atlas-mono-hint">20 min</span>
+- [SnapshotDiffManagerMXBean](/class/snapshotdiffmanagermxbean) — JMX interface for SnapshotDiffManager. <span className="atlas-mono-hint">20 min</span>
+- [ObjectPathResolver](/class/objectpathresolver) — Class to resolve paths of Objects. <span className="atlas-mono-hint">20 min</span>
+- [SnapshotDiffManager](/class/snapshotdiffmanager) — Class to generate snapshot diff. <span className="atlas-mono-hint">60 min</span>
+- [OmSnapshotLocalDataManager](/class/omsnapshotlocaldatamanager) — Manages local data and metadata associated with Ozone Manager (OM) snapshots, including the creation, storage, and re... <span className="atlas-mono-hint">60 min</span>
+- [SnapshotDiffValueParser](/class/snapshotdiffvalueparser) — Parses snapshot diff values without full deserialization. <span className="atlas-mono-hint">45 min</span>
+- [SnapshotUtils](/class/snapshotutils) — Util class for snapshot diff APIs. <span className="atlas-mono-hint">45 min</span>
+- [RocksDbPersistentMap](/class/rocksdbpersistentmap) — Persistent map backed by RocksDB. <span className="atlas-mono-hint">30 min</span>
+- [ReferenceCounted](/class/referencecounted) — Add reference counter to an object instance. <span className="atlas-mono-hint">30 min</span>
+- [RocksDbPersistentList](/class/rocksdbpersistentlist) — Persistent list backed by RocksDB. <span className="atlas-mono-hint">30 min</span>
+- [OMDBCheckpointUtils](/class/omdbcheckpointutils) — Utility class for handling operations related to OM DB Checkpoints. <span className="atlas-mono-hint">30 min</span>
+- [FSODirectoryPathResolver](/class/fsodirectorypathresolver) — Class to resolve absolute paths for FSO DirectoryInfo Objects. <span className="atlas-mono-hint">30 min</span>
+- [RequireSnapshotFeatureStateAspect](/class/requiresnapshotfeaturestateaspect) — 'Aspect' for checking whether snapshot feature is enabled. <span className="atlas-mono-hint">30 min</span>
+- [RocksDbPersistentSet](/class/rocksdbpersistentset) — Persistent set backed by RocksDB. <span className="atlas-mono-hint">30 min</span>
+- [OmSnapshotUtils](/class/omsnapshotutils) — Ozone Manager Snapshot Utilities. <span className="atlas-mono-hint">30 min</span>
+- [MultiSnapshotLocks](/class/multisnapshotlocks) — Class to take multiple locks on multiple snapshots. <span className="atlas-mono-hint">30 min</span>
+- [SnapshotCache](/class/snapshotcache) — Thread-safe custom unbounded LRU cache to manage open snapshot DB instances. <span className="atlas-mono-hint">10 min</span>
+- [OMSnapshotDirectoryMetrics](/class/omsnapshotdirectorymetrics) — Metrics for tracking db.snapshots directory space usage and SST file counts. <span className="atlas-mono-hint">20 min</span>
+- [SnapshotDiffMetadataManager](/class/snapshotdiffmetadatamanager) — Interface representing the metadata manager for snapshot difference operations. <span className="atlas-mono-hint">20 min</span>
+- [SnapshotDiffMetadataManagerImpl](/class/snapshotdiffmetadatamanagerimpl) — Implementation of the SnapshotDiffMetadataManager interface. <span className="atlas-mono-hint">30 min</span>
+- [SnapshotDiffDBDefinition](/class/snapshotdiffdbdefinition) — The SnapshotDiffDBDefinition class defines the schema for the snapshot difference database tables used in snapshot di... <span className="atlas-mono-hint">30 min</span>
+- [SnapshotDefragService](/class/snapshotdefragservice) — Background service for defragmenting snapshots in the active snapshot chain. <span className="atlas-mono-hint">60 min</span>
+- [ReclaimableFilter](/class/reclaimablefilter) — This class is responsible for opening last N snapshot given a snapshot metadata manager or AOS metadata manager by ac... <span className="atlas-mono-hint">45 min</span>
+- [ReclaimableKeyFilter](/class/reclaimablekeyfilter) — Filter to return deleted keys which are reclaimable based on their presence in previous snapshot in the snapshot chain. <span className="atlas-mono-hint">30 min</span>
+- [ReclaimableRenameEntryFilter](/class/reclaimablerenameentryfilter) — Class to filter out rename table entries which are reclaimable based on the key presence in previous snapshot's keyTa... <span className="atlas-mono-hint">30 min</span>
+- [ReclaimableDirFilter](/class/reclaimabledirfilter) — Class to filter out deleted directories which are reclaimable based on their presence in previous snapshot in the sna... <span className="atlas-mono-hint">30 min</span>
+- [TableMergeIterator](/class/tablemergeiterator) — TableMergeIterator is an implementation of an iterator that merges multiple table iterators and filters the data base... <span className="atlas-mono-hint">30 min</span>
+
+**[om-upgrade](/component/om/om-upgrade)** · 9 · 210 min
+
+- [BelongsToLayoutVersion](/class/belongstolayoutversion) — Annotation to mark a class that belongs to a specific Layout Version. <span className="atlas-mono-hint">20 min</span>
+- [OmUpgradeAction](/class/omupgradeaction) — Upgrade Action for OzoneManager which takes in an 'OM' instance. <span className="atlas-mono-hint">20 min</span>
+- [UpgradeActionOm](/class/upgradeactionom) — Annotation to specify upgrade action run during Ozone Manager finalization. <span className="atlas-mono-hint">20 min</span>
+- [DisallowedUntilLayoutVersion](/class/disalloweduntillayoutversion) — Annotation used to "disallow" an API if current layout version does not include the associated layout feature. <span className="atlas-mono-hint">20 min</span>
+- [OMLayoutVersionManager](/class/omlayoutversionmanager) — Class to manage layout versions and features for Ozone Manager. <span className="atlas-mono-hint">30 min</span>
+- [OMLayoutFeatureAspect](/class/omlayoutfeatureaspect) — 'Aspect' for OM Layout Feature API. <span className="atlas-mono-hint">30 min</span>
+- [QuotaRepairUpgradeAction](/class/quotarepairupgradeaction) — Quota repair for usages action to be triggered after upgrade. <span className="atlas-mono-hint">30 min</span>
+- [OMUpgradeFinalizer](/class/omupgradefinalizer) — UpgradeFinalizer implementation for the Ozone Manager service. <span className="atlas-mono-hint">30 min</span>
+- [OMLayoutFeature](/class/omlayoutfeature) — List of OM Layout features / versions. <span className="atlas-mono-hint">10 min</span>
+
+**[om-volume-manager](/component/om/om-volume-manager)** · 2 · 50 min
+
+- [VolumeManager](/class/volumemanager) — VolumeManager is responsible for read operations on a volume. <span className="atlas-mono-hint">20 min</span>
+- [VolumeManagerImpl](/class/volumemanagerimpl) — Volume Manager implementation. <span className="atlas-mono-hint">30 min</span>

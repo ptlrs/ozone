@@ -1,0 +1,160 @@
+---
+slug: /view/ratis-consensus
+title: "Ratis consensus (OM + SCM + DN)"
+sidebar_label: "Ratis consensus (OM + SCM + DN)"
+atlasGenerated: true
+---
+# Ratis consensus (OM + SCM + DN)
+<div className="atlas-flow-hero">
+<p>The three state machines that sit on top of Apache Ratis in Ozone: OM apply loop, SCM HA state machine, DN container state machine, plus …</p>
+<div className="atlas-flow-hero__meta">1005 minutes · 30 classes</div>
+</div>
+## Flow walkthrough
+OM applies OMClientRequest logs, DN applies container-op logs, SCM applies HA logs. Each has its own state machine class; the plumbing (retry policy, snapshot info, transport) is shared across all three via hadoop-hdds/framework.
+```mermaid
+flowchart LR
+  R[Ratis log] --> OM[OzoneManagerStateMachine]
+  R --> SCM[SCMHAServer state machine]
+  R --> DN[ContainerStateMachine]
+```
+## Key classes on this path
+
+<div className="atlas-step-grid">
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">1</div>
+<div>
+<strong><a href="/class/localstream">LocalStream</a></strong>
+<p>inferred: LocalStream — role not documented.</p>
+<span className="atlas-mono-hint">DN/ratis-statemachine-dn · 90 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">2</div>
+<div>
+<strong><a href="/class/containerstatemachine">ContainerStateMachine</a></strong>
+<p>A StateMachine for containers, which is responsible for handling different types of container requests.</p>
+<span className="atlas-mono-hint">DN/ratis-statemachine-dn · 60 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">3</div>
+<div>
+<strong><a href="/class/xceiverserverratis">XceiverServerRatis</a></strong>
+<p>Creates a ratis server endpoint that acts as the communication layer for Ozone containers.</p>
+<span className="atlas-mono-hint">DN/ratis-statemachine-dn · 60 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">4</div>
+<div>
+<strong><a href="/class/blockdeletingtask">BlockDeletingTask</a></strong>
+<p>BlockDeletingTask for KeyValueContainer.</p>
+<span className="atlas-mono-hint">DN/ratis-statemachine-dn · 60 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">5</div>
+<div>
+<strong><a href="/class/stalerecoveringcontainerscrubbingservice">StaleRecoveringContainerScrubbingService</a></strong>
+<p>A per-datanode container stale recovering container scrubbing service takes in charge of deleting stale recovering co...</p>
+<span className="atlas-mono-hint">DN/ratis-statemachine-dn · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">6</div>
+<div>
+<strong><a href="/class/ratisserverconfiguration">RatisServerConfiguration</a></strong>
+<p>Holds configuration items for Ratis/Raft server.</p>
+<span className="atlas-mono-hint">DN/ratis-statemachine-dn · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">7</div>
+<div>
+<strong><a href="/class/dispatchercontext">DispatcherContext</a></strong>
+<p>DispatcherContext class holds transport protocol specific context info required for execution of container commands o...</p>
+<span className="atlas-mono-hint">DN/ratis-statemachine-dn · 10 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">8</div>
+<div>
+<strong><a href="/class/csmmetrics">CSMMetrics</a></strong>
+<p>This class is for maintaining Container State Machine statistics.</p>
+<span className="atlas-mono-hint">DN/ratis-statemachine-dn · 20 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">9</div>
+<div>
+<strong><a href="/class/retrypolicycreator">RetryPolicyCreator</a></strong>
+<p>The interface of RetryLimited policy creator.</p>
+<span className="atlas-mono-hint">HddsCommon/ratis-integration · 20 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">10</div>
+<div>
+<strong><a href="/class/ratishelper">RatisHelper</a></strong>
+<p>Ratis helper methods.</p>
+<span className="atlas-mono-hint">HddsCommon/ratis-integration · 60 min</span>
+</div>
+</div>
+</div>
+
+## What to understand before moving on
+- Explain the service boundary crossings in this path: DN -> HddsCommon -> OM -> Ratis-integration.
+- Name the entry-point classes and the class that owns each durable state change.
+- Identify the retry, failure, or cleanup behavior that keeps the path correct when a service is slow or unavailable.
+- Open the individual class pages for invariants, sharp edges, source links, and test exemplars.
+- Use these tags as anchors when searching later: `ratis`, `hot-path`.
+## Full reading list
+### DN — 8 classes · 360 min
+
+**[ratis-statemachine-dn](/component/dn/ratis-statemachine-dn)** · 8 · 360 min
+
+- [LocalStream](/class/localstream) — inferred: LocalStream — role not documented. <span className="atlas-mono-hint">90 min</span>
+- [ContainerStateMachine](/class/containerstatemachine) — A StateMachine for containers, which is responsible for handling different types of container requests. <span className="atlas-mono-hint">60 min</span>
+- [XceiverServerRatis](/class/xceiverserverratis) — Creates a ratis server endpoint that acts as the communication layer for Ozone containers. <span className="atlas-mono-hint">60 min</span>
+- [RatisServerConfiguration](/class/ratisserverconfiguration) — Holds configuration items for Ratis/Raft server. <span className="atlas-mono-hint">30 min</span>
+- [DispatcherContext](/class/dispatchercontext) — DispatcherContext class holds transport protocol specific context info required for execution of container commands o... <span className="atlas-mono-hint">10 min</span>
+- [CSMMetrics](/class/csmmetrics) — This class is for maintaining Container State Machine statistics. <span className="atlas-mono-hint">20 min</span>
+- [BlockDeletingTask](/class/blockdeletingtask) — BlockDeletingTask for KeyValueContainer. <span className="atlas-mono-hint">60 min</span>
+- [StaleRecoveringContainerScrubbingService](/class/stalerecoveringcontainerscrubbingservice) — A per-datanode container stale recovering container scrubbing service takes in charge of deleting stale recovering co... <span className="atlas-mono-hint">30 min</span>
+
+### HddsCommon — 11 classes · 240 min
+
+**[ratis-integration](/component/hddscommon/ratis-integration)** · 11 · 240 min
+
+- [RatisHelper](/class/ratishelper) — Ratis helper methods. <span className="atlas-mono-hint">60 min</span>
+- [ContainerCommandRequestMessage](/class/containercommandrequestmessage) — Implementing the Message interface for ContainerCommandRequestProto. <span className="atlas-mono-hint">30 min</span>
+- [ServerNotLeaderException](/class/servernotleaderexception) — Exception thrown when a server is not a leader for Ratis group. <span className="atlas-mono-hint">10 min</span>
+- [RatisClientConfig](/class/ratisclientconfig) — Configuration related to Ratis Client. <span className="atlas-mono-hint">20 min</span>
+- [RetryPolicyCreator](/class/retrypolicycreator) — The interface of RetryLimited policy creator. <span className="atlas-mono-hint">20 min</span>
+- [RequestTypeDependentRetryPolicyCreator](/class/requesttypedependentretrypolicycreator) — Table mapping exception type to retry policy used for the exception in write and watch request. <span className="atlas-mono-hint">30 min</span>
+- [RetryLimitedPolicyCreator](/class/retrylimitedpolicycreator) — The creator of RetryLimited policy. <span className="atlas-mono-hint">30 min</span>
+- [SCMNodeInfo](/class/scmnodeinfo) — Class which builds SCM Node Information. <span className="atlas-mono-hint">10 min</span>
+- [RetriableWithNoFailoverException](/class/retriablewithnofailoverexception) — This exception indicates that the request can be retried, but only on the same server, without failover. <span className="atlas-mono-hint">10 min</span>
+- [RetriableWithFailOverException](/class/retriablewithfailoverexception) — This exception indicates that the request can be retried, and client need to retry on the next server. <span className="atlas-mono-hint">10 min</span>
+- [NonRetriableException](/class/nonretriableexception) — exception for which there should be no retry. <span className="atlas-mono-hint">10 min</span>
+
+### OM — 7 classes · 310 min
+
+**[om-ratis](/component/om/om-ratis)** · 7 · 310 min
+
+- [OzoneManagerRatisServer](/class/ozonemanagerratisserver) — Creates a Ratis server endpoint for OM. <span className="atlas-mono-hint">60 min</span>
+- [OzoneManagerStateMachine](/class/ozonemanagerstatemachine) — The OM StateMachine is the state machine for OM Ratis server. <span className="atlas-mono-hint">60 min</span>
+- [OzoneManagerDoubleBuffer](/class/ozonemanagerdoublebuffer) — This class implements DoubleBuffer implementation of OMClientResponse's. <span className="atlas-mono-hint">60 min</span>
+- [OzoneManagerRatisServerConfig](/class/ozonemanagerratisserverconfig) — Class which defines OzoneManager Ratis Server config. <span className="atlas-mono-hint">20 min</span>
+- [OzoneManagerDoubleBufferMetrics](/class/ozonemanagerdoublebuffermetrics) — Class which maintains metrics related to OzoneManager DoubleBuffer. <span className="atlas-mono-hint">20 min</span>
+- [OmRatisSnapshotProvider](/class/omratissnapshotprovider) — OmRatisSnapshotProvider downloads the latest checkpoint from the leader OM and loads the checkpoint into State Machine. <span className="atlas-mono-hint">45 min</span>
+- [OzoneManagerRatisUtils](/class/ozonemanagerratisutils) — Utility class used by OzoneManager HA. <span className="atlas-mono-hint">45 min</span>
+
+### Ratis-integration — 4 classes · 95 min
+
+**[ratis-integration](/component/ratis-integration/ratis-integration)** · 4 · 95 min
+
+- [RatisMetricsUtils](/class/ratismetricsutils) — Utilities for ratis metrics dropwizard3. <span className="atlas-mono-hint">20 min</span>
+- [SCMHandler](/class/scmhandler) — Base interface for SCM handlers participating in Ratis-based HA. <span className="atlas-mono-hint">20 min</span>
+- [SCMHAUtils](/class/scmhautils) — Utility class used by SCM HA. <span className="atlas-mono-hint">45 min</span>
+- [SequenceIdType](/class/sequenceidtype) — Represents the sequence ID types managed by org.apache.hadoop.hdds.scm.ha.SequenceIdGenerator The enum constant names... <span className="atlas-mono-hint">10 min</span>

@@ -1,0 +1,123 @@
+---
+slug: /view/read-path-e2e
+title: "Read path end-to-end"
+sidebar_label: "Read path end-to-end"
+atlasGenerated: true
+---
+# Read path end-to-end
+<div className="atlas-flow-hero">
+<p>Follow one key read from OzoneBucket down to the datanode chunk read, including pipeline resolution and EC-vs-Ratis divergence at the inp…</p>
+<div className="atlas-flow-hero__meta">450 minutes · 8 classes</div>
+</div>
+## Flow walkthrough
+Reads split at the input-stream layer: RATIS keys route through KeyInputStream; EC keys route through ECKeyInputStream and rebuild missing cells via the reconstruction input stream. Both funnel through XceiverClientGrpc.
+```mermaid
+sequenceDiagram
+  participant App as OzoneBucket
+  participant Client as RpcClient
+  participant OM
+  participant SCM
+  participant DN as XceiverClientGrpc
+  App->>Client: getKey()
+  Client->>OM: lookupKey
+  Client->>SCM: getContainerWithPipeline
+  Client->>DN: readChunk
+```
+## Key classes on this path
+
+<div className="atlas-step-grid">
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">1</div>
+<div>
+<strong><a href="/class/ozonebucket">OzoneBucket</a></strong>
+<p>A class that encapsulates OzoneBucket.</p>
+<span className="atlas-mono-hint">Client/ozone-client · 60 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">2</div>
+<div>
+<strong><a href="/class/rpcclient">RpcClient</a></strong>
+<p>Ozone RPC Client Implementation, it connects to OM, SCM and DataNode to execute client calls.</p>
+<span className="atlas-mono-hint">Client/ozone-client · 60 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">3</div>
+<div>
+<strong><a href="/class/keyinputstream">KeyInputStream</a></strong>
+<p>Maintaining a list of BlockInputStream.</p>
+<span className="atlas-mono-hint">Client/ozone-client · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">4</div>
+<div>
+<strong><a href="/class/ecblockreconstructedstripeinputstream">ECBlockReconstructedStripeInputStream</a></strong>
+<p>Class to read EC encoded data from blocks a stripe at a time, when some of the data blocks are not available.</p>
+<span className="atlas-mono-hint">Client/hdds-client · 60 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">5</div>
+<div>
+<strong><a href="/class/blockinputstream">BlockInputStream</a></strong>
+<p>An InputStream called from KeyInputStream to read a block from the container.</p>
+<span className="atlas-mono-hint">Client/hdds-client · 60 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">6</div>
+<div>
+<strong><a href="/class/chunkinputstream">ChunkInputStream</a></strong>
+<p>An InputStream called from BlockInputStream to read a chunk from the container.</p>
+<span className="atlas-mono-hint">Client/hdds-client · 60 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">7</div>
+<div>
+<strong><a href="/class/xceiverclientgrpc">XceiverClientGrpc</a></strong>
+<p>XceiverClientSpi implementation, the standalone client.</p>
+<span className="atlas-mono-hint">Client/hdds-client · 60 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">8</div>
+<div>
+<strong><a href="/class/keyvaluehandler">KeyValueHandler</a></strong>
+<p>Handler for KeyValue Container type.</p>
+<span className="atlas-mono-hint">DN/kv-container · 60 min</span>
+</div>
+</div>
+</div>
+
+## What to understand before moving on
+- Explain the service boundary crossings in this path: Client -> DN.
+- Name the entry-point classes and the class that owns each durable state change.
+- Identify the retry, failure, or cleanup behavior that keeps the path correct when a service is slow or unavailable.
+- Open the individual class pages for invariants, sharp edges, source links, and test exemplars.
+- Use these tags as anchors when searching later: `read-path`, `hot-path`.
+## Full reading list
+### Client — 7 classes · 390 min
+
+**[hdds-client](/component/client/hdds-client)** · 4 · 240 min
+
+- [XceiverClientGrpc](/class/xceiverclientgrpc) — XceiverClientSpi implementation, the standalone client. <span className="atlas-mono-hint">60 min</span>
+- [ChunkInputStream](/class/chunkinputstream) — An InputStream called from BlockInputStream to read a chunk from the container. <span className="atlas-mono-hint">60 min</span>
+- [BlockInputStream](/class/blockinputstream) — An InputStream called from KeyInputStream to read a block from the container. <span className="atlas-mono-hint">60 min</span>
+- [ECBlockReconstructedStripeInputStream](/class/ecblockreconstructedstripeinputstream) — Class to read EC encoded data from blocks a stripe at a time, when some of the data blocks are not available. <span className="atlas-mono-hint">60 min</span>
+
+**[ozone-client](/component/client/ozone-client)** · 3 · 150 min
+
+- [RpcClient](/class/rpcclient) — Ozone RPC Client Implementation, it connects to OM, SCM and DataNode to execute client calls. <span className="atlas-mono-hint">60 min</span>
+- [OzoneBucket](/class/ozonebucket) — A class that encapsulates OzoneBucket. <span className="atlas-mono-hint">60 min</span>
+- [KeyInputStream](/class/keyinputstream) — Maintaining a list of BlockInputStream. <span className="atlas-mono-hint">30 min</span>
+
+### DN — 1 class · 60 min
+
+**[kv-container](/component/dn/kv-container)** · 1 · 60 min
+
+- [KeyValueHandler](/class/keyvaluehandler) — Handler for KeyValue Container type. <span className="atlas-mono-hint">60 min</span>
+
+<UnresolvedNote context="this view's selectors" items={["org.apache.hadoop.ozone.client.io.ECKeyInputStream","org.apache.hadoop.ozone.om.request.key.OMKeyLookupRequest"]} />

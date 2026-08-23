@@ -1,0 +1,5444 @@
+{
+  "_meta": {
+    "generated": "by scripts/lib/tag-seed.mjs",
+    "rules": [
+      {
+        "tag": "hot-path",
+        "reason": "appears in write-path-e2e, read-path-e2e, or ratis-consensus (post-resolution)"
+      },
+      {
+        "tag": "invariant-carrier",
+        "reason": "non-empty invariants[] OR concurrency in {ratis-applied, actor/queue}"
+      },
+      {
+        "tag": "background-loop",
+        "reason": "role matches scheduler|service|scanner|balancer|reconciliation|periodic|background AND kind in {service, coordinator}"
+      },
+      {
+        "tag": "state-machine",
+        "reason": "kind === state-machine OR concurrency === ratis-applied"
+      },
+      {
+        "tag": "rocksdb-touching",
+        "reason": "persistence names a RocksDB table (contains \"RocksDB\" or \"Table\")"
+      },
+      {
+        "tag": "proto-boundary",
+        "reason": "kind === rpc-stub OR fqcn ends with RequestHandler / ProtocolServerSideImpl / ProtocolClientSideImpl"
+      },
+      {
+        "tag": "sharp-edge-carrier",
+        "reason": "non-empty sharp_edges[]"
+      },
+      {
+        "tag": "test-anchor",
+        "reason": "non-empty test_exemplar"
+      }
+    ],
+    "view_derived": {
+      "write-path-e2e": "write-path",
+      "read-path-e2e": "read-path",
+      "ec-e2e": "ec",
+      "ratis-consensus": "ratis",
+      "snapshot-lifecycle": "snapshot",
+      "background-jobs": "background",
+      "security": "security",
+      "upgrade-finalize": "upgrade",
+      "metadata-om": "metadata-om",
+      "metadata-scm": "metadata-scm"
+    }
+  },
+  "org.apache.hadoop.hdds.utils.db.ManagedRawSSTFileReader": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.utils.db.LatestVersionedKWayMergeIterator": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.db.ManagedRawSSTFileIterator": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.NativeLibraryLoader": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.upgrade.AbstractLayoutVersionManager": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.upgrade.DefaultUpgradeFinalizationExecutor": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.upgrade.BasicUpgradeFinalizer": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.lease.LeaseManager": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.upgrade.HDDSLayoutVersionManager": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.protocolPB.DiskBalancerProtocolPB": [
+    "proto-boundary"
+  ],
+  "org.apache.hadoop.hdds.protocolPB.ReconfigureProtocolPB": [
+    "proto-boundary"
+  ],
+  "org.apache.hadoop.hdds.protocolPB.DiskBalancerProtocolServerSideTranslatorPB": [
+    "proto-boundary"
+  ],
+  "org.apache.hadoop.hdds.protocolPB.ReconfigureProtocolServerSideTranslatorPB": [
+    "proto-boundary"
+  ],
+  "org.apache.hadoop.hdds.protocolPB.SCMSecurityProtocolPB": [
+    "proto-boundary"
+  ],
+  "org.apache.hadoop.hdds.protocolPB.DiskBalancerProtocolClientSideTranslatorPB": [
+    "background-loop"
+  ],
+  "org.apache.hadoop.hdds.security.token.BlockTokenVerifier": [
+    "security",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.security.token.OzoneBlockTokenSecretManager": [
+    "security",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.security.token.ContainerTokenVerifier": [
+    "security",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.security.ssl.ReloadingX509KeyManager": [
+    "security",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.security.ssl.ReloadingX509TrustManager": [
+    "security",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.security.symmetric.ManagedSecretKey": [
+    "security",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.security.symmetric.SecretKeyManager": [
+    "security",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.security.symmetric.DefaultSecretKeySignerClient": [
+    "invariant-carrier",
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.x509.certificate.utils.CertificateSignRequest": [
+    "security",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.security.x509.certificate.authority.profile.DefaultProfile": [
+    "security",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.security.x509.certificate.authority.DefaultCAServer": [
+    "security",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.security.x509.certificate.client.SCMCertificateClient": [
+    "invariant-carrier",
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.x509.certificate.client.RootCaRotationPoller": [
+    "invariant-carrier",
+    "security",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.security.x509.certificate.client.DefaultCertificateClient": [
+    "security",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.server.OzoneAdmins": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.server.OzoneBlacklist": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.server.http.ProfileServlet": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.server.http.BaseHttpServer": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.server.http.HttpServer2Metrics": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.server.http.RatisDropwizardExports": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.server.http.HttpServer2": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.server.http.HtmlQuoting": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.server.ServerUtils": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.server.events.FixedThreadPoolWithAffinityExecutor": [
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.hdds.server.events.EventQueue": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.server.events.SingleThreadExecutor": [
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.hdds.server.events.EventWatcher": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.UgiMetricsUtil": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.RDBSnapshotProvider": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.CollectionUtils": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.RocksDBStoreMetrics": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.utils.CpuMetrics": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.BackgroundTaskQueue": [
+    "background-loop"
+  ],
+  "org.apache.hadoop.hdds.utils.db.DBUpdatesWrapper": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.utils.db.FixedLengthStringCodec": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.db.CodecBufferCodec": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.db.DBConfigFromFile": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.db.RDBStoreCodecBufferIterator": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.db.DBProfile": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.utils.db.cache.CacheKey": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.utils.db.cache.CacheValue": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.utils.db.cache.TableCache": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.db.SequenceNumberNotFoundException": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.utils.db.DBStoreBuilder": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.db.RDBTable": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.db.RDBBatchOperation": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.db.TableConfig": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.utils.db.RDBMetrics": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.utils.db.RDBStoreByteArrayIterator": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.db.TypedTable": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.db.DBStore": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.utils.db.RDBCheckpointUtils": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.utils.db.RocksDBConfiguration": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.utils.db.RDBCheckpointManager": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.utils.db.InodeMetadataRocksDBCheckpoint": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.db.RDBStore": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.db.CodecRegistry": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.db.RocksDBCheckpoint": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.utils.db.RocksDatabase": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.utils.db.RDBStoreAbstractIterator": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.utils.PrometheusMetricsSinkUtil": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.HddsServerUtil": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.DecayRpcSchedulerUtil": [
+    "background-loop",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.BackgroundService": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.Archiver": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.HttpServletUtils": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.ExitManager": [
+    "background-loop"
+  ],
+  "org.apache.hadoop.hdds.scm.net.NodeSchemaManager": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.net.NetworkTopologyImpl": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.net.NodeSchemaLoader": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.protocolPB.StorageContainerLocationProtocolPB": [
+    "proto-boundary"
+  ],
+  "org.apache.hadoop.hdds.scm.protocolPB.ScmBlockLocationProtocolPB": [
+    "proto-boundary"
+  ],
+  "org.apache.hadoop.hdds.scm.proxy.SingleSecretKeyProtocolProxyProvider": [
+    "background-loop"
+  ],
+  "org.apache.hadoop.hdds.scm.proxy.SecretKeyProtocolFailoverProxyProvider": [
+    "background-loop"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SCMHAUtils": [
+    "hot-path",
+    "ratis",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SequenceIdType": [
+    "hot-path",
+    "ratis",
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.client.ScmTopologyClient": [
+    "background-loop",
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.hdds.scm.client.ScmClient": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.fs.DU": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.fs.SaveSpaceUsageToFile": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.fs.DUOptimized": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.fs.CachingSpaceUsageSource": [
+    "background-loop",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.fs.DUOptimizedFactory": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.fs.DedicatedDiskSpaceUsage": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.fs.DUFactory": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.fs.DedicatedDiskSpaceUsageFactory": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.conf.HddsConfServlet": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.conf.ReconfigurationHandler": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.conf.ConfigurationSource": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.conf.ReconfigurableConfig": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.conf.ConfigFileGenerator": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.conf.ConfigurationReflectionUtil": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.conf.ConfigFileAppender": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.db.managed.ManagedDBOptions": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.db.managed.ManagedCheckpoint": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.utils.db.managed.ManagedDirectSlice": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.db.managed.ManagedBlockBasedTableConfig": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.utils.db.managed.JniLibNamePropertyWriter": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.utils.db.managed.ManagedRocksDB": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.utils.db.managed.ManagedRocksObjectUtils": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.utils.db.RocksDatabaseException": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.RatisPipelineProvider": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.choose.algorithms.PipelineChoosePolicyFactory": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.choose.algorithms.RoundRobinPipelineChoosePolicy": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.choose.algorithms.CapacityPipelineChoosePolicy": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.PipelineStateMap": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.SimplePipelineProvider": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.WritableECContainerProvider": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.PipelineActionHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.WritableRatisContainerProvider": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.ECPipelineProvider": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.leader.choose.algorithms.LeaderChoosePolicy": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.PipelinePlacementPolicy": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.SortedList": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.PipelineStateManagerImpl": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.SCMPipelineMetrics": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.PipelineManagerImpl": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.PipelineManagerMXBean": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.BackgroundPipelineCreator": [
+    "background",
+    "background-loop",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.safemode.SafeModeRuleFactory": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.safemode.ECContainerSafeModeRule": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.safemode.HealthyPipelineSafeModeRule": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.safemode.ECMinDataNodeSafeModeRule": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.safemode.DataNodeSafeModeRule": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.safemode.SCMSafeModeManager": [
+    "background",
+    "invariant-carrier",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.safemode.OneReplicaPipelineSafeModeRule": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.safemode.RatisContainerSafeModeRule": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.ScmUtils": [
+    "background",
+    "invariant-carrier",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.security.RootCARotationManager": [
+    "background",
+    "background-loop",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.security.SecretKeyManagerService": [
+    "background",
+    "background-loop",
+    "invariant-carrier",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.server.SCMContainerMetrics": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.server.SCMMXBean": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.server.upgrade.FinalizationStateManagerImpl": [
+    "background",
+    "metadata-scm",
+    "rocksdb-touching",
+    "upgrade"
+  ],
+  "org.apache.hadoop.hdds.scm.server.upgrade.FinalizationManagerImpl": [
+    "background",
+    "invariant-carrier",
+    "metadata-scm",
+    "upgrade"
+  ],
+  "org.apache.hadoop.hdds.scm.server.upgrade.SCMUpgradeFinalizer": [
+    "background",
+    "background-loop",
+    "metadata-scm",
+    "upgrade"
+  ],
+  "org.apache.hadoop.hdds.scm.server.SCMDatanodeProtocolServer": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.server.StorageContainerManagerStarter": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.server.StorageContainerManagerHttpServer": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.server.SCMCertStore": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.server.SCMDatanodeHeartbeatDispatcher": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.server.StorageContainerManager": [
+    "background",
+    "background-loop",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.server.SCMClientProtocolServer": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.server.SCMBlockProtocolServer": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.protocol.StorageContainerLocationProtocolServerSideTranslatorPB": [
+    "background",
+    "metadata-scm",
+    "proto-boundary"
+  ],
+  "org.apache.hadoop.hdds.scm.protocol.SecretKeyProtocolServerSideTranslatorPB": [
+    "background",
+    "metadata-scm",
+    "proto-boundary"
+  ],
+  "org.apache.hadoop.hdds.scm.protocol.SCMSecurityProtocolServerSideTranslatorPB": [
+    "background",
+    "metadata-scm",
+    "proto-boundary"
+  ],
+  "org.apache.hadoop.hdds.scm.protocol.ScmBlockLocationProtocolServerSideTranslatorPB": [
+    "background",
+    "metadata-scm",
+    "proto-boundary"
+  ],
+  "org.apache.hadoop.hdds.scm.container.reconciliation.ReconcileContainerEventHandler": [
+    "background",
+    "background-loop",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.reconciliation.ReconciliationEligibilityHandler": [
+    "background",
+    "background-loop",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.metrics.SCMContainerManagerMetrics": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.ContainerReplica": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.ContainerManagerImpl": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.ContainerStateManager": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.balancer.ContainerBalancerTask": [
+    "background",
+    "background-loop",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.balancer.FindTargetStrategy": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.balancer.ContainerBalancerStatusInfo": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.balancer.ContainerBalancer": [
+    "background",
+    "background-loop",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.balancer.ContainerBalancerSelectionCriteria": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.balancer.MoveManager": [
+    "background",
+    "background-loop",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.IncrementalContainerReportHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.states.ContainerAttribute": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.states.ContainerStateMap": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.CloseContainerEventHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.report.ContainerReportValidator": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.UnderReplicatedProcessor": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.ECUnderReplicationHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.ECOverReplicationHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.QuasiClosedStuckOverReplicationHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.ReplicationManager": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.RatisMisReplicationHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.QuasiClosedStuckUnderReplicationHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.QuasiClosedStuckReplicaCount": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.ReplicationManagerEventHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.RatisContainerReplicaCount": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.health.MismatchedReplicasHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.health.EmptyContainerHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.health.VulnerableUnhealthyReplicasHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.health.RatisReplicationCheckHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.health.ClosedWithUnhealthyReplicasHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.health.ECMisReplicationCheckHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.health.ECReplicationCheckHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.health.OpenContainerHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.health.RatisUnhealthyReplicationCheckHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.health.ClosingContainerHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.health.QuasiClosedContainerHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.health.DeletingContainerHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.health.QuasiClosedStuckReplicationCheck": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.ContainerReplicaPendingOps": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.DatanodeCommandCountUpdatedHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.OverReplicatedProcessor": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.RatisOverReplicationHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.ReplicationManagerUtil": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.ECContainerReplicaCount": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.RatisUnderReplicationHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.ReplicationManagerMetrics": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.ECMisReplicationHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.ContainerReportHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.ContainerActionsHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.placement.algorithms.SCMContainerPlacementRackScatter": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.placement.algorithms.SCMContainerPlacementCapacity": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.placement.algorithms.SCMContainerPlacementRackAware": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.placement.algorithms.SCMContainerPlacementRandom": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.placement.algorithms.ContainerPlacementStatusDefault": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SCMHAMetrics": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SequenceIdGenerator": [
+    "background",
+    "metadata-scm",
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.BackgroundSCMService": [
+    "background",
+    "background-loop",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SCMStateMachine": [
+    "background",
+    "invariant-carrier",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.io.ScmX509CertificateCodec": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.io.ScmListCodec": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.io.ScmBigIntegerCodec": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SCMContext": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.invoker.StatefulServiceStateManagerInvoker": [
+    "background",
+    "background-loop",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.StatefulService": [
+    "background",
+    "metadata-scm",
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.StatefulServiceDefinition": [
+    "background",
+    "background-loop",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SCMHAManagerImpl": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.InterSCMGrpcProtocolService": [
+    "background",
+    "background-loop",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.StatefulServiceStateManagerImpl": [
+    "background",
+    "background-loop",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SCMServiceManager": [
+    "background",
+    "background-loop",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SCMHATransactionBufferMonitorTask": [
+    "background",
+    "background-loop",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SCMSnapshotProvider": [
+    "background",
+    "metadata-scm",
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SCMRatisRequest": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SCMRatisResponse": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.InterSCMGrpcService": [
+    "background",
+    "background-loop",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SCMRatisServerImpl": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.StatefulServiceStateManager": [
+    "background",
+    "metadata-scm",
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.scm.SCMCommonPlacementPolicy": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.command.CommandStatusReportHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.FetchMetrics": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.node.SCMNodeManager": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.node.SCMNodeStorageStatMap": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.node.DeadNodeHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.node.NodeStateManager": [
+    "background",
+    "invariant-carrier",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.node.NodeDecommissionMetrics": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.node.DatanodeAdminMonitor": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.node.NodeDecommissionManager": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.node.states.Node2PipelineMap": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.node.states.NodeStateMap": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.node.PendingContainerTracker": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.node.SCMNodeMetrics": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.node.DatanodeUsageInfo": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.node.NodeReportHandler": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.node.CommandQueue": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.metadata.SCMMetadataStoreImpl": [
+    "background",
+    "metadata-scm",
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.scm.metadata.X509CertificateCodec": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.block.SCMBlockDeletingService": [
+    "background",
+    "background-loop",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.block.BlockManager": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.block.DeletedBlockLog": [
+    "background",
+    "metadata-scm",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.block.BlockManagerImpl": [
+    "background",
+    "hot-path",
+    "metadata-scm",
+    "test-anchor",
+    "write-path"
+  ],
+  "org.apache.hadoop.ozone.util.ProtobufUtils": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.util.OzoneNetUtils": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.helpers.BlockData": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.common.ChunkBufferImplWithByteBufferList": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.common.statemachine.StateMachine": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.common.ChunkBuffer": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.common.ChecksumCache": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.common.ChecksumByteBuffer": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.common.Checksum": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.OzoneConsts": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.tracing.TracingConfig": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.tracing.TraceAllMethod": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.tracing.LoopSampler": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.tracing.TracingUtil": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.upgrade.HDDSLayoutFeature": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.security.token.OzoneBlockTokenIdentifier": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.security.x509.certificate.utils.CertificateCodec": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.security.x509.keys.HDDSKeyGenerator": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.security.x509.keys.KeyStorage": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.security.x509.keys.KeyCodec": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.server.JsonUtils": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.ConnectionFailureUtils": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.LeakDetector": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.IOUtils": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.Scheduler": [
+    "background-loop",
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.hdds.utils.io.RandomAccessFileChannel": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.RetriableTask": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.db.CodecBuffer": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.utils.db.Codec": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.ResourceCache": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.SlidingWindow": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.SimpleStriped": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.protocol.DatanodeDetails": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.ratis.RatisHelper": [
+    "hot-path",
+    "ratis",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.ratis.ContainerCommandRequestMessage": [
+    "hot-path",
+    "ratis",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.ratis.conf.RatisClientConfig": [
+    "hot-path",
+    "ratis",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.HddsUtils": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.Pipeline": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.net.NetUtils": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.net.HostAndPort": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.ContainerHealthState": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.ReplicationManagerReport": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.ContainerID": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.ContainerChecksums": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.common.helpers.ExcludeList": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.balancer.ContainerBalancerConfiguration": [
+    "background-loop"
+  ],
+  "org.apache.hadoop.hdds.scm.container.ContainerInfo": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.container.ContainerReplicaInfo": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SCMNodeInfo": [
+    "hot-path",
+    "ratis",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.conf.OzoneConfiguration": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.conf.RatisConfUtils": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.client.OzoneQuota": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.client.ECReplicationConfig": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.client.ReplicationConfigValidator": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.client.ReplicationConfig": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.HddsIdFactory": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.io_.retry.RetryProxy": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ipc_.FairCallQueue": [
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.ipc_.DefaultRpcScheduler": [
+    "background-loop"
+  ],
+  "org.apache.hadoop.ipc_.CallQueueManager": [
+    "invariant-carrier"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.CoderUtil": [
+    "ec",
+    "test-anchor"
+  ],
+  "org.apache.ozone.erasurecode.CodecRegistry": [
+    "ec",
+    "test-anchor"
+  ],
+  "org.apache.ozone.rocksdb.util.SstFileInfo": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.ozone.rocksdb.util.RdbUtil": [
+    "rocksdb-touching"
+  ],
+  "org.apache.ozone.compaction.log.CompactionLogEntry": [
+    "test-anchor"
+  ],
+  "org.apache.ozone.compaction.log.CompactionFileInfo": [
+    "test-anchor"
+  ],
+  "org.apache.ozone.rocksdiff.RocksDiffUtils": [
+    "test-anchor"
+  ],
+  "org.apache.ozone.rocksdiff.SSTFilePruningMetrics": [
+    "rocksdb-touching"
+  ],
+  "org.apache.ozone.rocksdiff.RocksDBCheckpointDiffer": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.ozone.rocksdiff.CompactionDag": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.db.SstFileSetReader": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.db.RDBSstFileWriter": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.utils.db.ManagedSstFileIterator": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.hdds.utils.db.MinHeapMergeIterator": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.protocolPB.StorageContainerDatanodeProtocolServerSideTranslatorPB": [
+    "proto-boundary"
+  ],
+  "org.apache.hadoop.ozone.protocolPB.StorageContainerDatanodeProtocolPB": [
+    "proto-boundary"
+  ],
+  "org.apache.hadoop.ozone.protocolPB.ReconDatanodeProtocolPB": [
+    "proto-boundary"
+  ],
+  "org.apache.hadoop.ozone.HddsDatanodeService": [
+    "background",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.upgrade.DatanodeSchemaV3FinalizeAction": [
+    "rocksdb-touching",
+    "upgrade"
+  ],
+  "org.apache.hadoop.ozone.container.stream.StreamingServer": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.stream.DirstreamClientHandler": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.ec.reconstruction.ECReconstructionCoordinator": [
+    "ec",
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.ozone.container.common.impl.StorageLocationReport": [
+    "background",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.impl.HddsDispatcher": [
+    "background",
+    "invariant-carrier",
+    "state-machine",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.impl.ContainerSet": [
+    "background",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.impl.BlockDeletingService": [
+    "background",
+    "background-loop",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.impl.ContainerDataYaml": [
+    "background",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.impl.ContainerLayoutVersion": [
+    "background",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.transport.server.GrpcXceiverService": [
+    "background-loop"
+  ],
+  "org.apache.hadoop.ozone.container.common.transport.server.ratis.ContainerStateMachine": [
+    "hot-path",
+    "ratis",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.transport.server.ratis.CSMMetrics": [
+    "hot-path",
+    "invariant-carrier",
+    "ratis",
+    "state-machine",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.transport.server.ratis.LocalStream": [
+    "hot-path",
+    "ratis",
+    "state-machine"
+  ],
+  "org.apache.hadoop.ozone.container.common.transport.server.XceiverServerGrpc": [
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.ozone.container.common.transport.server.XceiverServerDomainSocket": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.statemachine.commandhandler.CreatePipelineCommandHandler": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.statemachine.commandhandler.ReconstructECContainersCommandHandler": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.statemachine.commandhandler.DeleteContainerCommandHandler": [
+    "invariant-carrier",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.statemachine.commandhandler.CloseContainerCommandHandler": [
+    "invariant-carrier",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.statemachine.commandhandler.ReplicateContainerCommandHandler": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.statemachine.commandhandler.ReconcileContainerCommandHandler": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.statemachine.commandhandler.ClosePipelineCommandHandler": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.statemachine.commandhandler.DeleteBlocksCommandHandler": [
+    "invariant-carrier",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.statemachine.EndpointStateMachine": [
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.ozone.container.common.statemachine.DatanodeConfiguration": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.statemachine.DatanodeQueueMetrics": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.statemachine.DatanodeStateMachine": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.statemachine.SCMConnectionManager": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.statemachine.StateContext": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.utils.DiskCheckUtil": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.utils.HddsVolumeUtil": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.utils.StorageVolumeUtil": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.utils.ContainerCache": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.utils.DatanodeStoreCache": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.states.DatanodeState": [
+    "background",
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.ozone.container.common.states.datanode.InitDatanodeState": [
+    "background",
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.ozone.container.common.states.datanode.RunningDatanodeState": [
+    "background",
+    "invariant-carrier",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.states.endpoint.HeartbeatEndpointTask": [
+    "background",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.report.ReportPublisherFactory": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.report.ReportManager": [
+    "background-loop",
+    "invariant-carrier",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.report.ReportPublisher": [
+    "invariant-carrier",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.volume.CapacityVolumeChoosingPolicy": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.volume.DbVolume": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.volume.AvailableSpaceFilter": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.volume.VolumeSet": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.volume.RoundRobinVolumeChoosingPolicy": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.volume.AsyncChecker": [
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.ozone.container.common.volume.HddsVolume": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.volume.VolumeInfoMetrics": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.volume.StorageVolumeChecker": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.helpers.ContainerMetrics": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.helpers.DatanodeVersionFile": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.helpers.DatanodeIdYaml": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.helpers.ContainerUtils": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.interfaces.Handler": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.common.interfaces.ContainerDeletionChoosingPolicy": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.diskbalancer.DiskBalancerConfiguration": [
+    "background",
+    "background-loop"
+  ],
+  "org.apache.hadoop.ozone.container.diskbalancer.DiskBalancerVolumeCalculation": [
+    "background",
+    "background-loop",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.diskbalancer.DiskBalancerService": [
+    "background",
+    "background-loop",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.diskbalancer.DiskBalancerYaml": [
+    "background",
+    "background-loop",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.diskbalancer.DiskBalancerProtocolServer": [
+    "background",
+    "background-loop",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.diskbalancer.policy.DefaultContainerChoosingPolicy": [
+    "background",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.keyvalue.impl.FilePerBlockStrategy": [
+    "hot-path",
+    "test-anchor",
+    "write-path"
+  ],
+  "org.apache.hadoop.ozone.container.keyvalue.impl.FilePerChunkStrategy": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.keyvalue.impl.KeyValueStreamDataChannel": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.keyvalue.impl.MappedBufferManager": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.keyvalue.impl.BlockManagerImpl": [
+    "hot-path",
+    "rocksdb-touching",
+    "test-anchor",
+    "write-path"
+  ],
+  "org.apache.hadoop.ozone.container.keyvalue.impl.ChunkManagerDummyImpl": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.keyvalue.KeyValueContainerMetadataInspector": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.keyvalue.KeyValueContainerData": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.keyvalue.statemachine.background.StaleRecoveringContainerScrubbingService": [
+    "background-loop",
+    "hot-path",
+    "ratis",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.keyvalue.statemachine.background.BlockDeletingTask": [
+    "hot-path",
+    "ratis",
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.container.keyvalue.KeyValueContainer": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.keyvalue.TarContainerPacker": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.keyvalue.KeyValueHandler": [
+    "hot-path",
+    "read-path",
+    "rocksdb-touching",
+    "test-anchor",
+    "write-path"
+  ],
+  "org.apache.hadoop.ozone.container.keyvalue.KeyValueContainerCheck": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.keyvalue.helpers.KeyValueContainerUtil": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.container.keyvalue.helpers.BlockUtils": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.container.keyvalue.helpers.ChunkUtils": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.keyvalue.interfaces.BlockManager": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.replication.GrpcContainerUploader": [
+    "background",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.replication.SendContainerRequestHandler": [
+    "background",
+    "proto-boundary",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.replication.PushReplicator": [
+    "background",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.replication.SendContainerOutputStream": [
+    "background",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.replication.ReplicationSupervisor": [
+    "background",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.replication.GrpcReplicationService": [
+    "background",
+    "background-loop",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.replication.MeasuredReplicator": [
+    "background",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.replication.ContainerImporter": [
+    "background",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.replication.ReplicationServer": [
+    "background",
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.ozone.container.replication.CopyContainerCompression": [
+    "background",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.checksum.ReconcileContainerTask": [
+    "background-loop",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.checksum.ContainerMerkleTreeWriter": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.checksum.ContainerChecksumTreeManager": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.checksum.DNContainerOperationClient": [
+    "background-loop"
+  ],
+  "org.apache.hadoop.ozone.container.metadata.DatanodeSchemaTwoDBDefinition": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.container.metadata.DatanodeSchemaThreeDBDefinition": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.container.metadata.DatanodeStoreSchemaThreeImpl": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.container.metadata.SchemaOneDeletedBlocksTable": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.container.metadata.DatanodeTable": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.container.metadata.AbstractRDBStore": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.container.metadata.DatanodeSchemaOneDBDefinition": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.container.ozoneimpl.ContainerScanHelper": [
+    "background",
+    "background-loop"
+  ],
+  "org.apache.hadoop.ozone.container.ozoneimpl.BackgroundContainerDataScanner": [
+    "background",
+    "background-loop",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.ozoneimpl.OnDemandContainerScanner": [
+    "background",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.ozoneimpl.ContainerScannerConfiguration": [
+    "background",
+    "background-loop",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.ozoneimpl.ContainerReader": [
+    "background",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.ozoneimpl.MetadataScanResult": [
+    "background",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.ozoneimpl.DataScanResult": [
+    "background",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.ozoneimpl.ScanTransientIOUtil": [
+    "background",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.ozoneimpl.OzoneContainer": [
+    "background",
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.ozoneimpl.BackgroundContainerMetadataScanner": [
+    "background",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.client.io.ECBlockInputStreamFactoryImpl": [
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.ozone.client.io.ECBlockReconstructedStripeInputStream": [
+    "ec",
+    "hot-path",
+    "invariant-carrier",
+    "read-path",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.client.io.BlockInputStreamFactoryImpl": [
+    "invariant-carrier",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.client.io.ECBlockInputStream": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.client.io.ECBlockReconstructedInputStream": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.client.io.BoundedElasticByteBufferPool": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.client.io.ECBlockInputStreamProxy": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.ContainerClientMetrics": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.XceiverClientGrpc": [
+    "hot-path",
+    "read-path",
+    "test-anchor",
+    "write-path"
+  ],
+  "org.apache.hadoop.hdds.scm.XceiverClientManager": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.OzoneClientConfig": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.storage.StreamBlockInputStream": [
+    "invariant-carrier",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.storage.RatisBlockOutputStream": [
+    "background-loop",
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.hdds.scm.storage.ECBlockOutputStream": [
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.hdds.scm.storage.BlockOutputStream": [
+    "background-loop",
+    "hot-path",
+    "test-anchor",
+    "write-path"
+  ],
+  "org.apache.hadoop.hdds.scm.storage.ChunkInputStream": [
+    "hot-path",
+    "read-path",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.storage.BlockInputStream": [
+    "hot-path",
+    "read-path",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.storage.CommitWatcher": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.storage.DomainSocketFactory": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.storage.BufferPool": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.storage.LocalChunkInputStream": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.storage.BlockDataStreamOutput": [
+    "background-loop",
+    "invariant-carrier",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.client.HddsClientUtils": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.XceiverClientMetrics": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.freon.DNRPCLoadGenerator": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.freon.HadoopDirTreeGenerator": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.freon.Freon": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.freon.BaseFreonGenerator": [
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.ozone.freon.ContentGenerator": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.freon.RandomKeyGenerator": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.freon.OzoneClientKeyListReader": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.freon.OmBucketReadWriteKeyOps": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.freon.HadoopNestedDirGenerator": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.freon.OmBucketReadWriteFileOps": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.freon.FreonS3TraceContextRequestHandler": [
+    "proto-boundary"
+  ],
+  "org.apache.hadoop.ozone.freon.AbstractOmBucketReadWriteOps": [
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.ozone.freon.ProgressBar": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.freon.HsyncGenerator": [
+    "invariant-carrier",
+    "test-anchor"
+  ],
+  "org.apache.ozone.recon.schema.UtilizationSchemaDefinition": [
+    "test-anchor"
+  ],
+  "org.apache.ozone.recon.schema.StatsSchemaDefinition": [
+    "test-anchor"
+  ],
+  "org.apache.ozone.recon.schema.SchemaVersionTableDefinition": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.shell.OzoneRatis": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.genconf.GenerateOzoneRequiredConfigurations": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.local.LocalOzoneClusterConfig": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.local.LocalOzoneCluster": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.local.OzoneLocal": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.fs.ozone.OzoneFsShell": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.freon.BaseAppendLogGenerator": [
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.ozone.freon.FollowerAppendLogEntryGenerator": [
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.ozone.freon.containergenerator.GeneratorDatanode": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.freon.DatanodeSimulator": [
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.ozone.freon.StreamingGenerator": [
+    "background-loop"
+  ],
+  "org.apache.hadoop.ozone.freon.SCMThroughputBenchmark": [
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.ozone.freon.LeaderAppendLogEntryGenerator": [
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.ozone.repair.TransactionInfoRepair": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.repair.datanode.schemaupgrade.UpgradeContainerSchema": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.repair.om.FSORepairTool": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.repair.om.SnapshotChainRepair": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.repair.om.CompactOMDB": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.repair.OzoneRepair": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.repair.scm.cert.RecoverSCMCertificate": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.repair.ldb.LDBRepair": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.repair.ldb.RocksDBManualCompaction": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.fs.ozone.OzoneFSInputStream": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.s3.metrics.S3GatewayMetrics": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.s3.SignedChunksInputStream": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.s3.util.RFC1123Util": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.s3.util.S3Utils": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.s3.util.ContinueToken": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.s3.util.RangeHeaderParserUtil": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.s3.signature.AWSSignatureProcessor": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.s3.signature.AuthorizationV2HeaderParser": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.s3.signature.AuthorizationV4QueryParser": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.s3.signature.StringToSignProducer": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.s3.signature.AuthorizationV4HeaderParser": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.s3.VirtualHostStyleFilter": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.s3.AuthorizationFilter": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.s3.OzoneClientCache": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.s3.MultiDigestInputStream": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.s3.commontypes.ObjectKeyNameAdapter": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.s3.endpoint.ObjectEndpoint": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.s3.endpoint.EndpointBase": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.s3.endpoint.BucketAclHandler": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.s3.endpoint.S3Owner": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.s3.endpoint.MultiDeleteRequestUnmarshaller": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.s3.endpoint.S3ObjectWriteGuard": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.s3.endpoint.CompleteMultipartUploadRequestUnmarshaller": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.s3.EmptyContentTypeFilter": [
+    "test-anchor"
+  ],
+  "org.apache.ozone.lib.wsrs.JSONMapProvider": [
+    "test-anchor"
+  ],
+  "org.apache.ozone.lib.server.Server": [
+    "background-loop"
+  ],
+  "org.apache.ozone.lib.service.security.GroupsService": [
+    "background-loop"
+  ],
+  "org.apache.ozone.lib.service.scheduler.SchedulerService": [
+    "background-loop",
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.ozone.insight.BaseInsightPoint": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.insight.LogSubcommand": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.insight.BaseInsightSubCommand": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.insight.ConfigurationSubCommand": [
+    "test-anchor"
+  ],
+  "org.apache.ozone.graph.PrintableGraph": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.fsck.ContainerMapper": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.debug.kerberos.HttpAuthProbe": [
+    "background-loop"
+  ],
+  "org.apache.hadoop.ozone.debug.kerberos.KeytabProbe": [
+    "background-loop"
+  ],
+  "org.apache.hadoop.ozone.debug.CheckNative": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.debug.DBDefinitionFactory": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.debug.datanode.container.analyze.AnalyzeSubcommand": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.debug.datanode.container.analyze.ContainerDirectoryScanner": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.debug.datanode.container.analyze.ContainerScanResult": [
+    "background-loop"
+  ],
+  "org.apache.hadoop.ozone.debug.datanode.container.analyze.ScmContainerMetadataReader": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.debug.om.CompactionLogDagPrinter": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.debug.om.OMDebug": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.debug.om.ContainerToKeyMapping": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.debug.logs.container.utils.ContainerLogFileParser": [
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.ozone.debug.audit.parser.AuditParser": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.debug.ldb.DBScanner": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.debug.ldb.Checkpoint": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.debug.RocksDBUtils": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.s3.remote.vault.VaultS3SecretStore": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.lock.DAGLeveledResource": [
+    "metadata-om",
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.OmPrefixInfo": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.iceberg.RewriteTablePathOzoneAction": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.snapshot.SubmitSnapshotDiffResponse": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.snapshot.SnapshotDiffResponse": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.protocolPB.OMPBHelper": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.util.RadixTree": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.util.PayloadUtils": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.security.OzoneDelegationTokenSelector": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.security.OzoneTokenIdentifier": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.security.GDPRSymmetricKey": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.security.acl.OzoneObjInfo": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.security.acl.OzoneObj": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.security.acl.RequestContext": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.security.acl.AssumeRoleRequest": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.OFSPath": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.protocolPB.OMAdminProtocolClientSideImpl": [
+    "proto-boundary"
+  ],
+  "org.apache.hadoop.ozone.om.protocolPB.OmTransportFactory": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.protocolPB.grpc.ClientAddressServerInterceptor": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.protocolPB.grpc.ClientAddressClientInterceptor": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.protocolPB.OMInterServiceProtocolPB": [
+    "proto-boundary"
+  ],
+  "org.apache.hadoop.ozone.om.protocolPB.OMInterServiceProtocolClientSideImpl": [
+    "proto-boundary"
+  ],
+  "org.apache.hadoop.ozone.om.protocolPB.OzoneManagerProtocolClientSideTranslatorPB": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.protocolPB.GrpcOmTransport": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.protocolPB.OMAdminProtocolPB": [
+    "proto-boundary"
+  ],
+  "org.apache.hadoop.ozone.om.protocolPB.OzoneManagerProtocolPB": [
+    "proto-boundary"
+  ],
+  "org.apache.hadoop.ozone.om.ha.HadoopRpcOMFollowerReadFailoverProxyProvider": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.OmConfig": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.ServiceInfoEx": [
+    "background-loop"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.OmMultipartPartInfo": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.QuotaUtil": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.OmBucketArgs": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.OzoneIdentityProvider": [
+    "background-loop",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.OmKeyArgs": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.AclListBuilder": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.OmKeyLocationInfoGroup": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.OmLifecycleScanState": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.OmLCRule": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.OmMultipartPartKey": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.OmVolumeArgs": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.OzoneAclUtil": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.OmMultipartKeyInfo": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.SnapshotInfo": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.OmLifecycleRuleAndOperator": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.OmLCAbortIncompleteMultipartUpload": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.OmBucketInfo": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.OMNodeDetails": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.MapBuilder": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.OmLCFilter": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.OmLCExpiration": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.OmMultipartUpload": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.OmKeyInfo": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.OmUtils": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.client.io.SelectorOutputStream": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.client.checksum.CrcComposer": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.client.checksum.CrcUtil": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.protocolPB.OMAdminProtocolServerSideImpl": [
+    "metadata-om",
+    "proto-boundary"
+  ],
+  "org.apache.hadoop.ozone.protocolPB.RequestHandler": [
+    "invariant-carrier",
+    "metadata-om",
+    "proto-boundary",
+    "state-machine"
+  ],
+  "org.apache.hadoop.ozone.protocolPB.OzoneManagerProtocolServerSideTranslatorPB": [
+    "metadata-om",
+    "proto-boundary"
+  ],
+  "org.apache.hadoop.ozone.protocolPB.OzoneManagerRequestHandler": [
+    "metadata-om",
+    "proto-boundary",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.protocolPB.OMInterServiceProtocolServerSideImpl": [
+    "background-loop",
+    "metadata-om",
+    "proto-boundary"
+  ],
+  "org.apache.hadoop.ozone.security.OzoneDelegationTokenSecretManager": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.security.AWSV4AuthValidator": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.security.acl.OzoneNativeAuthorizer": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.security.acl.SharedTmpDirAuthorizer": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.security.acl.OzoneAuthorizerFactory": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.DeleteKeysResult": [
+    "background-loop",
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.OMDBCheckpointUtils": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.OmSnapshotLocalDataManager": [
+    "metadata-om",
+    "rocksdb-touching",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.util.TableMergeIterator": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.FSODirectoryPathResolver": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.defrag.SnapshotDefragService": [
+    "background-loop",
+    "metadata-om",
+    "rocksdb-touching",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.SnapshotDiffValueParser": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.RequireSnapshotFeatureStateAspect": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.OMSnapshotDirectoryMetrics": [
+    "metadata-om",
+    "rocksdb-touching",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.diff.delta.CompositeDeltaDiffComputer": [
+    "metadata-om",
+    "rocksdb-touching",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.diff.delta.RDBDifferComputer": [
+    "metadata-om",
+    "rocksdb-touching",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.diff.delta.FileLinkDeltaFileComputer": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.diff.delta.FullDiffComputer": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.RocksDbPersistentSet": [
+    "metadata-om",
+    "rocksdb-touching",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.SnapshotDiffManager": [
+    "invariant-carrier",
+    "metadata-om",
+    "rocksdb-touching",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.RocksDbPersistentMap": [
+    "metadata-om",
+    "rocksdb-touching",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.OmSnapshotUtils": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.SnapshotDiffManagerMXBean": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.MultiSnapshotLocks": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.SnapshotCache": [
+    "metadata-om",
+    "rocksdb-touching",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.SnapshotUtils": [
+    "metadata-om",
+    "rocksdb-touching",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.filter.ReclaimableKeyFilter": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.filter.ReclaimableFilter": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.filter.ReclaimableDirFilter": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.filter.ReclaimableRenameEntryFilter": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.RocksDbPersistentList": [
+    "metadata-om",
+    "rocksdb-touching",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.multitenant.InMemoryMultiTenantAccessController": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.multitenant.AuthorizerLockImpl": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.OmSnapshotLocalDataYaml": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.OzoneManagerPrepareState": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.OMDBArchiver": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.OzoneManagerHttpServer": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.upgrade.OMLayoutFeatureAspect": [
+    "metadata-om",
+    "test-anchor",
+    "upgrade"
+  ],
+  "org.apache.hadoop.ozone.om.upgrade.OMUpgradeFinalizer": [
+    "background-loop",
+    "metadata-om",
+    "test-anchor",
+    "upgrade"
+  ],
+  "org.apache.hadoop.ozone.om.OMDBCheckpointServletInodeBasedXfer": [
+    "metadata-om",
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.om.OmMetadataManagerImpl": [
+    "metadata-om",
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.om.response.snapshot.OMSnapshotPurgeResponse": [
+    "metadata-om",
+    "rocksdb-touching",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.snapshot.OMSnapshotMoveTableKeysResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.snapshot.OMSnapshotCreateResponse": [
+    "metadata-om",
+    "rocksdb-touching",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.snapshot.OMSnapshotDeleteResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.s3.tagging.S3DeleteObjectTaggingResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.s3.tagging.S3PutObjectTaggingResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.s3.tagging.S3DeleteObjectTaggingResponseWithFSO": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.s3.tagging.S3PutObjectTaggingResponseWithFSO": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.s3.multipart.S3MultipartUploadAbortResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.s3.multipart.S3InitiateMultipartUploadResponseWithFSO": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.s3.multipart.S3ExpiredMultipartUploadsAbortResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.s3.multipart.S3InitiateMultipartUploadResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.s3.multipart.S3MultipartUploadCompleteResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.s3.multipart.S3MultipartUploadCommitPartResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.s3.multipart.S3MultipartUploadCompleteResponseWithFSO": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.s3.multipart.S3MultipartUploadCommitPartResponseWithFSO": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.s3.multipart.S3MultipartUploadAbortResponseWithFSO": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.file.OMDirectoryCreateResponseWithFSO": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.file.OMDirectoryCreateResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.file.OMFileCreateResponseWithFSO": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.security.OMGetDelegationTokenResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.lifecycle.OMLifecycleConfigurationDeleteResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.lifecycle.OMLifecycleSaveScanStateResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.lifecycle.OMLifecycleConfigurationSetResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.key.OMKeyRenameResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.key.OMOpenKeysDeleteResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.key.OMKeyCommitResponseWithFSO": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.key.OMKeysRenameResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.key.OMKeyCreateResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.key.OMAllocateBlockResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.key.OMKeyCommitResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.key.OMKeysDeleteResponseWithFSO": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.key.OMKeysDeleteResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.key.OMKeyRenameResponseWithFSO": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.key.OMKeyDeleteResponseWithFSO": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.key.OMAllocateBlockResponseWithFSO": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.key.OMKeyCreateResponseWithFSO": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.key.acl.prefix.OMPrefixAclResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.key.OMKeyDeleteResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.bucket.OMBucketDeleteResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.bucket.OMBucketSetPropertyResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.bucket.OMBucketCreateResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.CleanupTableInfo": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.volume.OMVolumeCreateResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.volume.OMVolumeSetOwnerResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.volume.OMVolumeSetQuotaResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.response.volume.OMVolumeDeleteResponse": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.OMStorage": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.SstFilteringService": [
+    "background-loop",
+    "metadata-om",
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.OmSnapshotManager": [
+    "metadata-om",
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.codec.OMDBDefinition": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.SnapshotChainManager": [
+    "metadata-om",
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.om.lock.PoolBasedHierarchicalResourceLockManager": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.lock.OzoneManagerLock": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.lock.OzoneLockProvider": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.OzoneManagerServiceGrpc": [
+    "background-loop",
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.OzoneConfigUtil": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.OzoneManager": [
+    "background-loop",
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.ServiceListJSONServlet": [
+    "background-loop",
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.ratis.OzoneManagerStateMachine": [
+    "hot-path",
+    "invariant-carrier",
+    "metadata-om",
+    "ratis",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.ratis.OzoneManagerRatisServer": [
+    "hot-path",
+    "metadata-om",
+    "ratis",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.ratis.utils.OzoneManagerRatisUtils": [
+    "hot-path",
+    "invariant-carrier",
+    "metadata-om",
+    "ratis",
+    "rocksdb-touching",
+    "state-machine"
+  ],
+  "org.apache.hadoop.ozone.om.ratis.OzoneManagerDoubleBuffer": [
+    "hot-path",
+    "metadata-om",
+    "ratis",
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.OMDBCheckpointServlet": [
+    "metadata-om",
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.om.GrpcOzoneManagerServer": [
+    "background-loop",
+    "invariant-carrier",
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.BucketUtilizationMetrics": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.ha.OMServiceManager": [
+    "background-loop",
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.ha.OMHAMetrics": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.ha.OMPeriodicMetrics": [
+    "invariant-carrier",
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.BucketManagerImpl": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.ServiceInfoProvider": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.OMClientRequest": [
+    "metadata-om",
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.om.request.snapshot.OMSnapshotDeleteRequest": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.snapshot.OMSnapshotCreateRequest": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.snapshot.OMSnapshotMoveTableKeysRequest": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.snapshot.OMSnapshotRenameRequest": [
+    "metadata-om",
+    "snapshot",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.tenant.OMTenantDeleteRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.tenant.OMTenantCreateRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.security.S3SecretRequestHelper": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.security.S3GetSecretRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.tagging.S3DeleteObjectTaggingRequestWithFSO": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.tagging.S3PutObjectTaggingRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.tagging.S3DeleteObjectTaggingRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.tagging.S3PutBucketTaggingRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.tagging.S3PutObjectTaggingRequestWithFSO": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.tagging.S3DeleteBucketTaggingRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.multipart.S3InitiateMultipartUploadRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.multipart.S3MultipartUploadAbortRequestWithFSO": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.multipart.S3MultipartUploadCompleteRequestWithFSO": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.multipart.S3MultipartUploadCompleteRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.multipart.S3ExpiredMultipartUploadsAbortRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.multipart.S3MultipartUploadAbortRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.multipart.S3MultipartUploadCommitPartRequestWithFSO": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.multipart.S3MultipartUploadCommitPartRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.multipart.S3InitiateMultipartUploadRequestWithFSO": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.upgrade.OMCancelPrepareRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.upgrade.OMPrepareRequest": [
+    "invariant-carrier",
+    "metadata-om",
+    "rocksdb-touching",
+    "state-machine"
+  ],
+  "org.apache.hadoop.ozone.om.request.util.OMMultipartUploadUtils": [
+    "metadata-om",
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.om.request.file.OMDirectoryCreateRequestWithFSO": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.file.OMDirectoryCreateRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.file.OMRecoverLeaseRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.file.OMFileCreateRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.file.OMFileCreateRequestWithFSO": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.security.OMGetDelegationTokenRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.lifecycle.OMLifecycleConfigurationDeleteRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.lifecycle.OMLifecycleConfigurationSetRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.lifecycle.OMLifecycleSaveScanStateRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.OMKeyCreateRequest": [
+    "hot-path",
+    "metadata-om",
+    "test-anchor",
+    "write-path"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.OMKeyDeleteRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.OMKeyRequest": [
+    "invariant-carrier",
+    "metadata-om",
+    "state-machine"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.OMKeysRenameRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.OMKeyDeleteRequestWithFSO": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.OMKeysDeleteRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.OMKeyCreateRequestWithFSO": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.OMKeyCommitRequest": [
+    "hot-path",
+    "metadata-om",
+    "test-anchor",
+    "write-path"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.OMAllocateBlockRequestWithFSO": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.OMAllocateBlockRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.OMKeyRenameRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.acl.prefix.OMPrefixAclRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.acl.OMKeyAclRequestWithFSO": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.acl.OMKeyAclRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.OMKeyRenameRequestWithFSO": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.OMOpenKeysDeleteRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.OMKeyCommitRequestWithFSO": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.bucket.OMBucketSetPropertyRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.bucket.OMBucketDeleteRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.bucket.OMBucketCreateRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.bucket.acl.OMBucketAddAclRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.bucket.acl.OMBucketSetAclRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.bucket.acl.OMBucketRemoveAclRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.volume.OMVolumeDeleteRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.volume.OMVolumeSetOwnerRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.volume.OMVolumeCreateRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.volume.OMVolumeSetQuotaRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.volume.acl.OMVolumeAddAclRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.volume.acl.OMVolumeRemoveAclRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.volume.acl.OMVolumeSetAclRequest": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.validation.VersionExtractor": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.validation.ValidatorRegistry": [
+    "background-loop",
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.request.validation.RequestValidations": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.OzoneManagerStarter": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.SnapshotListJSONServlet": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.ScmClient": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.KeyManagerImpl": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.service.QuotaRepairTask": [
+    "background",
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.service.MultipartUploadCleanupService": [
+    "background",
+    "background-loop",
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.service.CompactionService": [
+    "background",
+    "background-loop",
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.service.OMRangerBGSyncService": [
+    "background",
+    "background-loop",
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.service.KeyLifecycleService": [
+    "background",
+    "background-loop",
+    "metadata-om",
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.service.OpenKeyCleanupService": [
+    "background",
+    "background-loop",
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.service.SnapshotDeletingService": [
+    "background",
+    "background-loop",
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.service.DirectoryDeletingService": [
+    "background",
+    "background-loop",
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.service.CompactDBUtil": [
+    "background",
+    "metadata-om",
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.service.KeyDeletingService": [
+    "background",
+    "background-loop",
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.service.SnapshotDiffCleanupService": [
+    "background",
+    "background-loop",
+    "metadata-om",
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.OMMultiTenantManager": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.ratis_snapshot.OmRatisSnapshotProvider": [
+    "hot-path",
+    "metadata-om",
+    "ratis",
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.OzoneManagerUtils": [
+    "invariant-carrier",
+    "metadata-om",
+    "state-machine"
+  ],
+  "org.apache.hadoop.ozone.om.OMMultiTenantManagerImpl": [
+    "metadata-om",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.shell.OzoneAddress": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.shell.Handler": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.shell.keys.GetKeyHandler": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.shell.keys.ChecksumKeyHandler": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.shell.volume.DeleteVolumeHandler": [
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.ozone.shell.acl.GetAclHandler": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.om.multitenant.RangerClientMultiTenantAccessController": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.metrics.OzoneManagerSyncMetrics": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.metrics.ReconScmContainerSyncMetrics": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.metrics.Metric": [
+    "background-loop"
+  ],
+  "org.apache.hadoop.ozone.recon.fsck.ContainerHealthStatus": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.fsck.ContainerHealthTask": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.fsck.ReconReplicationManager": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.ReconControllerModule": [
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.ozone.recon.upgrade.UnhealthyContainersStateContainerIdIndexUpgradeAction": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.upgrade.NSSummaryAggregatedTotalsUpgrade": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.upgrade.ReconLayoutVersionManager": [
+    "background-loop",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.upgrade.ReplicatedSizeOfFilesUpgradeAction": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.upgrade.InitialConstraintUpgradeAction": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.tasks.ReconOmTask": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.recon.tasks.NSSummaryAsyncFlusher": [
+    "background-loop",
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.ozone.recon.tasks.NSSummaryTaskWithFSO": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.tasks.ContainerSizeCountTask": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.tasks.OMDBUpdatesHandler": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.tasks.updater.ReconTaskStatusUpdater": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.tasks.NSSummaryTaskWithLegacy": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.tasks.ReconTaskControllerImpl": [
+    "invariant-carrier",
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.tasks.FileSizeCountTaskHelper": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.recon.tasks.NSSummaryTask": [
+    "invariant-carrier",
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.tasks.NSSummaryTaskWithOBS": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.tasks.OmTableInsightTask": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.tasks.OMUpdateEventBuffer": [
+    "invariant-carrier",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.tasks.OmUpdateEventValidator": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.tasks.NSSummaryTaskDbEventHandler": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.recon.tasks.GlobalStatsValue": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.recon.tasks.FileSizeCountKey": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.recon.TarExtractor": [
+    "invariant-carrier",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.chatbot.llm.LangChain4jDispatcher": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.chatbot.llm.LlmRouting": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.chatbot.security.CredentialHelper": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.chatbot.agent.ChatbotUtils": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.chatbot.api.ChatbotEndpoint": [
+    "invariant-carrier",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.chatbot.recon.ReconApiAllowlist": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.chatbot.recon.ReconQueryExecutor": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.chatbot.recon.ReconResponseUnwrapper": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.chatbot.recon.ReconEndpointRouter": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.recovery.ReconOmMetadataManagerImpl": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.ReconUtils": [
+    "invariant-carrier",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.spi.impl.JmxServiceProviderImpl": [
+    "background-loop"
+  ],
+  "org.apache.hadoop.ozone.recon.spi.impl.StorageContainerServiceProviderImpl": [
+    "background-loop",
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.spi.impl.KeyPrefixContainerCodec": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.spi.impl.ReconNamespaceSummaryManagerImpl": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.spi.impl.ReconFileMetadataManagerImpl": [
+    "background-loop"
+  ],
+  "org.apache.hadoop.ozone.recon.spi.impl.ReconContainerMetadataManagerImpl": [
+    "background-loop",
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.spi.impl.ReconGlobalStatsManagerImpl": [
+    "background-loop"
+  ],
+  "org.apache.hadoop.ozone.recon.spi.impl.OzoneManagerServiceProviderImpl": [
+    "background-loop",
+    "invariant-carrier",
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.spi.impl.ReconDBProvider": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.spi.impl.ReconDBDefinition": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.recon.spi.impl.PrometheusServiceProviderImpl": [
+    "background-loop"
+  ],
+  "org.apache.hadoop.ozone.recon.spi.impl.ReconRDBSnapshotProvider": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.ReconServer": [
+    "background-loop"
+  ],
+  "org.apache.hadoop.ozone.recon.api.UtilizationEndpoint": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.recon.api.ClusterStateEndpoint": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.api.types.ExportJob": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.api.types.DatanodeMetrics": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.api.TaskStatusService": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.api.ExportJobManager": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.api.ContainerEndpoint": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.api.TriggerDBSyncEndpoint": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.api.StorageDistributionEndpoint": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.api.OMDBInsightEndpoint": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.recon.api.BlocksEndPoint": [
+    "rocksdb-touching",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.api.ReconGlobalMetricsService": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.recon.api.PendingDeletionEndpoint": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.api.handlers.LegacyBucketHandler": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.recon.api.handlers.FSOBucketHandler": [
+    "rocksdb-touching"
+  ],
+  "org.apache.hadoop.ozone.recon.api.NSSummaryEndpoint": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.heatmap.HeatMapServiceImpl": [
+    "background-loop"
+  ],
+  "org.apache.hadoop.ozone.recon.scm.ReconPipelineReportHandler": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.scm.ReconStorageContainerManagerFacade": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.scm.ReconPipelineManager": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.scm.ReconStorageContainerSyncHelper": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.scm.ReconContainerManager": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.scm.PipelineSyncTask": [
+    "background-loop"
+  ],
+  "org.apache.hadoop.ozone.recon.scm.ReconNodeManager": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.scm.ReconIncrementalContainerReportHandler": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.recon.ReconRestServletModule": [
+    "background-loop"
+  ],
+  "org.apache.hadoop.ozone.client.OzoneBucket": [
+    "hot-path",
+    "read-path",
+    "test-anchor",
+    "write-path"
+  ],
+  "org.apache.hadoop.ozone.client.io.BlockOutputStreamEntryPool": [
+    "hot-path",
+    "invariant-carrier",
+    "write-path"
+  ],
+  "org.apache.hadoop.ozone.client.io.KeyOutputStream": [
+    "hot-path",
+    "test-anchor",
+    "write-path"
+  ],
+  "org.apache.hadoop.ozone.client.io.OzoneOutputStream": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.client.io.KeyInputStream": [
+    "hot-path",
+    "read-path",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.client.io.ECBlockOutputStreamEntry": [
+    "ec",
+    "invariant-carrier",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.client.io.ECBlockOutputStreamEntryPool": [
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.ozone.client.io.ECKeyOutputStream": [
+    "ec",
+    "invariant-carrier",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.client.io.BlockOutputStreamEntry": [
+    "hot-path",
+    "invariant-carrier",
+    "write-path"
+  ],
+  "org.apache.hadoop.ozone.client.io.KeyDataStreamOutput": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.client.ObjectStore": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.client.OzoneClientUtils": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.client.OzoneSnapshot": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.client.checksum.ReplicatedBlockChecksumComputer": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.client.rpc.OzoneKMSUtil": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.client.rpc.RpcClient": [
+    "hot-path",
+    "invariant-carrier",
+    "read-path",
+    "test-anchor",
+    "write-path"
+  ],
+  "org.apache.hadoop.ozone.client.OzoneClient": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.admin.nssummary.NSSummaryAdmin": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.admin.om.snapshot.DefragSubCommand": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.admin.om.lease.LeaseRecoverer": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.admin.om.FinalizeUpgradeSubCommand": [
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.ozone.admin.om.OmAddressOptions": [
+    "background-loop"
+  ],
+  "org.apache.hadoop.ozone.admin.reconfig.ReconfigureSubCommandUtil": [
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.ozone.admin.reconfig.AbstractReconfigureSubCommand": [
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.ozone.admin.scm.DecommissionScmSubcommand": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.admin.scm.FinalizeScmUpgradeSubcommand": [
+    "invariant-carrier"
+  ],
+  "org.apache.hadoop.ozone.admin.scm.GetScmRatisRolesSubcommand": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.util.DurationUtil": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.cli.datanode.DecommissionStatusSubCommand": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.cli.datanode.MaintenanceSubCommand": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.cli.datanode.DiskBalancerCommonOptions": [
+    "background-loop"
+  ],
+  "org.apache.hadoop.hdds.scm.cli.datanode.UsageInfoSubcommand": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.cli.datanode.ListInfoSubcommand": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.cli.datanode.DecommissionSubCommand": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.cli.datanode.DiskBalancerSubCommandUtil": [
+    "background-loop",
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.cli.datanode.RecommissionSubCommand": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.cli.container.ReconcileSubcommand": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.hdds.scm.cli.cert.CleanExpiredCertsSubcommand": [
+    "test-anchor"
+  ],
+  "org.apache.hadoop.ozone.container.diskbalancer.policy.ContainerChoosingPolicy": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.diskbalancer.policy.ContainerCandidate": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.diskbalancer.ContainerChoosingPolicyFactory": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.diskbalancer.DiskBalancerInfo": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.diskbalancer.DiskBalancerVersion": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.diskbalancer.DiskBalancerServiceMetrics": [
+    "background"
+  ],
+  "org.apache.hadoop.hdds.scm.block.BlockmanagerMXBean": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.block.DeletedBlockLogStateManager": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.block.DeletedBlockLogImpl": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.block.DeletedBlockLogStateManagerImpl": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.block.DatanodeDeletedBlockTransactions": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.block.SCMDeletedBlockTransactionStatusManager": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.block.ScmBlockDeletingServiceMetrics": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.balancer.FindSourceStrategy": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.balancer.AbstractFindTargetGreedy": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.balancer.FindSourceGreedy": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.balancer.FindTargetGreedyByNetworkTopology": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.balancer.ContainerMoveSelection": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.balancer.ContainerBalancerTaskIterationStatusInfo": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.balancer.FindTargetGreedyByUsageInfo": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.balancer.IterationInfo": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.balancer.ContainerMoveInfo": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.balancer.DataMoveInfo": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.balancer.ContainerBalancerStopReason": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.balancer.ContainerBalancerMetrics": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.balancer.IllegalContainerBalancerStateException": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.balancer.InvalidContainerBalancerConfigurationException": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.placement.metrics.SCMNodeMetric": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.ContainerManager": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.placement.metrics.LongMetric": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.placement.metrics.DatanodeMetric": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.placement.metrics.NodeStat": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.AbstractContainerReportHandler": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.ContainerStateManagerImpl": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.placement.metrics.SCMNodeStat": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.placement.metrics.ContainerStat": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.states.ContainerState": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.states.ContainerEntry": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.placement.algorithms.ContainerPlacementPolicyFactory": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.placement.metrics.SCMMetrics": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.placement.metrics.SCMPerformanceMetrics": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.placement.algorithms.SCMContainerPlacementMetrics": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.ContainerReplicaPendingOpsSubscriber": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.UnhealthyReplicationHandler": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.health.HealthCheck": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.ContainerReplicaCount": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.MisReplicationHandler": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.UnhealthyReplicationProcessor": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.AbstractOverReplicationHandler": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.health.AbstractCheck": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.ContainerHealthResult": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.ReplicationQueue": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.InflightType": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.MonitoringReplicationQueue": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.InflightAction": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.ContainerCheckRequest": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.ContainerReplicaOp": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.container.replication.CommandTargetOverloadedException": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.node.NodeManager": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.node.SCMNodeStorageStatMXBean": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.node.NodeManagerMXBean": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.node.DatanodeAdminMonitorImpl": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.node.NodeStatus": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.node.StorageReportResult": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.node.HealthyReadOnlyNodeHandler": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.node.StartDatanodeAdminHandler": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.node.states.DatanodeEntry": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.node.StaleNodeHandler": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.node.ReadOnlyHealthyToHealthyNodeHandler": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.node.NewNodeHandler": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.node.NodeAddressUpdateHandler": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.node.DatanodeInfo": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.node.states.ReportResult": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.node.InvalidHostStringException": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.node.InvalidNodeStateException": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.node.states.NodeNotFoundException": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.node.states.NodeException": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.node.states.NodeAlreadyExistsException": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.choose.algorithms.HealthyPipelineChoosePolicy": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.choose.algorithms.RandomPipelineChoosePolicy": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.PipelineManager": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.PipelineStateManager": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.WritableContainerProvider": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.PipelineProvider": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.PipelineReportHandler": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.leader.choose.algorithms.MinLeaderCountChoosePolicy": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.RatisPipelineUtils": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.leader.choose.algorithms.DefaultLeaderChoosePolicy": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.PipelineFactory": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.WritableContainerFactory": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.PipelinePlacementPolicyFactory": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.leader.choose.algorithms.LeaderChoosePolicyFactory": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.pipeline.InsufficientDatanodesException": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.safemode.SafeModeManager": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.safemode.AbstractContainerSafeModeRule": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.safemode.SafeModeExitRule": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.safemode.StateMachineReadyRule": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.safemode.SafeModeMetrics": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.ozone.audit.SCMAction": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.events.SCMEvents": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.invoker.ScmInvoker": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SCMDBCheckpointProvider": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SCMRatisServer": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SCMService": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SCMHADBTransactionBuffer": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SCMHAManager": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SCMSnapshotDownloader": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.invoker.ContainerStateManagerInvoker": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SCMHANodeDetails": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.invoker.PipelineStateManagerInvoker": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SCMHAManagerStub": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.RatisUtil": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SCMHADBTransactionBufferImpl": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SCMNodeDetails": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.invoker.RootCARotationHandlerInvoker": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.InterSCMGrpcClient": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SCMHADBTransactionBufferStub": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.HASecurityUtils": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.invoker.DeletedBlockLogStateManagerInvoker": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.invoker.FinalizationStateManagerInvoker": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.invoker.CertificateStoreInvoker": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SCMGrpcOutputStream": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.invoker.SequenceIdGeneratorStateManagerInvoker": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.invoker.SecretKeyStateInvoker": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.ExecutionUtil": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.io.ScmCodecFactory": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.io.ScmStringCodec": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.io.ScmNonShadedGeneratedMessageCodec": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.io.ScmIntegerCodec": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.io.ScmManagedSecretKeyCodec": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.io.ScmByteStringCodec": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.io.ScmCodec": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.io.ScmEnumCodec": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.io.ScmBooleanCodec": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.io.ScmNonShadedByteStringCodec": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.io.ScmLongCodec": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SCMServiceException": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.metadata.SCMDBDefinition": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.metadata.BigIntegerCodec": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.ozone.protocol.commands.RetriableDatanodeEventWatcher": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.security.RootCARotationHandler": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.security.RootCARotationHandlerImpl": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.security.ScmSecretKeyStateBuilder": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.security.RootCARotationMetrics": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.PipelineChoosePolicy": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.server.SCMStarterInterface": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.server.OzoneStorageContainerManager": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.PlacementPolicy": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.server.SCMSecurityProtocolServer": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.server.ContainerReportQueue": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.server.SCMConfigurator": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.server.SCMPolicyProvider": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.PlacementPolicyValidateProxy": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.server.SCMDBCheckpointServlet": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.server.SCMStorageConfig": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.server.SCMHTTPServerConfig": [
+    "background",
+    "metadata-scm"
+  ],
+  "org.apache.hadoop.hdds.scm.server.upgrade.FinalizationManager": [
+    "background",
+    "metadata-scm",
+    "upgrade"
+  ],
+  "org.apache.hadoop.hdds.scm.server.upgrade.FinalizationStateManager": [
+    "background",
+    "metadata-scm",
+    "upgrade"
+  ],
+  "org.apache.hadoop.hdds.scm.server.upgrade.SCMUpgradeFinalizationContext": [
+    "background",
+    "metadata-scm",
+    "upgrade"
+  ],
+  "org.apache.hadoop.hdds.scm.server.upgrade.ScmOnFinalizeActionForDatanodeSchemaV2": [
+    "background",
+    "metadata-scm",
+    "upgrade"
+  ],
+  "org.apache.hadoop.hdds.scm.server.upgrade.FinalizationCheckpoint": [
+    "background",
+    "metadata-scm",
+    "upgrade"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.RawErasureDecoder": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.RawErasureEncoder": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.AbstractNativeRawDecoder": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.AbstractNativeRawEncoder": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.EncodingState": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.util.GaloisField": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.util.GF256": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.util.RSUtil": [
+    "ec"
+  ],
+  "org.apache.hadoop.ozone.container.ec.reconstruction.ECContainerOperationClient": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.RSRawDecoder": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.ByteBufferDecodingState": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.ByteBufferEncodingState": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.ByteArrayDecodingState": [
+    "ec"
+  ],
+  "org.apache.hadoop.ozone.container.ec.reconstruction.ECReconstructionCoordinatorTask": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.ECChunk": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.util.DumpUtil": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.util.CodecUtil": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.RSRawEncoder": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.XORRawEncoder": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.ByteArrayEncodingState": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.XORRawDecoder": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.ErasureCodeNative": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.NativeXORRawEncoder": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.DummyRawDecoder": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.NativeRSRawEncoder": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.NativeXORRawDecoder": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.DecodingState": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.DummyRawEncoder": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.NativeRSRawDecoder": [
+    "ec"
+  ],
+  "org.apache.hadoop.io.erasurecode.rawcoder.HadoopNativeECAccessorUtil": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.NativeRSRawErasureCoderFactory": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.XORRawErasureCoderFactory": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.RSRawErasureCoderFactory": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.DummyRawErasureCoderFactory": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.NativeXORRawErasureCoderFactory": [
+    "ec"
+  ],
+  "org.apache.ozone.erasurecode.rawcoder.RawErasureCoderFactory": [
+    "ec"
+  ],
+  "org.apache.hadoop.ozone.container.ec.reconstruction.ECReconstructionCommandInfo": [
+    "ec"
+  ],
+  "org.apache.hadoop.ozone.container.ec.reconstruction.ECReconstructionMetrics": [
+    "ec"
+  ],
+  "org.apache.hadoop.ozone.om.OMMetadataManager": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.lock.IOzoneManagerLock": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.lock.HierarchicalResourceLockManager": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.lock.OMLockDetails": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.ExpiredOpenKeys": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.OzoneAclStorageUtil": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.OzoneAclStorage": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.lock.LockUsageInfo": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.lock.OMLockMetrics": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.audit.OMAction": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.audit.OMSystemAction": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.service.AbstractKeyDeletingService": [
+    "background",
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.service.KeyLifecycleServiceMetrics": [
+    "background",
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.BucketManager": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.codec.TokenIdentifierCodec": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.execution.flowcontrol.ExecutionContext": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.execution.OMExecutionFlow": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.fs.OzoneManagerFS": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.OMAuditLogger": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.helpers.OmFSOFile": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.KeyManager": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.lock.OzoneLockStrategy": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.lock.ResourceLockTracker": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.lock.DAGResourceLockTracker": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.lock.OmReadOnlyLock": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.lock.OBSKeyPathLockStrategy": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.lock.ReadOnlyHierarchicalResourceLockManager": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.lock.LeveledResourceLockTracker": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.lock.RegularBucketLockStrategy": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.multitenant.MultiTenantAccessController": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.multitenant.AuthorizerLock": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.multitenant.CachedTenantState": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.ratis.OzoneManagerRatisServerConfig": [
+    "hot-path",
+    "metadata-om",
+    "ratis"
+  ],
+  "org.apache.hadoop.ozone.om.ratis.OzoneManagerDoubleBufferMetrics": [
+    "hot-path",
+    "metadata-om",
+    "ratis"
+  ],
+  "org.apache.hadoop.ozone.om.request.RequestAuditor": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.util.AclOp": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.validation.OMLayoutVersionValidator": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.validation.RequestFeatureValidator": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.validation.OMClientVersionValidator": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.validation.ValidationContext": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.OMClientRequestUtils": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.util.OmResponseUtil": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.util.ObjectParser": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.util.OmKeyHSyncUtil": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.BucketLayoutAwareOMKeyRequestFactory": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.security.OMRenewDelegationTokenRequest": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.security.OMCancelDelegationTokenRequest": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.lifecycle.OMLifecycleSetServiceStatusRequest": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.util.OMEchoRPCWriteRequest": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.validation.ValidationCondition": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.bucket.acl.OMBucketAclRequest": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.bucket.OMBucketSetOwnerRequest": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.file.OMFileRequest": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.OMDirectoriesPurgeRequestWithFSO": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.OmKeysDeleteRequestWithFSO": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.OMKeySetTimesRequestWithFSO": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.acl.OMKeySetAclRequestWithFSO": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.acl.OMKeyAddAclRequestWithFSO": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.acl.OMKeyRemoveAclRequestWithFSO": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.OMKeySetTimesRequest": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.OMKeyPurgeRequest": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.acl.OMKeyRemoveAclRequest": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.acl.OMKeyAddAclRequest": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.acl.OMKeySetAclRequest": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.acl.prefix.OMPrefixAddAclRequest": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.acl.prefix.OMPrefixRemoveAclRequest": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.key.acl.prefix.OMPrefixSetAclRequest": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.tagging.S3BucketTaggingRequestBase": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.tenant.OMTenantAssignUserAccessIdRequest": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.tenant.OMTenantRevokeUserAccessIdRequest": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.tenant.OMTenantAssignAdminRequest": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.tenant.OMTenantRevokeAdminRequest": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.security.OMSetSecretRequest": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.security.S3RevokeSecretRequest": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.s3.tenant.OMSetRangerServiceVersionRequest": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.snapshot.OMSnapshotMoveUtils": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.request.snapshot.OMSnapshotPurgeRequest": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.request.snapshot.OMSnapshotSetPropertyRequest": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.request.snapshot.OMSnapshotMoveDeletedKeysRequest": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.request.upgrade.OMFinalizeUpgradeRequest": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.volume.acl.OMVolumeAclRequest": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.volume.OMVolumeRequest": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.request.volume.OMQuotaRepairRequest": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.response.s3.multipart.AbstractS3MultipartAbortResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.key.AbstractOMKeyDeleteResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.key.OmKeyResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.OMClientResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.key.OMDirectoriesPurgeResponseWithFSO": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.key.OMKeySetTimesResponseWithFSO": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.key.acl.OMKeyAclResponseWithFSO": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.snapshot.OMSnapshotMoveDeletedKeysResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.key.OMKeyPurgeResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.s3.tenant.OMTenantRevokeUserAccessIdResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.s3.tenant.OMTenantCreateResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.s3.tenant.OMTenantAssignUserAccessIdResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.DummyOMClientResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.snapshot.OMSnapshotRenameResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.snapshot.OMSnapshotSetPropertyResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.s3.tenant.OMTenantDeleteResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.s3.tenant.OMTenantAssignAdminResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.s3.tenant.OMTenantRevokeAdminResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.s3.tenant.OMSetRangerServiceVersionResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.s3.security.S3RevokeSecretResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.s3.security.S3GetSecretResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.s3.security.OMSetSecretResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.upgrade.OMPrepareResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.upgrade.OMCancelPrepareResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.upgrade.OMFinalizeUpgradeResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.util.OMEchoRPCWriteResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.file.OMRecoverLeaseResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.file.OMFileCreateResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.security.OMRenewDelegationTokenResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.security.OMCancelDelegationTokenResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.lifecycle.OMLifecycleSetServiceStatusResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.key.OMKeySetTimesResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.key.acl.OMKeyAclResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.bucket.OMBucketSetOwnerResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.bucket.acl.OMBucketAclResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.volume.OMVolumeAclOpResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.response.volume.OMQuotaRepairResponse": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.security.acl.OzoneManagerAuthorizer": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.security.OMCertificateClient": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.security.OzoneSecretStore": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.security.S3SecurityUtil": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.common.BekInfoUtils": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.ListIterator": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.SnapshotChainInfo": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.S3SecretManager": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.S3SecretFunction": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.TenantOp": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.s3.S3SecretStoreProvider": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.s3.S3SecretCacheProvider": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.OMStarterInterface": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.IOzoneAcl": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.S3SecretStore": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.ha.OMService": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.PrefixManager": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.OMMXBean": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.S3SecretCache": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.S3Batcher": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.OmMetadataReader": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.TrashOzoneFileSystem": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.PrefixManagerImpl": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.OmSnapshot": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.TrashPolicyOzone": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.OzoneListStatusHelper": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.ha.OMHANodeDetails": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.OmSnapshotLocalData": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.OzonePrefixPathImpl": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.ResolvedBucket": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.PendingKeysDeletion": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.OzoneAclUtils": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.S3SecretManagerImpl": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.S3SecretLockedManager": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.s3.S3SecretStoreConfigurationKeys": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.s3.LocalS3StoreProvider": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.OMPolicyProvider": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.S3InMemoryCache": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.OzoneTrash": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.OMMetrics": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.OMPerformanceMetrics": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.DeletingServiceMetrics": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.OmSnapshotMetrics": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.OmSnapshotInternalMetrics": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.OmMetricsInfo": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.OmMetadataReaderMetrics": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.ha.OMServiceException": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.PersistentList": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.ReferenceCountedCallback": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.RequireSnapshotFeatureState": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.diff.delta.DeltaFileComputer": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.PersistentMap": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.PersistentSet": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.ObjectPathResolver": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.db.SnapshotDiffMetadataManager": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.ReferenceCounted": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.db.SnapshotDiffMetadataManagerImpl": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.db.SnapshotDiffDBDefinition": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.snapshot.diff.helper.SnapshotDiffObjectInfo": [
+    "metadata-om",
+    "snapshot"
+  ],
+  "org.apache.hadoop.ozone.om.upgrade.BelongsToLayoutVersion": [
+    "metadata-om",
+    "upgrade"
+  ],
+  "org.apache.hadoop.ozone.om.upgrade.OmUpgradeAction": [
+    "metadata-om",
+    "upgrade"
+  ],
+  "org.apache.hadoop.ozone.om.upgrade.UpgradeActionOm": [
+    "metadata-om",
+    "upgrade"
+  ],
+  "org.apache.hadoop.ozone.om.upgrade.DisallowedUntilLayoutVersion": [
+    "metadata-om",
+    "upgrade"
+  ],
+  "org.apache.hadoop.ozone.om.upgrade.OMLayoutVersionManager": [
+    "metadata-om",
+    "upgrade"
+  ],
+  "org.apache.hadoop.ozone.om.upgrade.QuotaRepairUpgradeAction": [
+    "metadata-om",
+    "upgrade"
+  ],
+  "org.apache.hadoop.ozone.om.upgrade.OMLayoutFeature": [
+    "metadata-om",
+    "upgrade"
+  ],
+  "org.apache.hadoop.ozone.om.VolumeManager": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.om.VolumeManagerImpl": [
+    "metadata-om"
+  ],
+  "org.apache.hadoop.ozone.container.common.transport.server.ratis.XceiverServerRatis": [
+    "hot-path",
+    "ratis"
+  ],
+  "org.apache.hadoop.ozone.container.common.transport.server.ratis.RatisServerConfiguration": [
+    "hot-path",
+    "ratis"
+  ],
+  "org.apache.hadoop.ozone.container.common.transport.server.ratis.DispatcherContext": [
+    "hot-path",
+    "ratis"
+  ],
+  "org.apache.hadoop.hdds.ratis.retrypolicy.RetryPolicyCreator": [
+    "hot-path",
+    "ratis"
+  ],
+  "org.apache.hadoop.hdds.ratis.retrypolicy.RequestTypeDependentRetryPolicyCreator": [
+    "hot-path",
+    "ratis"
+  ],
+  "org.apache.hadoop.hdds.ratis.retrypolicy.RetryLimitedPolicyCreator": [
+    "hot-path",
+    "ratis"
+  ],
+  "org.apache.hadoop.hdds.ratis.ServerNotLeaderException": [
+    "hot-path",
+    "ratis"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.RetriableWithNoFailoverException": [
+    "hot-path",
+    "ratis"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.RetriableWithFailOverException": [
+    "hot-path",
+    "ratis"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.NonRetriableException": [
+    "hot-path",
+    "ratis"
+  ],
+  "org.apache.hadoop.hdds.scm.ha.SCMHandler": [
+    "hot-path",
+    "ratis"
+  ],
+  "org.apache.ratis.metrics.dropwizard3.RatisMetricsUtils": [
+    "hot-path",
+    "ratis"
+  ],
+  "org.apache.hadoop.hdds.security.OzoneSecretManager": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.OzoneSecretKey": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.ssl.KeyStoresFactory": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.symmetric.SecretKeyVerifierClient": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.symmetric.SecretKeyClient": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.symmetric.SecretKeySignerClient": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.symmetric.SecretKeyState": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.symmetric.SecretKeyStore": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.symmetric.LocalSecretKeyStore": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.symmetric.SecretKeyStateImpl": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.symmetric.DefaultSecretKeyVerifierClient": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.symmetric.DefaultSecretKeyClient": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.symmetric.SecretKeyConfig": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.token.ContainerTokenGenerator": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.token.TokenVerifier": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.token.ShortLivedTokenVerifier": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.token.ShortLivedTokenSecretManager": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.token.ContainerTokenIdentifier": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.token.NoopTokenVerifier": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.token.ContainerTokenSecretManager": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.token.CompositeTokenVerifier": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.token.BlockTokenException": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.x509.certificate.client.CertificateClient": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.x509.certificate.authority.CertificateStore": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.x509.certificate.authority.CertificateApprover": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.x509.certificate.authority.profile.PKIProfile": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.x509.certificate.authority.CertificateServer": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.x509.certificate.client.CertificateNotification": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.x509.certificate.utils.SelfSignedCertificate": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.x509.certificate.authority.DefaultApprover": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.x509.certificate.client.DNCertificateClient": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.x509.certificate.authority.profile.DefaultCAProfile": [
+    "security"
+  ],
+  "org.apache.hadoop.hdds.security.x509.certificate.CertInfo": [
+    "security"
+  ],
+  "org.apache.hadoop.ozone.container.upgrade.VersionedDatanodeFeatures": [
+    "upgrade"
+  ],
+  "org.apache.hadoop.ozone.container.upgrade.ScmHAFinalizeUpgradeActionDatanode": [
+    "upgrade"
+  ],
+  "org.apache.hadoop.ozone.container.upgrade.DataNodeUpgradeFinalizer": [
+    "upgrade"
+  ],
+  "org.apache.hadoop.ozone.container.upgrade.ContainerTableSchemaFinalizeAction": [
+    "upgrade"
+  ],
+  "org.apache.hadoop.ozone.container.upgrade.DatanodeSchemaV2FinalizeAction": [
+    "upgrade"
+  ],
+  "org.apache.hadoop.ozone.container.upgrade.UpgradeUtils": [
+    "upgrade"
+  ],
+  "org.apache.hadoop.hdds.scm.XceiverClientRatis": [
+    "hot-path",
+    "write-path"
+  ],
+  "org.apache.hadoop.ozone.container.replication.ContainerReplicator": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.replication.ContainerReplicationSource": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.replication.ContainerUploader": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.replication.GrpcOutputStream": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.replication.VolumeReplicationThreadPools": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.replication.ReplicationTask": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.replication.GrpcReplicationClient": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.replication.OnDemandContainerReplicationSource": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.replication.AbstractReplicationTask": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.replication.ReplicationSupervisorMetrics": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.HddsDatanodeStopService": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.DNMXBean": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.common.impl.ContainerData": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.ozoneimpl.AbstractBackgroundContainerScanner": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.common.states.endpoint.RegisterEndpointTask": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.ozoneimpl.ContainerController": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.HddsDatanodeClientProtocolServer": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.common.states.endpoint.VersionEndpointTask": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.DNMXBeanImpl": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.HddsDatanodeHttpServer": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.common.DatanodeLayoutStorage": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.common.impl.ContainerDataScanOrder": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.common.impl.RandomContainerDeletionChoosingPolicy": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.common.impl.TopNOrderedContainerDeletionChoosingPolicy": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.common.HDDSVolumeLayoutVersion": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.HddsPolicyProvider": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.ozoneimpl.ContainerScanError": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.ozoneimpl.AbstractContainerScannerMetrics": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.ozoneimpl.ContainerDataScannerMetrics": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.ozoneimpl.ContainerMetadataScannerMetrics": [
+    "background"
+  ],
+  "org.apache.hadoop.ozone.container.ozoneimpl.OnDemandScannerMetrics": [
+    "background"
+  ]
+}

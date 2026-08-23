@@ -1,0 +1,74 @@
+---
+slug: /class/omlifecyclesavescanstaterequest
+title: "OMLifecycleSaveScanStateRequest"
+sidebar_label: "OMLifecycleSaveScanStateRequest"
+atlasGenerated: true
+---
+
+
+# OMLifecycleSaveScanStateRequest
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.om.request.lifecycle.OMLifecycleSaveScanStateRequest</code>
+
+<ClassBadge kind="dto" logicWeight="data-only" concurrency="single-threaded" difficulty={1} studyMinutes={10} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>Handles SaveLifecycleScanState request.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/om">OM</a> / <a href="/component/om/om-request">om-request</a>
+<span>dto · data-only</span>
+<span>single-threaded · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 74</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 66</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">test</span> TestOMLifecycleSaveScanStateRequest.java</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>dto</code> in <code>OM/om-request</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>single-threaded</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>10 min</code>. Difficulty is <code>1/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/request/lifecycle/OMLifecycleSaveScanStateRequest.java">hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/request/lifecycle/OMLifecycleSaveScanStateRequest.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li><SourceLink path="hadoop-ozone/ozone-manager/src/test/java/org/apache/hadoop/ozone/om/request/lifecycle/TestOMLifecycleSaveScanStateRequest.java">hadoop-ozone/ozone-manager/src/test/java/org/apache/hadoop/ozone/om/request/lifecycle/TestOMLifecycleSaveScanStateRequest.java</SourceLink></li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/request/lifecycle/OMLifecycleSaveScanStateRequest.java" line={46}>OMLifecycleSaveScanStateRequest.java · preExecute()</SourceLink>
+- <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/request/lifecycle/OMLifecycleSaveScanStateRequest.java" line={60}>OMLifecycleSaveScanStateRequest.java · validateAndUpdateCache()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.ozone.om.request.OMClientRequest</Fqcn> · <Fqcn>org.apache.hadoop.ozone.om.request.util.OmResponseUtil</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.cache.CacheKey</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.cache.CacheValue</Fqcn> · <Fqcn>org.apache.hadoop.ozone.om.OzoneManager</Fqcn> · <Fqcn>org.apache.hadoop.ozone.om.exceptions.OMException</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.om.request.lifecycle.OMLifecycleSaveScanStateRequest" />
+## Read next
+
+<div className="atlas-read-next">In this feature (OM/om-request): <Fqcn>org.apache.hadoop.ozone.om.request.security.OMGetDelegationTokenRequest</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="omlifecyclesavescanstaterequest" />

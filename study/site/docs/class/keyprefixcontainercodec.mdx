@@ -1,0 +1,69 @@
+---
+slug: /class/keyprefixcontainercodec
+title: "KeyPrefixContainerCodec"
+sidebar_label: "KeyPrefixContainerCodec"
+atlasGenerated: true
+---
+
+
+# KeyPrefixContainerCodec
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.recon.spi.impl.KeyPrefixContainerCodec</code>
+
+<ClassBadge kind="util" logicWeight="mixed" concurrency="single-threaded" difficulty={2} studyMinutes={20} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>Codec to serialize/deserialize KeyPrefixContainer.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/recon">Recon</a> / <a href="/component/recon/recon-spi">recon-spi</a>
+<span>util · mixed</span>
+<span>single-threaded · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 189</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 2422</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">test</span> TestKeyPrefixContainerCodec.java</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>util</code> in <code>Recon/recon-spi</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>single-threaded</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>20 min</code>. Difficulty is <code>2/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/spi/impl/KeyPrefixContainerCodec.java">hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/spi/impl/KeyPrefixContainerCodec.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li><SourceLink path="hadoop-ozone/recon/src/test/java/org/apache/hadoop/ozone/recon/spi/impl/TestKeyPrefixContainerCodec.java">hadoop-ozone/recon/src/test/java/org/apache/hadoop/ozone/recon/spi/impl/TestKeyPrefixContainerCodec.java</SourceLink></li>
+</ul>
+</div>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.hdds.utils.db.Codec</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.CodecBuffer</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.CodecException</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.LongCodec</Fqcn> · <Fqcn>org.apache.hadoop.ozone.recon.api.types.KeyPrefixContainer</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.recon.spi.impl.KeyPrefixContainerCodec" />
+## Read next
+
+<div className="atlas-read-next">In this feature (Recon/recon-spi): <Fqcn>org.apache.hadoop.ozone.recon.spi.impl.ContainerKeyPrefixCodec</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="keyprefixcontainercodec" />

@@ -1,0 +1,73 @@
+---
+slug: /class/reconcontainermetadatamanagerimpl
+title: "ReconContainerMetadataManagerImpl"
+sidebar_label: "ReconContainerMetadataManagerImpl"
+atlasGenerated: true
+---
+
+
+# ReconContainerMetadataManagerImpl
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.recon.spi.impl.ReconContainerMetadataManagerImpl</code>
+
+<ClassBadge kind="service" logicWeight="logic-heavy" concurrency="single-threaded" difficulty={5} studyMinutes={60} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>Implementation of the Recon Container DB Service.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/recon">Recon</a> / <a href="/component/recon/recon-spi">recon-spi</a>
+<span>service · logic-heavy</span>
+<span>single-threaded · RocksDB</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> RocksDB</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 687</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 2412</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">test</span> TestReconContainerMetadataManagerImpl.java</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>service</code> in <code>Recon/recon-spi</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>single-threaded</code>; persistence is <code>RocksDB</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>60 min</code>. Difficulty is <code>5/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/spi/impl/ReconContainerMetadataManagerImpl.java">hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/spi/impl/ReconContainerMetadataManagerImpl.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li><SourceLink path="hadoop-ozone/recon/src/test/java/org/apache/hadoop/ozone/recon/spi/impl/TestReconContainerMetadataManagerImpl.java">hadoop-ozone/recon/src/test/java/org/apache/hadoop/ozone/recon/spi/impl/TestReconContainerMetadataManagerImpl.java</SourceLink></li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/spi/impl/ReconContainerMetadataManagerImpl.java" line={463}>ReconContainerMetadataManagerImpl.java · close()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.ozone.recon.spi.ReconContainerMetadataManager</Fqcn> · <Fqcn>org.apache.hadoop.hdds.protocol.DatanodeID</Fqcn> · <Fqcn>org.apache.hadoop.hdds.scm.pipeline.Pipeline</Fqcn> · <Fqcn>org.apache.hadoop.hdds.scm.pipeline.PipelineID</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.BatchOperation</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.DBStore</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.recon.spi.impl.ReconContainerMetadataManagerImpl" />
+## Read next
+
+<div className="atlas-read-next">In this feature (Recon/recon-spi): <Fqcn>org.apache.hadoop.ozone.recon.spi.impl.StorageContainerServiceProviderImpl</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="reconcontainermetadatamanagerimpl" />

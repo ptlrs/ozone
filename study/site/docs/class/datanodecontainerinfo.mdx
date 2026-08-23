@@ -1,0 +1,69 @@
+---
+slug: /class/datanodecontainerinfo
+title: "DatanodeContainerInfo"
+sidebar_label: "DatanodeContainerInfo"
+atlasGenerated: true
+---
+
+
+# DatanodeContainerInfo
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.debug.logs.container.utils.DatanodeContainerInfo</code>
+
+<ClassBadge kind="dto" logicWeight="data-only" concurrency="single-threaded" difficulty={1} studyMinutes={10} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>Holds information about a container.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/debug-repair">Debug & Repair</a> / <a href="/component/debug-repair/debug">debug</a>
+<span>dto · data-only</span>
+<span>single-threaded · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 137</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 1317</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>dto</code> in <code>Debug & Repair/debug</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>single-threaded</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>10 min</code>. Difficulty is <code>1/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-ozone/cli-debug/src/main/java/org/apache/hadoop/ozone/debug/logs/container/utils/DatanodeContainerInfo.java">hadoop-ozone/cli-debug/src/main/java/org/apache/hadoop/ozone/debug/logs/container/utils/DatanodeContainerInfo.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li>&lt;em&gt;No exemplar test classified yet.&lt;/em&gt;</li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-ozone/cli-debug/src/main/java/org/apache/hadoop/ozone/debug/logs/container/utils/DatanodeContainerInfo.java" line={100}>DatanodeContainerInfo.java · build()</SourceLink>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.debug.logs.container.utils.DatanodeContainerInfo" />
+## Read next
+
+<div className="atlas-read-next">In this feature (Debug & Repair/debug): <Fqcn>org.apache.hadoop.ozone.debug.datanode.container.ContainerCommands</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="datanodecontainerinfo" />

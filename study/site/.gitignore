@@ -1,0 +1,17 @@
+# Docusaurus
+.docusaurus/
+build/
+node_modules/
+
+# Local, user-specific config (see config.local.example.js)
+config.local.js
+
+# Generated data
+docs/_data/
+sidebars.generated.js
+
+# Editor / OS
+.DS_Store
+*.log
+.idea/
+.vscode/

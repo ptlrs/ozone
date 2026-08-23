@@ -1,0 +1,74 @@
+---
+slug: /class/reclaimablefilter
+title: "ReclaimableFilter"
+sidebar_label: "ReclaimableFilter"
+atlasGenerated: true
+---
+
+
+# ReclaimableFilter
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.om.snapshot.filter.ReclaimableFilter</code>
+
+<ClassBadge kind="abstract" logicWeight="mixed" concurrency="single-threaded" difficulty={4} studyMinutes={45} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>This class is responsible for opening last N snapshot given a snapshot metadata manager or AOS metadata manager by ac...</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/om">OM</a> / <a href="/component/om/om-snapshot">om-snapshot</a>
+<span>abstract · mixed</span>
+<span>single-threaded · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 258</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 885</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">test</span> TestReclaimableFilter.java</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>abstract</code> in <code>OM/om-snapshot</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>single-threaded</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>45 min</code>. Difficulty is <code>4/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/snapshot/filter/ReclaimableFilter.java">hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/snapshot/filter/ReclaimableFilter.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li><SourceLink path="hadoop-ozone/ozone-manager/src/test/java/org/apache/hadoop/ozone/om/snapshot/filter/TestReclaimableFilter.java">hadoop-ozone/ozone-manager/src/test/java/org/apache/hadoop/ozone/om/snapshot/filter/TestReclaimableFilter.java</SourceLink></li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/snapshot/filter/ReclaimableFilter.java" line={195}>ReclaimableFilter.java · apply()</SourceLink>
+- <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/snapshot/filter/ReclaimableFilter.java" line={215}>ReclaimableFilter.java · close()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.ozone.om.snapshot.MultiSnapshotLocks</Fqcn> · <Fqcn>org.apache.hadoop.ozone.om.snapshot.SnapshotUtils</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.IOUtils</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.Table</Fqcn> · <Fqcn>org.apache.hadoop.ozone.om.KeyManager</Fqcn> · <Fqcn>org.apache.hadoop.ozone.om.OmSnapshot</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.om.snapshot.filter.ReclaimableFilter" />
+## Read next
+
+<div className="atlas-read-next">In this feature (OM/om-snapshot): <Fqcn>org.apache.hadoop.ozone.om.snapshot.filter.ReclaimableKeyFilter</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="reclaimablefilter" />

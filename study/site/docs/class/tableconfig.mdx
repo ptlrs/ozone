@@ -1,0 +1,73 @@
+---
+slug: /class/tableconfig
+title: "TableConfig"
+sidebar_label: "TableConfig"
+atlasGenerated: true
+---
+
+
+# TableConfig
+
+<code className="atlas-fqcn-full">org.apache.hadoop.hdds.utils.db.TableConfig</code>
+
+<ClassBadge kind="config" logicWeight="data-only" concurrency="single-threaded" difficulty={2} studyMinutes={20} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>Class that maintains Table Configuration.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/hddscommon">HddsCommon</a> / <a href="/component/hddscommon/hdds-db-utils">hdds-db-utils</a>
+<span>config · data-only</span>
+<span>single-threaded · RocksDB</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> RocksDB</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 123</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 1862</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>config</code> in <code>HddsCommon/hdds-db-utils</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>single-threaded</code>; persistence is <code>RocksDB</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>20 min</code>. Difficulty is <code>2/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/utils/db/TableConfig.java">hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/utils/db/TableConfig.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li>&lt;em&gt;No exemplar test classified yet.&lt;/em&gt;</li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/utils/db/TableConfig.java" line={118}>TableConfig.java · close()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.hdds.StringUtils</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.managed.ManagedColumnFamilyOptions</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.hdds.utils.db.TableConfig" />
+## Read next
+
+<div className="atlas-read-next">In this feature (HddsCommon/hdds-db-utils): <Fqcn>org.apache.hadoop.hdds.utils.db.ByteStringCodec</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="tableconfig" />

@@ -1,0 +1,726 @@
+---
+slug: /view/background-jobs
+title: "Background services"
+sidebar_label: "Background services"
+atlasGenerated: true
+---
+# Background services
+<div className="atlas-flow-hero">
+<p>The scheduled services that keep the cluster healthy: replication manager, container balancer, disk balancer, scanners, key/directory del…</p>
+<div className="atlas-flow-hero__meta">13590 minutes · 445 classes</div>
+</div>
+## Flow walkthrough
+## Key classes on this path
+
+<div className="atlas-step-grid">
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">1</div>
+<div>
+<strong><a href="/class/diskbalancersubcommandutil">DiskBalancerSubCommandUtil</a></strong>
+<p>DiskBalancer subcommand utilities.</p>
+<span className="atlas-mono-hint">Admin CLIs/admin · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">2</div>
+<div>
+<strong><a href="/class/omaddressoptions">OmAddressOptions</a></strong>
+<p>Defines command-line options for OM address, whether service or single host.</p>
+<span className="atlas-mono-hint">Admin CLIs/admin · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">3</div>
+<div>
+<strong><a href="/class/diskbalancercommonoptions">DiskBalancerCommonOptions</a></strong>
+<p>Common options for DiskBalancer commands.</p>
+<span className="atlas-mono-hint">Admin CLIs/admin · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">4</div>
+<div>
+<strong><a href="/class/streaminggenerator">StreamingGenerator</a></strong>
+<p>Freon test for streaming service.</p>
+<span className="atlas-mono-hint">Bench & Insight/vapor · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">5</div>
+<div>
+<strong><a href="/class/blockoutputstream">BlockOutputStream</a></strong>
+<p>An OutputStream used by the REST service in combination with the SCMClient to write the value of a key to a sequence...</p>
+<span className="atlas-mono-hint">Client/hdds-client · 60 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">6</div>
+<div>
+<strong><a href="/class/blockdatastreamoutput">BlockDataStreamOutput</a></strong>
+<p>An ByteBufferStreamOutput used by the REST service in combination with the SCMClient to write the value of a key to a...</p>
+<span className="atlas-mono-hint">Client/hdds-client · 60 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">7</div>
+<div>
+<strong><a href="/class/ratisblockoutputstream">RatisBlockOutputStream</a></strong>
+<p>An OutputStream used by the REST service in combination with the SCMClient to write the value of a key to a sequence...</p>
+<span className="atlas-mono-hint">Client/hdds-client · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">8</div>
+<div>
+<strong><a href="/class/keytabprobe">KeytabProbe</a></strong>
+<p>Validates existence and readability of Ozone service keytab.</p>
+<span className="atlas-mono-hint">Debug & Repair/debug · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">9</div>
+<div>
+<strong><a href="/class/httpauthprobe">HttpAuthProbe</a></strong>
+<p>Prints HTTP Kerberos authentication configuration for Ozone services.</p>
+<span className="atlas-mono-hint">Debug & Repair/debug · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">10</div>
+<div>
+<strong><a href="/class/containerscanresult">ContainerScanResult</a></strong>
+<p>Result of a ContainerDirectoryScanner walk over DataNode storage volumes.</p>
+<span className="atlas-mono-hint">Debug & Repair/debug · 30 min</span>
+</div>
+</div>
+</div>
+
+## What to understand before moving on
+- Explain the service boundary crossings in this path: Admin CLIs -> Bench & Insight -> Client -> Debug & Repair -> DN.
+- Name the entry-point classes and the class that owns each durable state change.
+- Identify the retry, failure, or cleanup behavior that keeps the path correct when a service is slow or unavailable.
+- Open the individual class pages for invariants, sharp edges, source links, and test exemplars.
+- Use these tags as anchors when searching later: `background`, `background-loop`.
+## Full reading list
+### Admin CLIs — 3 classes · 90 min
+
+**[admin](/component/admin-clis/admin)** · 3 · 90 min
+
+- [OmAddressOptions](/class/omaddressoptions) — Defines command-line options for OM address, whether service or single host. <span className="atlas-mono-hint">30 min</span>
+- [DiskBalancerSubCommandUtil](/class/diskbalancersubcommandutil) — DiskBalancer subcommand utilities. <span className="atlas-mono-hint">30 min</span>
+- [DiskBalancerCommonOptions](/class/diskbalancercommonoptions) — Common options for DiskBalancer commands. <span className="atlas-mono-hint">30 min</span>
+
+### Bench & Insight — 1 class · 30 min
+
+**[vapor](/component/bench-insight/vapor)** · 1 · 30 min
+
+- [StreamingGenerator](/class/streaminggenerator) — Freon test for streaming service. <span className="atlas-mono-hint">30 min</span>
+
+### Client — 3 classes · 150 min
+
+**[hdds-client](/component/client/hdds-client)** · 3 · 150 min
+
+- [BlockOutputStream](/class/blockoutputstream) — An OutputStream used by the REST service in combination with the SCMClient to write the value of a key to a sequence... <span className="atlas-mono-hint">60 min</span>
+- [BlockDataStreamOutput](/class/blockdatastreamoutput) — An ByteBufferStreamOutput used by the REST service in combination with the SCMClient to write the value of a key to a... <span className="atlas-mono-hint">60 min</span>
+- [RatisBlockOutputStream](/class/ratisblockoutputstream) — An OutputStream used by the REST service in combination with the SCMClient to write the value of a key to a sequence... <span className="atlas-mono-hint">30 min</span>
+
+### DN — 79 classes · 2515 min
+
+**[container-checksum](/component/dn/container-checksum)** · 2 · 60 min
+
+- [DNContainerOperationClient](/class/dncontaineroperationclient) — This class wraps necessary container-level rpc calls for container reconciliation. <span className="atlas-mono-hint">30 min</span>
+- [ReconcileContainerTask](/class/reconcilecontainertask) — Used to execute a container reconciliation task that has been queued from the ReplicationSupervisor. <span className="atlas-mono-hint">30 min</span>
+
+**[container-replication-dn](/component/dn/container-replication-dn)** · 20 · 580 min
+
+- [ContainerReplicator](/class/containerreplicator) — Service to do the real replication task. <span className="atlas-mono-hint">20 min</span>
+- [ContainerReplicationSource](/class/containerreplicationsource) — Contract to prepare provide the container in binary form.. <span className="atlas-mono-hint">20 min</span>
+- [ContainerUploader](/class/containeruploader) — Client-side interface for sending a container to a target datanode. <span className="atlas-mono-hint">20 min</span>
+- [GrpcOutputStream](/class/grpcoutputstream) — Adapter from OutputStream to gRPC StreamObserver. <span className="atlas-mono-hint">30 min</span>
+- [ReplicationSupervisor](/class/replicationsupervisor) — Single point to schedule container replication tasks based on priorities. <span className="atlas-mono-hint">60 min</span>
+- [ReplicationServer](/class/replicationserver) — Separated network server for server2server container replication. <span className="atlas-mono-hint">45 min</span>
+- [GrpcContainerUploader](/class/grpccontaineruploader) — Uploads container to target datanode via gRPC. <span className="atlas-mono-hint">45 min</span>
+- [VolumeReplicationThreadPools](/class/volumereplicationthreadpools) — Per-volume replication handler thread pools for push-based replication. <span className="atlas-mono-hint">30 min</span>
+- [ContainerImporter](/class/containerimporter) — Imports container from tarball. <span className="atlas-mono-hint">30 min</span>
+- [SendContainerRequestHandler](/class/sendcontainerrequesthandler) — Handles incoming container pushed by other datanode. <span className="atlas-mono-hint">30 min</span>
+- [ReplicationTask](/class/replicationtask) — Task to push a container to a target datanode. <span className="atlas-mono-hint">30 min</span>
+- [MeasuredReplicator](/class/measuredreplicator) — ContainerReplicator wrapper with additional metrics. <span className="atlas-mono-hint">30 min</span>
+- [GrpcReplicationClient](/class/grpcreplicationclient) — Client to push container data to another datanode via gRPC. <span className="atlas-mono-hint">30 min</span>
+- [PushReplicator](/class/pushreplicator) — Pushes the container to the target datanode. <span className="atlas-mono-hint">30 min</span>
+- [GrpcReplicationService](/class/grpcreplicationservice) — Service to make containers available for replication. <span className="atlas-mono-hint">30 min</span>
+- [OnDemandContainerReplicationSource](/class/ondemandcontainerreplicationsource) — A naive implementation of the replication source which creates a tar file on-demand without pre-create the compressed... <span className="atlas-mono-hint">30 min</span>
+- [SendContainerOutputStream](/class/sendcontaineroutputstream) — Output stream adapter for SendContainerResponse. <span className="atlas-mono-hint">30 min</span>
+- [AbstractReplicationTask](/class/abstractreplicationtask) — Abstract class to capture common variables and methods for different types of replication tasks. <span className="atlas-mono-hint">10 min</span>
+- [CopyContainerCompression](/class/copycontainercompression) — Defines compression algorithm for container replication. <span className="atlas-mono-hint">10 min</span>
+- [ReplicationSupervisorMetrics](/class/replicationsupervisormetrics) — Metrics source to report number of replication tasks. <span className="atlas-mono-hint">20 min</span>
+
+**[disk-balancer](/component/dn/disk-balancer)** · 12 · 365 min
+
+- [DiskBalancerService](/class/diskbalancerservice) — A per-datanode disk balancing service takes in charge of moving contains among disks. <span className="atlas-mono-hint">60 min</span>
+- [DiskBalancerConfiguration](/class/diskbalancerconfiguration) — This class contains configuration values for the DiskBalancer. <span className="atlas-mono-hint">45 min</span>
+- [DiskBalancerYaml](/class/diskbalanceryaml) — Class for creating diskbalancer.info file in yaml format. <span className="atlas-mono-hint">45 min</span>
+- [DiskBalancerVolumeCalculation](/class/diskbalancervolumecalculation) — Utility class for disk balancer volume calculations. <span className="atlas-mono-hint">30 min</span>
+- [DiskBalancerProtocolServer](/class/diskbalancerprotocolserver) — Server-side implementation of DiskBalancerProtocol for datanodes. <span className="atlas-mono-hint">30 min</span>
+- [ContainerChoosingPolicyFactory](/class/containerchoosingpolicyfactory) — A factory to create ContainerChoosingPolicy instances for the DiskBalancer. <span className="atlas-mono-hint">20 min</span>
+- [DiskBalancerInfo](/class/diskbalancerinfo) — DiskBalancer's information to persist and for report. <span className="atlas-mono-hint">10 min</span>
+- [DiskBalancerVersion](/class/diskbalancerversion) — Defines versions for the DiskBalancerService. <span className="atlas-mono-hint">10 min</span>
+- [DiskBalancerServiceMetrics](/class/diskbalancerservicemetrics) — Metrics related to DiskBalancer Service running on Datanode. <span className="atlas-mono-hint">20 min</span>
+- [ContainerChoosingPolicy](/class/containerchoosingpolicy) — This interface specifies the policy for choosing volumes and containers to balance. <span className="atlas-mono-hint">20 min</span>
+- [DefaultContainerChoosingPolicy](/class/defaultcontainerchoosingpolicy) — First chooses a source volume and destination volume pair based on ideal utilization and threshold, then chooses a co... <span className="atlas-mono-hint">45 min</span>
+- [ContainerCandidate](/class/containercandidate) — Result of consolidated volume and container selection for disk balancing. <span className="atlas-mono-hint">30 min</span>
+
+**[dn-reports](/component/dn/dn-reports)** · 1 · 30 min
+
+- [ReportManager](/class/reportmanager) — ReportManager is responsible for managing all the ReportPublisher and also provides ScheduledExecutorService to Repor... <span className="atlas-mono-hint">30 min</span>
+
+**[dn-service](/component/dn/dn-service)** · 42 · 1420 min
+
+- [ContainerData](/class/containerdata) — ContainerData is the in-memory representation of container metadata and is represented on disk by the .container file. <span className="atlas-mono-hint">60 min</span>
+- [HddsDispatcher](/class/hddsdispatcher) — Ozone Container dispatcher takes a call from the netty server and routes it to the right handler function. <span className="atlas-mono-hint">60 min</span>
+- [ContainerSet](/class/containerset) — Class that manages Containers created on the datanode. <span className="atlas-mono-hint">45 min</span>
+- [StorageLocationReport](/class/storagelocationreport) — Storage location stats of datanodes that provide back store for containers. <span className="atlas-mono-hint">45 min</span>
+- [BlockDeletingService](/class/blockdeletingservice) — A per-datanode container block deleting service takes in charge of deleting staled ozone blocks. <span className="atlas-mono-hint">45 min</span>
+- [ContainerDataYaml](/class/containerdatayaml) — Class for creating and reading .container files. <span className="atlas-mono-hint">45 min</span>
+- [ContainerDataScanOrder](/class/containerdatascanorder) — Orders containers: 1. <span className="atlas-mono-hint">30 min</span>
+- [RandomContainerDeletionChoosingPolicy](/class/randomcontainerdeletionchoosingpolicy) — Randomly choosing containers for block deletion. <span className="atlas-mono-hint">30 min</span>
+- [TopNOrderedContainerDeletionChoosingPolicy](/class/topnorderedcontainerdeletionchoosingpolicy) — TopN Ordered choosing policy that choosing containers based on pending deletion blocks' number. <span className="atlas-mono-hint">30 min</span>
+- [ContainerLayoutVersion](/class/containerlayoutversion) — Defines layout versions for the Chunks. <span className="atlas-mono-hint">10 min</span>
+- [DatanodeState](/class/datanodestate) — State Interface that allows tasks to maintain states. <span className="atlas-mono-hint">20 min</span>
+- [DatanodeLayoutStorage](/class/datanodelayoutstorage) — DataNodeStorageConfig is responsible for management of the StorageDirectories used by the DataNode. <span className="atlas-mono-hint">30 min</span>
+- [HDDSVolumeLayoutVersion](/class/hddsvolumelayoutversion) — Layout version which describes information about the layout version on the datanode volume. <span className="atlas-mono-hint">30 min</span>
+- [AbstractBackgroundContainerScanner](/class/abstractbackgroundcontainerscanner) — Base class for scheduled scanners on a Datanode. <span className="atlas-mono-hint">30 min</span>
+- [OzoneContainer](/class/ozonecontainer) — Ozone main class sets up the network servers and initializes the container layer. <span className="atlas-mono-hint">60 min</span>
+- [ContainerReader](/class/containerreader) — Class used to read .container files from Volume and build container map. <span className="atlas-mono-hint">45 min</span>
+- [ContainerScanHelper](/class/containerscanhelper) — Mixin to handle common data and metadata scan operations among background and on-demand scanners. <span className="atlas-mono-hint">45 min</span>
+- [ContainerScannerConfiguration](/class/containerscannerconfiguration) — This class defines configuration parameters for the container scanners. <span className="atlas-mono-hint">45 min</span>
+- [ContainerController](/class/containercontroller) — Control plane for container management in datanode. <span className="atlas-mono-hint">45 min</span>
+- [OnDemandContainerScanner](/class/ondemandcontainerscanner) — Class for performing on demand scans of containers. <span className="atlas-mono-hint">30 min</span>
+- [BackgroundContainerDataScanner](/class/backgroundcontainerdatascanner) — Data scanner that full checks a volume. <span className="atlas-mono-hint">30 min</span>
+- [MetadataScanResult](/class/metadatascanresult) — Represents the result of a container metadata scan. <span className="atlas-mono-hint">30 min</span>
+- [ScanTransientIOUtil](/class/scantransientioutil) — Utility to catch transient scan failures (typically related to file-descriptor exhaustion) that should not be treated... <span className="atlas-mono-hint">30 min</span>
+- [DataScanResult](/class/datascanresult) — Represents the result of a container data scan. <span className="atlas-mono-hint">30 min</span>
+- [BackgroundContainerMetadataScanner](/class/backgroundcontainermetadatascanner) — This class is responsible to perform metadata verification of the containers. <span className="atlas-mono-hint">30 min</span>
+- [ContainerScanError](/class/containerscanerror) — This class is used to identify any error that may be seen while scanning a container. <span className="atlas-mono-hint">10 min</span>
+- [AbstractContainerScannerMetrics](/class/abstractcontainerscannermetrics) — Base class for container scanner metrics. <span className="atlas-mono-hint">20 min</span>
+- [ContainerDataScannerMetrics](/class/containerdatascannermetrics) — This class captures the container data scanner metrics on the data-node. <span className="atlas-mono-hint">20 min</span>
+- [ContainerMetadataScannerMetrics](/class/containermetadatascannermetrics) — This class captures the container meta-data scanner metrics on the data-node. <span className="atlas-mono-hint">20 min</span>
+- [OnDemandScannerMetrics](/class/ondemandscannermetrics) — This class captures the on-demand container data scanner metrics. <span className="atlas-mono-hint">20 min</span>
+- [HddsDatanodeStopService](/class/hddsdatanodestopservice) — Interface which declares a method to stop HddsDatanodeService. <span className="atlas-mono-hint">20 min</span>
+- [DNMXBean](/class/dnmxbean) — This is the JMX management interface for DN information. <span className="atlas-mono-hint">20 min</span>
+- [HddsDatanodeService](/class/hddsdatanodeservice) — Datanode service plugin to start the HDDS container services. <span className="atlas-mono-hint">60 min</span>
+- [HddsDatanodeClientProtocolServer](/class/hddsdatanodeclientprotocolserver) — The RPC server that listens to requests from clients. <span className="atlas-mono-hint">30 min</span>
+- [DNMXBeanImpl](/class/dnmxbeanimpl) — This is the JMX management class for DN information. <span className="atlas-mono-hint">30 min</span>
+- [HddsDatanodeHttpServer](/class/hddsdatanodehttpserver) — Simple http server to provide basic monitoring for hdds datanode. <span className="atlas-mono-hint">30 min</span>
+- [HddsPolicyProvider](/class/hddspolicyprovider) — PolicyProvider for Datanode protocols. <span className="atlas-mono-hint">30 min</span>
+- [RunningDatanodeState](/class/runningdatanodestate) — Class that implements handshake with SCM. <span className="atlas-mono-hint">30 min</span>
+- [InitDatanodeState](/class/initdatanodestate) — Init Datanode State is the task that gets run when we are in Init State. <span className="atlas-mono-hint">30 min</span>
+- [HeartbeatEndpointTask](/class/heartbeatendpointtask) — Heartbeat class for SCMs. <span className="atlas-mono-hint">45 min</span>
+- [RegisterEndpointTask](/class/registerendpointtask) — Register a datanode with SCM. <span className="atlas-mono-hint">45 min</span>
+- [VersionEndpointTask](/class/versionendpointtask) — Task that returns version. <span className="atlas-mono-hint">30 min</span>
+
+**[grpc-server-dn](/component/dn/grpc-server-dn)** · 1 · 30 min
+
+- [GrpcXceiverService](/class/grpcxceiverservice) — Grpc Service for handling Container Commands on datanode. <span className="atlas-mono-hint">30 min</span>
+
+**[ratis-statemachine-dn](/component/dn/ratis-statemachine-dn)** · 1 · 30 min
+
+- [StaleRecoveringContainerScrubbingService](/class/stalerecoveringcontainerscrubbingservice) — A per-datanode container stale recovering container scrubbing service takes in charge of deleting stale recovering co... <span className="atlas-mono-hint">30 min</span>
+
+### Debug & Repair — 3 classes · 90 min
+
+**[debug](/component/debug-repair/debug)** · 3 · 90 min
+
+- [ContainerScanResult](/class/containerscanresult) — Result of a ContainerDirectoryScanner walk over DataNode storage volumes. <span className="atlas-mono-hint">30 min</span>
+- [KeytabProbe](/class/keytabprobe) — Validates existence and readability of Ozone service keytab. <span className="atlas-mono-hint">30 min</span>
+- [HttpAuthProbe](/class/httpauthprobe) — Prints HTTP Kerberos authentication configuration for Ozone services. <span className="atlas-mono-hint">30 min</span>
+
+### HddsCommon — 11 classes · 360 min
+
+**[container-common](/component/hddscommon/container-common)** · 1 · 45 min
+
+- [ContainerBalancerConfiguration](/class/containerbalancerconfiguration) — This class contains configuration values for the ContainerBalancer. <span className="atlas-mono-hint">45 min</span>
+
+**[framework-protocol](/component/hddscommon/framework-protocol)** · 1 · 30 min
+
+- [DiskBalancerProtocolClientSideTranslatorPB](/class/diskbalancerprotocolclientsidetranslatorpb) — Client-side translator for DiskBalancerProtocol. <span className="atlas-mono-hint">30 min</span>
+
+**[framework-utils](/component/hddscommon/framework-utils)** · 2 · 60 min
+
+- [DecayRpcSchedulerUtil](/class/decayrpcschedulerutil) — Helper functions for DecayRpcScheduler metrics for Prometheus. <span className="atlas-mono-hint">30 min</span>
+- [BackgroundTaskQueue](/class/backgroundtaskqueue) — A priority queue that stores a number of BackgroundTask. <span className="atlas-mono-hint">30 min</span>
+
+**[fs-utils](/component/hddscommon/fs-utils)** · 1 · 45 min
+
+- [CachingSpaceUsageSource](/class/cachingspaceusagesource) — Stores space usage and refreshes it periodically. <span className="atlas-mono-hint">45 min</span>
+
+**[hadoop-shaded](/component/hddscommon/hadoop-shaded)** · 1 · 30 min
+
+- [DefaultRpcScheduler](/class/defaultrpcscheduler) — inferred: DefaultRpcScheduler — role not documented. <span className="atlas-mono-hint">30 min</span>
+
+**[hdds-primitives](/component/hddscommon/hdds-primitives)** · 1 · 30 min
+
+- [ExitManager](/class/exitmanager) — An Exit Manager used to shutdown service in case of unrecoverable error. <span className="atlas-mono-hint">30 min</span>
+
+**[hdds-utils](/component/hddscommon/hdds-utils)** · 1 · 30 min
+
+- [Scheduler](/class/scheduler-230803) — This class encapsulates ScheduledExecutorService. <span className="atlas-mono-hint">30 min</span>
+
+**[scm-client-proxy](/component/hddscommon/scm-client-proxy)** · 3 · 90 min
+
+- [ScmTopologyClient](/class/scmtopologyclient) — This client implements a background thread which periodically checks and gets the latest network topology cluster tre... <span className="atlas-mono-hint">30 min</span>
+- [SingleSecretKeyProtocolProxyProvider](/class/singlesecretkeyprotocolproxyprovider) — Proxy provider for SCMSecretKeyProtocolService against a single SCM node (no fail-over). <span className="atlas-mono-hint">30 min</span>
+- [SecretKeyProtocolFailoverProxyProvider](/class/secretkeyprotocolfailoverproxyprovider) — Failover proxy provider for SCMSecretKeyProtocolService server. <span className="atlas-mono-hint">30 min</span>
+
+### Interfaces — 3 classes · 80 min
+
+**[httpfs](/component/interfaces/httpfs)** · 3 · 80 min
+
+- [Server](/class/server-9a847c) — A Server class provides standard configuration, logging and Service lifecyle management. <span className="atlas-mono-hint">20 min</span>
+- [SchedulerService](/class/schedulerservice) — Scheduler service. <span className="atlas-mono-hint">30 min</span>
+- [GroupsService](/class/groupsservice) — Service implementation to provide group mappings. <span className="atlas-mono-hint">30 min</span>
+
+### OM — 24 classes · 980 min
+
+**[om-background-services](/component/om/om-background-services)** · 13 · 575 min
+
+- [AbstractKeyDeletingService](/class/abstractkeydeletingservice) — Abstracts common code from KeyDeletingService and DirectoryDeletingService which is now used by SnapshotDeletingServi... <span className="atlas-mono-hint">30 min</span>
+- [KeyLifecycleService](/class/keylifecycleservice) — This is the background service to manage object lifecycle based on bucket lifecycle configuration. <span className="atlas-mono-hint">60 min</span>
+- [QuotaRepairTask](/class/quotarepairtask) — Quota repair task. <span className="atlas-mono-hint">60 min</span>
+- [DirectoryDeletingService](/class/directorydeletingservice) — Background service responsible for purging deleted directories and files in the Ozone Manager (OM) and associated sna... <span className="atlas-mono-hint">60 min</span>
+- [OMRangerBGSyncService](/class/omrangerbgsyncservice) — Background Sync thread that reads Multi-Tenancy state from OM DB and applies it to Ranger. <span className="atlas-mono-hint">60 min</span>
+- [KeyDeletingService](/class/keydeletingservice) — This is the background service to delete keys. <span className="atlas-mono-hint">60 min</span>
+- [SnapshotDeletingService](/class/snapshotdeletingservice) — Background Service to clean-up deleted snapshot and reclaim space. <span className="atlas-mono-hint">45 min</span>
+- [OpenKeyCleanupService](/class/openkeycleanupservice) — This is the background service to delete hanging open keys. <span className="atlas-mono-hint">45 min</span>
+- [SnapshotDiffCleanupService](/class/snapshotdiffcleanupservice) — Background service to clean-up snapDiff jobs which are stable and corresponding reports. <span className="atlas-mono-hint">45 min</span>
+- [MultipartUploadCleanupService](/class/multipartuploadcleanupservice) — This is the background service to abort incomplete Multipart Upload. <span className="atlas-mono-hint">30 min</span>
+- [CompactionService](/class/compactionservice) — This is the background service to compact OM rocksdb tables. <span className="atlas-mono-hint">30 min</span>
+- [CompactDBUtil](/class/compactdbutil) — Utility class for compacting OM RocksDB column families. <span className="atlas-mono-hint">30 min</span>
+- [KeyLifecycleServiceMetrics](/class/keylifecycleservicemetrics) — Class contains metrics related to the OM KeyLifeCycle services. <span className="atlas-mono-hint">20 min</span>
+
+**[om-protocol](/component/om/om-protocol)** · 1 · 30 min
+
+- [OMInterServiceProtocolServerSideImpl](/class/ominterserviceprotocolserversideimpl) — This class is the server-side translator that forwards requests received on OMInterServiceProtocolPB to the OzoneMana... <span className="atlas-mono-hint">30 min</span>
+
+**[om-request](/component/om/om-request)** · 1 · 30 min
+
+- [ValidatorRegistry](/class/validatorregistry) — Registry that loads and stores the request validators to be applied by a service. <span className="atlas-mono-hint">30 min</span>
+
+**[om-server](/component/om/om-server)** · 7 · 255 min
+
+- [OMServiceManager](/class/omservicemanager) — Manipulate background services in OM. <span className="atlas-mono-hint">30 min</span>
+- [OzoneManager](/class/ozonemanager) — inferred(from-md): Central OM service: owns the Ratis server, protocol servers, metadata manager, key/bucket managers, security services... <span className="atlas-mono-hint">60 min</span>
+- [SstFilteringService](/class/sstfilteringservice) — a from all the tables (columnFamilies) defined in the rocksdb This is a background service which will cleanup and fil... <span className="atlas-mono-hint">45 min</span>
+- [GrpcOzoneManagerServer](/class/grpcozonemanagerserver) — Separated network server for gRPC transport OzoneManagerService s3g-&amp;gt;OM. <span className="atlas-mono-hint">30 min</span>
+- [OzoneManagerServiceGrpc](/class/ozonemanagerservicegrpc) — Grpc Service for handling S3 gateway OzoneManagerProtocol client requests. <span className="atlas-mono-hint">30 min</span>
+- [DeleteKeysResult](/class/deletekeysresult) — Used in org.apache.hadoop.ozone.om.service.DirectoryDeletingService to capture the result of each delete task. <span className="atlas-mono-hint">30 min</span>
+- [ServiceListJSONServlet](/class/servicelistjsonservlet) — Provides REST access to Ozone Service List. <span className="atlas-mono-hint">30 min</span>
+
+**[om-snapshot](/component/om/om-snapshot)** · 1 · 60 min
+
+- [SnapshotDefragService](/class/snapshotdefragservice) — Background service for defragmenting snapshots in the active snapshot chain. <span className="atlas-mono-hint">60 min</span>
+
+**[om-upgrade](/component/om/om-upgrade)** · 1 · 30 min
+
+- [OMUpgradeFinalizer](/class/omupgradefinalizer) — UpgradeFinalizer implementation for the Ozone Manager service. <span className="atlas-mono-hint">30 min</span>
+
+### OzoneCommon — 2 classes · 60 min
+
+**[om-helpers-common](/component/ozonecommon/om-helpers-common)** · 2 · 60 min
+
+- [ServiceInfoEx](/class/serviceinfoex) — Wrapper class for service discovery, design for broader usage such as security, etc. <span className="atlas-mono-hint">30 min</span>
+- [OzoneIdentityProvider](/class/ozoneidentityprovider) — Ozone implementation of IdentityProvider used by Hadoop DecayRpcScheduler. <span className="atlas-mono-hint">30 min</span>
+
+### Recon — 14 classes · 460 min
+
+**[recon-heatmap](/component/recon/recon-heatmap)** · 1 · 30 min
+
+- [HeatMapServiceImpl](/class/heatmapserviceimpl) — This class is an implementation of abstract class for retrieving data through HeatMapService. <span className="atlas-mono-hint">30 min</span>
+
+**[recon-metrics](/component/recon/recon-metrics)** · 1 · 30 min
+
+- [Metric](/class/metric) — Class for wrapping a metric response from org.apache.hadoop.ozone.recon.spi.MetricsServiceProvider. <span className="atlas-mono-hint">30 min</span>
+
+**[recon-scm](/component/recon/recon-scm)** · 1 · 30 min
+
+- [PipelineSyncTask](/class/pipelinesynctask) — Background pipeline sync task that queries pipelines in SCM, and removes any obsolete pipeline. <span className="atlas-mono-hint">30 min</span>
+
+**[recon-server](/component/recon/recon-server)** · 2 · 75 min
+
+- [ReconServer](/class/reconserver) — Recon server main class that stops and starts recon services. <span className="atlas-mono-hint">45 min</span>
+- [ReconRestServletModule](/class/reconrestservletmodule) — Class to scan API Service classes and bind them to the injector. <span className="atlas-mono-hint">30 min</span>
+
+**[recon-spi](/component/recon/recon-spi)** · 7 · 220 min
+
+- [ReconContainerMetadataManagerImpl](/class/reconcontainermetadatamanagerimpl) — Implementation of the Recon Container DB Service. <span className="atlas-mono-hint">60 min</span>
+- [StorageContainerServiceProviderImpl](/class/storagecontainerserviceproviderimpl) — Implementation for StorageContainerServiceProvider that talks with actual cluster SCM. <span className="atlas-mono-hint">30 min</span>
+- [PrometheusServiceProviderImpl](/class/prometheusserviceproviderimpl) — Implementation of the Prometheus Metrics Service provider. <span className="atlas-mono-hint">30 min</span>
+- [ReconFileMetadataManagerImpl](/class/reconfilemetadatamanagerimpl) — Implementation of the Recon File Metadata DB Service. <span className="atlas-mono-hint">30 min</span>
+- [JmxServiceProviderImpl](/class/jmxserviceproviderimpl) — Implementation of the Jmx Metrics Service provider. <span className="atlas-mono-hint">30 min</span>
+- [ReconGlobalStatsManagerImpl](/class/reconglobalstatsmanagerimpl) — Implementation of the Recon Global Stats DB Service. <span className="atlas-mono-hint">30 min</span>
+- [OzoneManagerServiceProviderImpl](/class/ozonemanagerserviceproviderimpl) — Implementation of the OzoneManager Service provider. <span className="atlas-mono-hint">10 min</span>
+
+**[recon-tasks](/component/recon/recon-tasks)** · 1 · 45 min
+
+- [NSSummaryAsyncFlusher](/class/nssummaryasyncflusher) — Async flusher for NSSummary maps with background thread. <span className="atlas-mono-hint">45 min</span>
+
+**[recon-upgrade](/component/recon/recon-upgrade)** · 1 · 30 min
+
+- [ReconLayoutVersionManager](/class/reconlayoutversionmanager) — ReconLayoutVersionManager is responsible for managing the layout version of the Recon service. <span className="atlas-mono-hint">30 min</span>
+
+### SCM — 302 classes · 8775 min
+
+**[block-manager](/component/scm/block-manager)** · 11 · 320 min
+
+- [BlockmanagerMXBean](/class/blockmanagermxbean) — JMX interface for the block manager. <span className="atlas-mono-hint">20 min</span>
+- [DeletedBlockLogStateManager](/class/deletedblocklogstatemanager) — DeletedBlockLogStateManager interface to manage deleted blocks and record them in the underlying persist store. <span className="atlas-mono-hint">20 min</span>
+- [BlockManager](/class/blockmanager-04f7a5) — Block APIs. <span className="atlas-mono-hint">20 min</span>
+- [DeletedBlockLog](/class/deletedblocklog) — The DeletedBlockLog is a persisted log in SCM to keep tracking container blocks which are under deletion. <span className="atlas-mono-hint">20 min</span>
+- [DeletedBlockLogImpl](/class/deletedblocklogimpl) — An implement class of DeletedBlockLog, and it uses K/V db to maintain block deletion transactions between scm and dat... <span className="atlas-mono-hint">45 min</span>
+- [SCMBlockDeletingService](/class/scmblockdeletingservice) — A background service running in SCM to delete blocks. <span className="atlas-mono-hint">45 min</span>
+- [DeletedBlockLogStateManagerImpl](/class/deletedblocklogstatemanagerimpl) — DeletedBlockLogStateManager implementation based on DeletedBlocksTransaction. <span className="atlas-mono-hint">45 min</span>
+- [BlockManagerImpl](/class/blockmanagerimpl-04f7a5) — Block Manager manages the block access for SCM. <span className="atlas-mono-hint">45 min</span>
+- [DatanodeDeletedBlockTransactions](/class/datanodedeletedblocktransactions) — A wrapper class to hold info about datanode and all deleted block transactions that will be sent to this datanode. <span className="atlas-mono-hint">30 min</span>
+- [SCMDeletedBlockTransactionStatusManager](/class/scmdeletedblocktransactionstatusmanager) — This is a class to manage the status of DeletedBlockTransaction, the purpose of this class is to reduce the number of... <span className="atlas-mono-hint">10 min</span>
+- [ScmBlockDeletingServiceMetrics](/class/scmblockdeletingservicemetrics) — Metrics related to Block Deleting Service running in SCM. <span className="atlas-mono-hint">20 min</span>
+
+**[container-balancer](/component/scm/container-balancer)** · 20 · 495 min
+
+- [FindTargetStrategy](/class/findtargetstrategy) — This interface can be used to implement strategies to find a target for a source. <span className="atlas-mono-hint">20 min</span>
+- [FindSourceStrategy](/class/findsourcestrategy) — This interface can be used to implement strategies to get a source datanode. <span className="atlas-mono-hint">20 min</span>
+- [AbstractFindTargetGreedy](/class/abstractfindtargetgreedy) — Find a target for a source datanode with greedy strategy. <span className="atlas-mono-hint">45 min</span>
+- [ContainerBalancerTask](/class/containerbalancertask) — Container balancer task performs move of containers between over- and under-utilized datanodes. <span className="atlas-mono-hint">60 min</span>
+- [ContainerBalancer](/class/containerbalancer) — Container balancer is a service in SCM to move containers between over- and under-utilized datanodes. <span className="atlas-mono-hint">60 min</span>
+- [MoveManager](/class/movemanager) — A class which schedules, tracks and completes moves scheduled by the balancer. <span className="atlas-mono-hint">45 min</span>
+- [ContainerBalancerSelectionCriteria](/class/containerbalancerselectioncriteria) — The selection criteria for selecting containers that will be moved and selecting datanodes that containers will move to. <span className="atlas-mono-hint">45 min</span>
+- [FindSourceGreedy](/class/findsourcegreedy) — The selection criteria for selecting source datanodes , the containers of which will be moved out. <span className="atlas-mono-hint">30 min</span>
+- [FindTargetGreedyByNetworkTopology](/class/findtargetgreedybynetworktopology) — an implementation of FindTargetGreedy, which will always select the target with the shortest distance according to ne... <span className="atlas-mono-hint">30 min</span>
+- [ContainerMoveSelection](/class/containermoveselection) — This class represents a target datanode and the container to be moved from a source to that target. <span className="atlas-mono-hint">30 min</span>
+- [ContainerBalancerStatusInfo](/class/containerbalancerstatusinfo) — Info about balancer status. <span className="atlas-mono-hint">10 min</span>
+- [ContainerBalancerTaskIterationStatusInfo](/class/containerbalancertaskiterationstatusinfo) — Information about balancer task iteration. <span className="atlas-mono-hint">10 min</span>
+- [FindTargetGreedyByUsageInfo](/class/findtargetgreedybyusageinfo) — an implementation of FindTargetGreedy, which will always select the target with the lowest space usage. <span className="atlas-mono-hint">10 min</span>
+- [IterationInfo](/class/iterationinfo) — Information about the iteration. <span className="atlas-mono-hint">10 min</span>
+- [ContainerMoveInfo](/class/containermoveinfo) — Information about moving containers. <span className="atlas-mono-hint">10 min</span>
+- [DataMoveInfo](/class/datamoveinfo) — Information about the process of moving data. <span className="atlas-mono-hint">10 min</span>
+- [ContainerBalancerStopReason](/class/containerbalancerstopreason) — Stop reason codes and messages for ContainerBalancer. <span className="atlas-mono-hint">10 min</span>
+- [ContainerBalancerMetrics](/class/containerbalancermetrics) — Metrics related to Container Balancer running in SCM. <span className="atlas-mono-hint">20 min</span>
+- [IllegalContainerBalancerStateException](/class/illegalcontainerbalancerstateexception) — Signals that a state change cannot be performed on ContainerBalancer. <span className="atlas-mono-hint">10 min</span>
+- [InvalidContainerBalancerConfigurationException](/class/invalidcontainerbalancerconfigurationexception) — Signals that ContainerBalancerConfiguration contains invalid configuration value(s). <span className="atlas-mono-hint">10 min</span>
+
+**[container-manager](/component/scm/container-manager)** · 31 · 920 min
+
+- [SCMContainerManagerMetrics](/class/scmcontainermanagermetrics) — Class contains metrics related to ContainerManager. <span className="atlas-mono-hint">20 min</span>
+- [ContainerReportValidator](/class/containerreportvalidator) — Class for Validating Container Report. <span className="atlas-mono-hint">20 min</span>
+- [ContainerStateMap](/class/containerstatemap) — Container State Map acts like a unified map for various attributes that are used to select containers when we need al... <span className="atlas-mono-hint">45 min</span>
+- [ContainerState](/class/containerstate) — Class that acts as the container state. <span className="atlas-mono-hint">30 min</span>
+- [ContainerAttribute](/class/containerattribute) — Each Attribute that we manage for a container is maintained as a map. <span className="atlas-mono-hint">30 min</span>
+- [ContainerEntry](/class/containerentry) — The entry (ContainerInfo and ContainerReplicas) for a container in ContainerStateMap. <span className="atlas-mono-hint">30 min</span>
+- [SCMContainerPlacementRackAware](/class/scmcontainerplacementrackaware) — Container placement policy that choose datanodes with network topology awareness, together with the space to satisfy... <span className="atlas-mono-hint">20 min</span>
+- [SCMContainerPlacementRackScatter](/class/scmcontainerplacementrackscatter) — Container placement policy that scatter datanodes on different racks , together with the space to satisfy the size co... <span className="atlas-mono-hint">60 min</span>
+- [SCMContainerPlacementCapacity](/class/scmcontainerplacementcapacity) — Container placement policy that randomly choose datanodes with remaining space to satisfy the size constraints. <span className="atlas-mono-hint">30 min</span>
+- [SCMContainerPlacementRandom](/class/scmcontainerplacementrandom) — Container placement policy that randomly chooses healthy datanodes. <span className="atlas-mono-hint">30 min</span>
+- [ContainerPlacementStatusDefault](/class/containerplacementstatusdefault) — Simple Status object to check if a container is replicated across enough racks. <span className="atlas-mono-hint">30 min</span>
+- [ContainerPlacementPolicyFactory](/class/containerplacementpolicyfactory) — A factory to create container placement instance based on configuration property ScmConfigKeys#OZONE_SCM_CONTAINER_PL... <span className="atlas-mono-hint">20 min</span>
+- [SCMContainerPlacementMetrics](/class/scmcontainerplacementmetrics) — This class is for maintaining Topology aware container placement statistics. <span className="atlas-mono-hint">20 min</span>
+- [SCMNodeMetric](/class/scmnodemetric) — SCM Node Metric that is used in the placement classes. <span className="atlas-mono-hint">20 min</span>
+- [LongMetric](/class/longmetric) — An helper class for all metrics based on Longs. <span className="atlas-mono-hint">20 min</span>
+- [DatanodeMetric](/class/datanodemetric) — DatanodeMetric acts as the basis for all the metric that is used in comparing 2 datanodes. <span className="atlas-mono-hint">20 min</span>
+- [NodeStat](/class/nodestat) — Interface that defines Node Stats. <span className="atlas-mono-hint">20 min</span>
+- [SCMNodeStat](/class/scmnodestat) — This class represents the SCM node stat. <span className="atlas-mono-hint">30 min</span>
+- [ContainerStat](/class/containerstat) — This class represents the SCM container stat. <span className="atlas-mono-hint">30 min</span>
+- [SCMMetrics](/class/scmmetrics) — This class is for maintaining StorageContainerManager statistics. <span className="atlas-mono-hint">20 min</span>
+- [SCMPerformanceMetrics](/class/scmperformancemetrics) — Including SCM performance related metrics. <span className="atlas-mono-hint">20 min</span>
+- [ContainerStateManager](/class/containerstatemanager) — A ContainerStateManager is responsible for keeping track of all the container and its state inside SCM, it also expos... <span className="atlas-mono-hint">20 min</span>
+- [ContainerManager](/class/containermanager) — ContainerManager is responsible for keeping track of all Containers and managing all containers operations like creat... <span className="atlas-mono-hint">20 min</span>
+- [AbstractContainerReportHandler](/class/abstractcontainerreporthandler) — Base class for all the container report handlers. <span className="atlas-mono-hint">45 min</span>
+- [ContainerStateManagerImpl](/class/containerstatemanagerimpl) — Default implementation of ContainerStateManager. <span className="atlas-mono-hint">60 min</span>
+- [ContainerManagerImpl](/class/containermanagerimpl) — ContainerManager implementation in SCM server. <span className="atlas-mono-hint">45 min</span>
+- [ContainerReplica](/class/containerreplica) — In-memory state of a container replica. <span className="atlas-mono-hint">45 min</span>
+- [ContainerReportHandler](/class/containerreporthandler) — Handles container reports from datanode. <span className="atlas-mono-hint">30 min</span>
+- [CloseContainerEventHandler](/class/closecontainereventhandler) — In case of a node failure, volume failure, volume out of spapce, node out of space etc, CLOSE_CONTAINER will be trigg... <span className="atlas-mono-hint">30 min</span>
+- [IncrementalContainerReportHandler](/class/incrementalcontainerreporthandler) — Handles incremental container reports from datanode. <span className="atlas-mono-hint">30 min</span>
+- [ContainerActionsHandler](/class/containeractionshandler) — Handles container reports from datanode. <span className="atlas-mono-hint">30 min</span>
+
+**[container-reconciliation](/component/scm/container-reconciliation)** · 2 · 40 min
+
+- [ReconcileContainerEventHandler](/class/reconcilecontainereventhandler) — When a reconcile container event is fired, this class will check if the container is eligible for reconciliation, and... <span className="atlas-mono-hint">30 min</span>
+- [ReconciliationEligibilityHandler](/class/reconciliationeligibilityhandler) — Determines whether a container is eligible for reconciliation based on its state, replica states, replication type, a... <span className="atlas-mono-hint">10 min</span>
+
+**[container-replication](/component/scm/container-replication)** · 48 · 1525 min
+
+- [RatisUnderReplicationHandler](/class/ratisunderreplicationhandler) — This class handles Ratis containers that are under replicated. <span className="atlas-mono-hint">45 min</span>
+- [QuasiClosedStuckUnderReplicationHandler](/class/quasiclosedstuckunderreplicationhandler) — Class to correct under replicated QuasiClosed Stuck Ratis containers. <span className="atlas-mono-hint">30 min</span>
+- [UnderReplicatedProcessor](/class/underreplicatedprocessor) — Class used to pick messages from the ReplicationManager under replicated queue, calculate the reconstruction commands... <span className="atlas-mono-hint">30 min</span>
+- [AbstractOverReplicationHandler](/class/abstractoverreplicationhandler) — This class holds some common methods that will be shared among different kinds of implementation of OverReplicationHa... <span className="atlas-mono-hint">30 min</span>
+- [RatisOverReplicationHandler](/class/ratisoverreplicationhandler) — This class handles Ratis containers that are over replicated. <span className="atlas-mono-hint">45 min</span>
+- [QuasiClosedStuckOverReplicationHandler](/class/quasiclosedstuckoverreplicationhandler) — Class to correct over replicated QuasiClosed Stuck Ratis containers. <span className="atlas-mono-hint">30 min</span>
+- [OverReplicatedProcessor](/class/overreplicatedprocessor) — Class used to pick messages from the ReplicationManager over replicated queue, calculate the delete commands and assi... <span className="atlas-mono-hint">30 min</span>
+- [CommandTargetOverloadedException](/class/commandtargetoverloadedexception) — Exception class used to indicate that all sources are overloaded. <span className="atlas-mono-hint">10 min</span>
+- [MisReplicationHandler](/class/misreplicationhandler) — Handles the Mis replication processing and forming the respective SCM commands. <span className="atlas-mono-hint">30 min</span>
+- [RatisMisReplicationHandler](/class/ratismisreplicationhandler) — Handles the Ratis mis replication processing and forming the respective SCM commands. <span className="atlas-mono-hint">30 min</span>
+- [UnhealthyReplicationHandler](/class/unhealthyreplicationhandler) — This interface to create respective commands after processing the replicas with pending ops and health check results. <span className="atlas-mono-hint">20 min</span>
+- [UnhealthyReplicationProcessor](/class/unhealthyreplicationprocessor) — Class used to pick messages from the respective ReplicationManager unhealthy replicated queue, calculate the delete c... <span className="atlas-mono-hint">30 min</span>
+- [QuasiClosedStuckReplicaCount](/class/quasiclosedstuckreplicacount) — Class to count the replicas in a quasi-closed stuck container. <span className="atlas-mono-hint">45 min</span>
+- [ECUnderReplicationHandler](/class/ecunderreplicationhandler) — Handles the EC Under replication processing and forming the respective SCM commands. <span className="atlas-mono-hint">60 min</span>
+- [ECContainerReplicaCount](/class/eccontainerreplicacount) — This class provides a set of methods to test for over / under replication of EC containers, taking into account decom... <span className="atlas-mono-hint">45 min</span>
+- [ECOverReplicationHandler](/class/ecoverreplicationhandler) — Handles the EC Over replication processing and forming the respective SCM commands. <span className="atlas-mono-hint">30 min</span>
+- [ECMisReplicationHandler](/class/ecmisreplicationhandler) — Handles the EC Mis replication processing and forming the respective SCM commands. <span className="atlas-mono-hint">30 min</span>
+- [HealthCheck](/class/healthcheck) — Interface used by Container Health Check Handlers. <span className="atlas-mono-hint">20 min</span>
+- [AbstractCheck](/class/abstractcheck) — Abstract base class for Container Health Checks to extend. <span className="atlas-mono-hint">30 min</span>
+- [RatisReplicationCheckHandler](/class/ratisreplicationcheckhandler) — Class to determine the health state of a Ratis Container. <span className="atlas-mono-hint">45 min</span>
+- [EmptyContainerHandler](/class/emptycontainerhandler) — This handler deletes a container if it's closed or quasi-closed and empty (0 key count) and all its replicas are empty. <span className="atlas-mono-hint">30 min</span>
+- [ECReplicationCheckHandler](/class/ecreplicationcheckhandler) — Container Check handler to check the under / over replication state for EC containers. <span className="atlas-mono-hint">30 min</span>
+- [ECMisReplicationCheckHandler](/class/ecmisreplicationcheckhandler) — This class checks if an EC container is mis replicated. <span className="atlas-mono-hint">30 min</span>
+- [RatisUnhealthyReplicationCheckHandler](/class/ratisunhealthyreplicationcheckhandler) — This class handles RATIS containers which only have replicas in UNHEALTHY state, or CLOSED containers with replicas i... <span className="atlas-mono-hint">30 min</span>
+- [QuasiClosedContainerHandler](/class/quasiclosedcontainerhandler) — Class for handling containers that are in QUASI_CLOSED state. <span className="atlas-mono-hint">30 min</span>
+- [QuasiClosedStuckReplicationCheck](/class/quasiclosedstuckreplicationcheck) — Class to check for the replication of the replicas in quasi-closed stuck containers. <span className="atlas-mono-hint">30 min</span>
+- [MismatchedReplicasHandler](/class/mismatchedreplicashandler) — Handler to process containers which are closed or quasi-closed, but some replicas are still open or closing. <span className="atlas-mono-hint">30 min</span>
+- [VulnerableUnhealthyReplicasHandler](/class/vulnerableunhealthyreplicashandler) — A QUASI_CLOSED container may have some UNHEALTHY replicas with the same Sequence ID as the container and on unique or... <span className="atlas-mono-hint">30 min</span>
+- [ClosedWithUnhealthyReplicasHandler](/class/closedwithunhealthyreplicashandler) — Handler to process containers EC which are closed but have some replicas that are unhealthy. <span className="atlas-mono-hint">30 min</span>
+- [OpenContainerHandler](/class/opencontainerhandler) — Class used in Replication Manager to check open container health for both EC and Ratis containers. <span className="atlas-mono-hint">30 min</span>
+- [ClosingContainerHandler](/class/closingcontainerhandler) — Class used in Replication Manager to close replicas of CLOSING containers. <span className="atlas-mono-hint">30 min</span>
+- [DeletingContainerHandler](/class/deletingcontainerhandler) — Class used in Replication Manager to handle the replicas of containers in DELETING State. <span className="atlas-mono-hint">30 min</span>
+- [ContainerReplicaPendingOpsSubscriber](/class/containerreplicapendingopssubscriber) — A subscriber can register with ContainerReplicaPendingOps to receive updates on pending ops. <span className="atlas-mono-hint">20 min</span>
+- [ContainerReplicaCount](/class/containerreplicacount) — Common interface for EC and non-EC container replica counts. <span className="atlas-mono-hint">20 min</span>
+- [ReplicationManager](/class/replicationmanager) — Replication Manager (RM) is the one which is responsible for making sure that the containers are properly replicated. <span className="atlas-mono-hint">60 min</span>
+- [RatisContainerReplicaCount](/class/ratiscontainerreplicacount) — Immutable object that is created with a set of ContainerReplica objects and the number of in flight replica add and d... <span className="atlas-mono-hint">45 min</span>
+- [ContainerReplicaPendingOps](/class/containerreplicapendingops) — Class to track pending replication operations across the cluster. <span className="atlas-mono-hint">45 min</span>
+- [ReplicationManagerUtil](/class/replicationmanagerutil) — Utility class for ReplicationManager. <span className="atlas-mono-hint">45 min</span>
+- [ContainerHealthResult](/class/containerhealthresult) — Class used to represent the Health States of containers. <span className="atlas-mono-hint">45 min</span>
+- [ReplicationQueue](/class/replicationqueue) — Object to encapsulate the under and over replication queues used by replicationManager. <span className="atlas-mono-hint">30 min</span>
+- [InflightType](/class/inflighttype) — inferred: InflightType — role not documented. <span className="atlas-mono-hint">30 min</span>
+- [ReplicationManagerEventHandler](/class/replicationmanagereventhandler) — Handles events related to the ReplicationManager. <span className="atlas-mono-hint">30 min</span>
+- [DatanodeCommandCountUpdatedHandler](/class/datanodecommandcountupdatedhandler) — Event handler for the DATANODE_COMMAND_COUNT_UPDATED event. <span className="atlas-mono-hint">30 min</span>
+- [MonitoringReplicationQueue](/class/monitoringreplicationqueue) — A class which extends ReplicationQueue and does nothing. <span className="atlas-mono-hint">30 min</span>
+- [InflightAction](/class/inflightaction) — InflightAction is a Wrapper class to hold the InflightAction with its start time and the target datanode. <span className="atlas-mono-hint">30 min</span>
+- [ContainerCheckRequest](/class/containercheckrequest) — Simple class to wrap the parameters needed to check a container's health in ReplicationManager. <span className="atlas-mono-hint">10 min</span>
+- [ContainerReplicaOp](/class/containerreplicaop) — ContainerReplicaOp wraps the information needed to track a pending replication operation (ADD or DELETE) against a sp... <span className="atlas-mono-hint">10 min</span>
+- [ReplicationManagerMetrics](/class/replicationmanagermetrics) — Class contains metrics related to ReplicationManager. <span className="atlas-mono-hint">20 min</span>
+
+**[node-manager](/component/scm/node-manager)** · 34 · 930 min
+
+- [NodeStateMap](/class/nodestatemap) — Map: DatanodeID to DatanodeEntry. <span className="atlas-mono-hint">45 min</span>
+- [DatanodeEntry](/class/datanodeentry) — The entry (DatanodeInfo and ContainerIDs) for a datanode in NodeStateMap. <span className="atlas-mono-hint">30 min</span>
+- [Node2PipelineMap](/class/node2pipelinemap) — This data structure maintains the list of pipelines which the given datanode is a part of. <span className="atlas-mono-hint">30 min</span>
+- [ReportResult](/class/reportresult) — A Container/Pipeline Report gets processed by the Node2Container/Node2Pipeline and returns Report Result class. <span className="atlas-mono-hint">10 min</span>
+- [NodeNotFoundException](/class/nodenotfoundexception) — This exception represents that the node that is being accessed does not exist in NodeStateMap. <span className="atlas-mono-hint">10 min</span>
+- [NodeException](/class/nodeexception) — This exception represents all node related exceptions in NodeStateMap. <span className="atlas-mono-hint">10 min</span>
+- [NodeAlreadyExistsException](/class/nodealreadyexistsexception) — This exception represents that there is already a node added to NodeStateMap with same UUID. <span className="atlas-mono-hint">10 min</span>
+- [NodeManager](/class/nodemanager) — A node manager supports a simple interface for managing a datanode. <span className="atlas-mono-hint">20 min</span>
+- [DatanodeAdminMonitor](/class/datanodeadminmonitor) — Interface used by the DatanodeAdminMonitor, which can be used to decommission or recommission nodes and take them in... <span className="atlas-mono-hint">20 min</span>
+- [SCMNodeStorageStatMXBean](/class/scmnodestoragestatmxbean) — This is the JMX management interface for node manager information. <span className="atlas-mono-hint">20 min</span>
+- [NodeManagerMXBean](/class/nodemanagermxbean) — This is the JMX management interface for node manager information. <span className="atlas-mono-hint">20 min</span>
+- [SCMNodeManager](/class/scmnodemanager) — Maintains information about the Datanodes on SCM side. <span className="atlas-mono-hint">60 min</span>
+- [NodeDecommissionManager](/class/nodedecommissionmanager) — Class used to manage datanodes scheduled for maintenance or decommission. <span className="atlas-mono-hint">60 min</span>
+- [NodeStateManager](/class/nodestatemanager) — NodeStateManager maintains the state of all the datanodes in the cluster. <span className="atlas-mono-hint">60 min</span>
+- [DatanodeAdminMonitorImpl](/class/datanodeadminmonitorimpl) — Monitor thread which watches for nodes to be decommissioned, recommissioned or placed into maintenance. <span className="atlas-mono-hint">45 min</span>
+- [NodeStatus](/class/nodestatus) — The status of a datanode including NodeState, NodeOperationalState and the expiry time for the operational state, whe... <span className="atlas-mono-hint">45 min</span>
+- [PendingContainerTracker](/class/pendingcontainertracker) — Tracks per-datanode pending container allocations at SCM using a Two Window Tumbling Bucket pattern (similar to HDFS... <span className="atlas-mono-hint">45 min</span>
+- [DeadNodeHandler](/class/deadnodehandler) — Handles Dead Node event. <span className="atlas-mono-hint">30 min</span>
+- [CommandQueue](/class/commandqueue) — Command Queue is queue of commands for the datanode. <span className="atlas-mono-hint">30 min</span>
+- [StorageReportResult](/class/storagereportresult) — A Container Report gets processsed by the Node2Container and returns the Report Result class. <span className="atlas-mono-hint">30 min</span>
+- [HealthyReadOnlyNodeHandler](/class/healthyreadonlynodehandler) — Handles non healthy to healthy(ReadOnly) node event. <span className="atlas-mono-hint">30 min</span>
+- [StartDatanodeAdminHandler](/class/startdatanodeadminhandler) — Handler which is fired when a datanode starts admin (decommission or maintenance). <span className="atlas-mono-hint">30 min</span>
+- [StaleNodeHandler](/class/stalenodehandler) — Handles Stale node event. <span className="atlas-mono-hint">30 min</span>
+- [ReadOnlyHealthyToHealthyNodeHandler](/class/readonlyhealthytohealthynodehandler) — Handles Read Only healthy to healthy node event. <span className="atlas-mono-hint">30 min</span>
+- [NewNodeHandler](/class/newnodehandler) — Handles New Node event. <span className="atlas-mono-hint">30 min</span>
+- [NodeReportHandler](/class/nodereporthandler) — Handles Node Reports from datanode. <span className="atlas-mono-hint">30 min</span>
+- [NodeAddressUpdateHandler](/class/nodeaddressupdatehandler) — Handles datanode ip or hostname change event. <span className="atlas-mono-hint">30 min</span>
+- [SCMNodeStorageStatMap](/class/scmnodestoragestatmap) — This data structure maintains the disk space capacity, disk usage and free space availability per Datanode. <span className="atlas-mono-hint">10 min</span>
+- [DatanodeInfo](/class/datanodeinfo) — This class extends the primary identifier of a Datanode with ephemeral state, eg last reported time, usage informatio... <span className="atlas-mono-hint">10 min</span>
+- [DatanodeUsageInfo](/class/datanodeusageinfo) — Bundles datanode details with usage statistics. <span className="atlas-mono-hint">10 min</span>
+- [NodeDecommissionMetrics](/class/nodedecommissionmetrics) — Class contains metrics related to the NodeDecommissionManager. <span className="atlas-mono-hint">20 min</span>
+- [SCMNodeMetrics](/class/scmnodemetrics) — This class maintains Node related metrics. <span className="atlas-mono-hint">20 min</span>
+- [InvalidHostStringException](/class/invalidhoststringexception) — Exception thrown by the NodeDecommissionManager when it encounters host strings it does not expect or understand. <span className="atlas-mono-hint">10 min</span>
+- [InvalidNodeStateException](/class/invalidnodestateexception) — Exception thrown by the NodeDecommissionManager when it encounters host strings it does not expect or understand. <span className="atlas-mono-hint">10 min</span>
+
+**[pipeline-choose-policy](/component/scm/pipeline-choose-policy)** · 5 · 140 min
+
+- [CapacityPipelineChoosePolicy](/class/capacitypipelinechoosepolicy) — Pipeline choose policy that randomly choose pipeline with relatively lower utilization. <span className="atlas-mono-hint">30 min</span>
+- [HealthyPipelineChoosePolicy](/class/healthypipelinechoosepolicy) — The healthy pipeline choose policy that chooses pipeline until return healthy pipeline. <span className="atlas-mono-hint">30 min</span>
+- [RoundRobinPipelineChoosePolicy](/class/roundrobinpipelinechoosepolicy) — Round-robin choose policy that chooses pipeline in a round-robin fashion. <span className="atlas-mono-hint">30 min</span>
+- [RandomPipelineChoosePolicy](/class/randompipelinechoosepolicy) — Random choose policy that randomly chooses pipeline. <span className="atlas-mono-hint">30 min</span>
+- [PipelineChoosePolicyFactory](/class/pipelinechoosepolicyfactory) — A factory to create pipeline choose policy instance based on configuration property ScmConfig. <span className="atlas-mono-hint">20 min</span>
+
+**[pipeline-manager](/component/scm/pipeline-manager)** · 28 · 865 min
+
+- [LeaderChoosePolicy](/class/leaderchoosepolicy) — A LeaderChoosePolicy support choosing leader from datanode list. <span className="atlas-mono-hint">30 min</span>
+- [MinLeaderCountChoosePolicy](/class/minleadercountchoosepolicy) — The minimum leader count choose policy that chooses leader which has the minimum exist leader count. <span className="atlas-mono-hint">30 min</span>
+- [DefaultLeaderChoosePolicy](/class/defaultleaderchoosepolicy) — The default leader choose policy. <span className="atlas-mono-hint">30 min</span>
+- [LeaderChoosePolicyFactory](/class/leaderchoosepolicyfactory) — A factory to create leader choose policy instance based on configuration property ScmConfigKeys#OZONE_SCM_PIPELINE_LE... <span className="atlas-mono-hint">20 min</span>
+- [PipelineManager](/class/pipelinemanager) — Interface which exposes the api for pipeline management. <span className="atlas-mono-hint">20 min</span>
+- [PipelineStateManager](/class/pipelinestatemanager) — Manages the state of pipelines in SCM. <span className="atlas-mono-hint">20 min</span>
+- [WritableContainerProvider](/class/writablecontainerprovider) — Interface used by the WritableContainerFactory to obtain a writable container from the providers. <span className="atlas-mono-hint">20 min</span>
+- [PipelineManagerMXBean](/class/pipelinemanagermxbean) — This is the JMX management interface for information related to PipelineManager. <span className="atlas-mono-hint">20 min</span>
+- [PipelineProvider](/class/pipelineprovider) — Interface for creating pipelines. <span className="atlas-mono-hint">30 min</span>
+- [PipelineManagerImpl](/class/pipelinemanagerimpl) — SCM Pipeline Manager implementation. <span className="atlas-mono-hint">60 min</span>
+- [PipelinePlacementPolicy](/class/pipelineplacementpolicy) — Pipeline placement policy that choose datanodes based on load balancing and network topology to supply pipeline creat... <span className="atlas-mono-hint">45 min</span>
+- [PipelineStateManagerImpl](/class/pipelinestatemanagerimpl) — Implementation of pipeline state manager. <span className="atlas-mono-hint">45 min</span>
+- [PipelineStateMap](/class/pipelinestatemap) — Holds the data structures which maintain the information about pipeline and its state. <span className="atlas-mono-hint">45 min</span>
+- [WritableECContainerProvider](/class/writableeccontainerprovider) — Writable Container provider to obtain a writable container for EC pipelines. <span className="atlas-mono-hint">45 min</span>
+- [BackgroundPipelineCreator](/class/backgroundpipelinecreator) — Implements api for running background pipeline creation jobs. <span className="atlas-mono-hint">45 min</span>
+- [RatisPipelineProvider](/class/ratispipelineprovider) — Implements Api for creating ratis pipelines. <span className="atlas-mono-hint">45 min</span>
+- [SortedList](/class/sortedlist) — A sorted list using bucket-sort with bucket size == 1. <span className="atlas-mono-hint">45 min</span>
+- [WritableRatisContainerProvider](/class/writableratiscontainerprovider) — Class to obtain a writable container for Ratis and Standalone pipelines. <span className="atlas-mono-hint">30 min</span>
+- [PipelineReportHandler](/class/pipelinereporthandler) — Handles Pipeline Reports from datanode. <span className="atlas-mono-hint">30 min</span>
+- [PipelineActionHandler](/class/pipelineactionhandler) — Handles pipeline actions from datanode. <span className="atlas-mono-hint">30 min</span>
+- [ECPipelineProvider](/class/ecpipelineprovider) — Class to create pipelines for EC containers. <span className="atlas-mono-hint">30 min</span>
+- [SimplePipelineProvider](/class/simplepipelineprovider) — Implements Api for creating stand alone pipelines. <span className="atlas-mono-hint">30 min</span>
+- [RatisPipelineUtils](/class/ratispipelineutils) — Utility class for Ratis pipelines. <span className="atlas-mono-hint">30 min</span>
+- [PipelineFactory](/class/pipelinefactory) — Creates pipeline based on replication type. <span className="atlas-mono-hint">20 min</span>
+- [WritableContainerFactory](/class/writablecontainerfactory) — Factory class to obtain a container to which a block can be allocated for write. <span className="atlas-mono-hint">20 min</span>
+- [PipelinePlacementPolicyFactory](/class/pipelineplacementpolicyfactory) — Pipeline placement factor for pipeline providers to create placement instance based on configuration property. <span className="atlas-mono-hint">20 min</span>
+- [SCMPipelineMetrics](/class/scmpipelinemetrics) — This class maintains Pipeline related metrics. <span className="atlas-mono-hint">20 min</span>
+- [InsufficientDatanodesException](/class/insufficientdatanodesexception) — Exception thrown when there are not enough Datanodes to create a pipeline. <span className="atlas-mono-hint">10 min</span>
+
+**[safemode](/component/scm/safemode)** · 13 · 420 min
+
+- [SafeModeManager](/class/safemodemanager) — Interface for SafeModeManager. <span className="atlas-mono-hint">20 min</span>
+- [AbstractContainerSafeModeRule](/class/abstractcontainersafemoderule) — Abstract class for Container Safe mode exit rule. <span className="atlas-mono-hint">45 min</span>
+- [SafeModeExitRule](/class/safemodeexitrule) — Abstract class for SafeModeExitRules. <span className="atlas-mono-hint">30 min</span>
+- [SCMSafeModeManager](/class/scmsafemodemanager) — StorageContainerManager enters safe mode on startup to allow system to reach a stable state before becoming fully fun... <span className="atlas-mono-hint">45 min</span>
+- [HealthyPipelineSafeModeRule](/class/healthypipelinesafemoderule) — Class defining Safe mode exit criteria for Pipelines. <span className="atlas-mono-hint">45 min</span>
+- [OneReplicaPipelineSafeModeRule](/class/onereplicapipelinesafemoderule) — This rule covers whether we have at least one datanode is reported for each open pipeline. <span className="atlas-mono-hint">45 min</span>
+- [ECMinDataNodeSafeModeRule](/class/ecmindatanodesafemoderule) — Safe mode exit rule for EC-default clusters. <span className="atlas-mono-hint">30 min</span>
+- [DataNodeSafeModeRule](/class/datanodesafemoderule) — Class defining Safe mode exit criteria according to number of DataNodes registered with SCM. <span className="atlas-mono-hint">30 min</span>
+- [ECContainerSafeModeRule](/class/eccontainersafemoderule) — Safe mode rule for EC containers. <span className="atlas-mono-hint">30 min</span>
+- [StateMachineReadyRule](/class/statemachinereadyrule) — Class defining Safe mode exit when SCM State Machine is ready, ie all transaction is applied. <span className="atlas-mono-hint">30 min</span>
+- [RatisContainerSafeModeRule](/class/ratiscontainersafemoderule) — Class defining Safe mode exit criteria for Ratis Containers. <span className="atlas-mono-hint">30 min</span>
+- [SafeModeRuleFactory](/class/safemoderulefactory) — Factory to create SafeMode rules. <span className="atlas-mono-hint">20 min</span>
+- [SafeModeMetrics](/class/safemodemetrics) — which can be used for monitoring during SCM startup when SCM is still in SafeMode.&lt;p&gt; The metrics from this class are... <span className="atlas-mono-hint">20 min</span>
+
+**[scm-audit](/component/scm/scm-audit)** · 1 · 10 min
+
+- [SCMAction](/class/scmaction) — Enum to define Audit Action types for SCM. <span className="atlas-mono-hint">10 min</span>
+
+**[scm-commands](/component/scm/scm-commands)** · 1 · 30 min
+
+- [CommandStatusReportHandler](/class/commandstatusreporthandler) — Handles CommandStatusReports from datanode. <span className="atlas-mono-hint">30 min</span>
+
+**[scm-events](/component/scm/scm-events)** · 1 · 30 min
+
+- [SCMEvents](/class/scmevents) — Class that acts as the namespace for all SCM Events. <span className="atlas-mono-hint">30 min</span>
+
+**[scm-ha](/component/scm/scm-ha)** · 59 · 1635 min
+
+- [ScmInvoker](/class/scminvoker) — Invokes methods without using reflection. <span className="atlas-mono-hint">20 min</span>
+- [ContainerStateManagerInvoker](/class/containerstatemanagerinvoker) — Code generated for ContainerStateManager. <span className="atlas-mono-hint">45 min</span>
+- [PipelineStateManagerInvoker](/class/pipelinestatemanagerinvoker) — Code generated for PipelineStateManager. <span className="atlas-mono-hint">45 min</span>
+- [RootCARotationHandlerInvoker](/class/rootcarotationhandlerinvoker) — Code generated for RootCARotationHandler. <span className="atlas-mono-hint">30 min</span>
+- [DeletedBlockLogStateManagerInvoker](/class/deletedblocklogstatemanagerinvoker) — Code generated for DeletedBlockLogStateManager. <span className="atlas-mono-hint">30 min</span>
+- [FinalizationStateManagerInvoker](/class/finalizationstatemanagerinvoker) — Code generated for FinalizationStateManager. <span className="atlas-mono-hint">30 min</span>
+- [CertificateStoreInvoker](/class/certificatestoreinvoker) — Code generated for CertificateStore. <span className="atlas-mono-hint">30 min</span>
+- [SequenceIdGeneratorStateManagerInvoker](/class/sequenceidgeneratorstatemanagerinvoker) — Code generated for StateManager. <span className="atlas-mono-hint">30 min</span>
+- [StatefulServiceStateManagerInvoker](/class/statefulservicestatemanagerinvoker) — Code generated for StatefulServiceStateManager. <span className="atlas-mono-hint">30 min</span>
+- [SecretKeyStateInvoker](/class/secretkeystateinvoker) — Code generated for SecretKeyState. <span className="atlas-mono-hint">30 min</span>
+- [ScmCodecFactory](/class/scmcodecfactory) — Maps types to the corresponding ScmCodec implementation. <span className="atlas-mono-hint">20 min</span>
+- [ScmListCodec](/class/scmlistcodec) — ScmCodec for List objects. <span className="atlas-mono-hint">20 min</span>
+- [ScmX509CertificateCodec](/class/scmx509certificatecodec) — Codec for type X509Certificate. <span className="atlas-mono-hint">20 min</span>
+- [ScmStringCodec](/class/scmstringcodec) — ScmCodec for String objects. <span className="atlas-mono-hint">20 min</span>
+- [ScmNonShadedGeneratedMessageCodec](/class/scmnonshadedgeneratedmessagecodec) — ScmCodec implementation for non-shaded com.google.protobuf.Message objects. <span className="atlas-mono-hint">20 min</span>
+- [ScmIntegerCodec](/class/scmintegercodec) — Encodes/decodes an integer to a byte string. <span className="atlas-mono-hint">20 min</span>
+- [ScmManagedSecretKeyCodec](/class/scmmanagedsecretkeycodec) — A codec for ManagedSecretKey objects. <span className="atlas-mono-hint">20 min</span>
+- [ScmByteStringCodec](/class/scmbytestringcodec) — A dummy codec that serializes a ByteString object to ByteString. <span className="atlas-mono-hint">20 min</span>
+- [ScmCodec](/class/scmcodec) — To serialize/deserialize Java objects to/from protobuf ByteString for SCM HA. <span className="atlas-mono-hint">20 min</span>
+- [ScmEnumCodec](/class/scmenumcodec) — ScmCodec for protobuf ProtocolMessageEnum objects. <span className="atlas-mono-hint">20 min</span>
+- [ScmBooleanCodec](/class/scmbooleancodec) — ScmCodec for Boolean objects. <span className="atlas-mono-hint">20 min</span>
+- [ScmBigIntegerCodec](/class/scmbigintegercodec) — Codec for type BigInteger. <span className="atlas-mono-hint">20 min</span>
+- [ScmNonShadedByteStringCodec](/class/scmnonshadedbytestringcodec) — ScmCodec implementation for non-shaded com.google.protobuf.ByteString objects. <span className="atlas-mono-hint">20 min</span>
+- [ScmLongCodec](/class/scmlongcodec) — ScmCodec for Long objects. <span className="atlas-mono-hint">20 min</span>
+- [SequenceIdGenerator](/class/sequenceidgenerator) — After SCM starts, set lastId = 0, nextId = lastId + 1. <span className="atlas-mono-hint">20 min</span>
+- [SCMDBCheckpointProvider](/class/scmdbcheckpointprovider) — Checkpoint write stream and exception handling. <span className="atlas-mono-hint">20 min</span>
+- [SCMRatisServer](/class/scmratisserver) — Ratis server that provides SCM HA by hosting the SCMStateMachine and replicating SCM metadata operations across the S... <span className="atlas-mono-hint">20 min</span>
+- [SCMService](/class/scmservice) — Interface for background services in SCM, including ReplicationManager, SCMBlockDeletingService and BackgroundPipelin... <span className="atlas-mono-hint">20 min</span>
+- [SCMHADBTransactionBuffer](/class/scmhadbtransactionbuffer) — DB transaction that buffers SCM DB transactions. <span className="atlas-mono-hint">20 min</span>
+- [SCMHAManager](/class/scmhamanager) — SCMHAManager provides HA service for SCM. <span className="atlas-mono-hint">20 min</span>
+- [SCMSnapshotDownloader](/class/scmsnapshotdownloader) — Contract to download a SCM Snapshot from remote server.. <span className="atlas-mono-hint">20 min</span>
+- [StatefulServiceStateManager](/class/statefulservicestatemanager) — This interface defines an API for saving and reading configurations of a StatefulService. <span className="atlas-mono-hint">20 min</span>
+- [StatefulService](/class/statefulservice) — A StatefulService is an SCMService that persists configuration to RocksDB. <span className="atlas-mono-hint">30 min</span>
+- [SCMStateMachine](/class/scmstatemachine) — The SCMStateMachine is the state machine for SCMRatisServer. <span className="atlas-mono-hint">45 min</span>
+- [SCMHAManagerImpl](/class/scmhamanagerimpl) — SCMHAManagerImpl uses Apache Ratis for HA implementation. <span className="atlas-mono-hint">45 min</span>
+- [SCMRatisServerImpl](/class/scmratisserverimpl) — Default SCMRatisServer implementation backed by a Ratis RaftServer running the SCMStateMachine. <span className="atlas-mono-hint">45 min</span>
+- [SCMHANodeDetails](/class/scmhanodedetails) — SCM HA node details. <span className="atlas-mono-hint">45 min</span>
+- [SCMHAManagerStub](/class/scmhamanagerstub) — SCMHAManagerStub implementation for Recon and testing. <span className="atlas-mono-hint">45 min</span>
+- [SCMContext](/class/scmcontext) — SCMContext is the single source of truth for some key information shared across all components within SCM, including:... <span className="atlas-mono-hint">45 min</span>
+- [BackgroundSCMService](/class/backgroundscmservice) — A common implementation for background SCMService. <span className="atlas-mono-hint">45 min</span>
+- [RatisUtil](/class/ratisutil) — Ratis Util for SCM HA. <span className="atlas-mono-hint">45 min</span>
+- [SCMHADBTransactionBufferImpl](/class/scmhadbtransactionbufferimpl) — This is a transaction buffer that buffers SCM DB operations for Pipeline and Container. <span className="atlas-mono-hint">45 min</span>
+- [SCMNodeDetails](/class/scmnodedetails) — Construct SCM node details. <span className="atlas-mono-hint">30 min</span>
+- [InterSCMGrpcClient](/class/interscmgrpcclient) — Grpc client to download a Rocks db checkpoint from leader node in SCM HA ring. <span className="atlas-mono-hint">30 min</span>
+- [SCMHADBTransactionBufferStub](/class/scmhadbtransactionbufferstub) — SCMHADBTransactionBuffer implementation for Recon and testing. <span className="atlas-mono-hint">30 min</span>
+- [HASecurityUtils](/class/hasecurityutils) — Utilities for SCM HA security. <span className="atlas-mono-hint">30 min</span>
+- [SCMGrpcOutputStream](/class/scmgrpcoutputstream) — Stream to which the tar db checkpoint will be transferred over to the destination over grpc. <span className="atlas-mono-hint">30 min</span>
+- [InterSCMGrpcProtocolService](/class/interscmgrpcprotocolservice) — Service to serve SCM DB checkpoints available for SCM HA. <span className="atlas-mono-hint">30 min</span>
+- [StatefulServiceStateManagerImpl](/class/statefulservicestatemanagerimpl) — This class implements methods to save and read configurations of a stateful service from DB. <span className="atlas-mono-hint">30 min</span>
+- [SCMSnapshotProvider](/class/scmsnapshotprovider) — SCMSnapshotProvider downloads the latest checkpoint from the leader SCM and loads the checkpoint into State Machine. <span className="atlas-mono-hint">30 min</span>
+- [SCMServiceManager](/class/scmservicemanager) — Manipulate background services in SCM, including ReplicationManager, SCMBlockDeletingService and BackgroundPipelineCr... <span className="atlas-mono-hint">30 min</span>
+- [ExecutionUtil](/class/executionutil) — This Utility class is to rethrow the original exception after executing the clean-up code. <span className="atlas-mono-hint">30 min</span>
+- [StatefulServiceDefinition](/class/statefulservicedefinition) — Define static properties of stateful services. <span className="atlas-mono-hint">30 min</span>
+- [SCMHATransactionBufferMonitorTask](/class/scmhatransactionbuffermonitortask) — A background service running in SCM to check and flush the HA Transaction buffer. <span className="atlas-mono-hint">30 min</span>
+- [InterSCMGrpcService](/class/interscmgrpcservice) — Service to handle Rocks db Checkpointing. <span className="atlas-mono-hint">30 min</span>
+- [SCMRatisRequest](/class/scmratisrequest) — Represents the request that is sent to RatisServer. <span className="atlas-mono-hint">10 min</span>
+- [SCMRatisResponse](/class/scmratisresponse) — Represents the response from RatisServer. <span className="atlas-mono-hint">10 min</span>
+- [SCMHAMetrics](/class/scmhametrics) — SCM HA metrics. <span className="atlas-mono-hint">20 min</span>
+- [SCMServiceException](/class/scmserviceexception) — Checked exceptions thrown by an SCMService. <span className="atlas-mono-hint">10 min</span>
+
+**[scm-metadata](/component/scm/scm-metadata)** · 4 · 100 min
+
+- [SCMMetadataStoreImpl](/class/scmmetadatastoreimpl) — A RocksDB based implementation of SCM Metadata Store. <span className="atlas-mono-hint">30 min</span>
+- [SCMDBDefinition](/class/scmdbdefinition) — Class defines the structure and types of the scm.db. <span className="atlas-mono-hint">30 min</span>
+- [X509CertificateCodec](/class/x509certificatecodec) — Codec to serialize/deserialize X509Certificate. <span className="atlas-mono-hint">20 min</span>
+- [BigIntegerCodec](/class/bigintegercodec) — Codec to serialize/deserialize BigInteger. <span className="atlas-mono-hint">20 min</span>
+
+**[scm-protocol](/component/scm/scm-protocol)** · 5 · 110 min
+
+- [RetriableDatanodeEventWatcher](/class/retriabledatanodeeventwatcher) — EventWatcher for start events and completion events with payload of type RetriablePayload and RetriableCompletionPayl... <span className="atlas-mono-hint">30 min</span>
+- [StorageContainerLocationProtocolServerSideTranslatorPB](/class/storagecontainerlocationprotocolserversidetranslatorpb) — This class is the server-side translator that forwards requests received on StorageContainerLocationProtocolPB to the... <span className="atlas-mono-hint">20 min</span>
+- [SCMSecurityProtocolServerSideTranslatorPB](/class/scmsecurityprotocolserversidetranslatorpb) — This class is the server-side translator that forwards requests received on SCMSecurityProtocolPB to the SCMSecurityP... <span className="atlas-mono-hint">20 min</span>
+- [ScmBlockLocationProtocolServerSideTranslatorPB](/class/scmblocklocationprotocolserversidetranslatorpb) — This class is the server-side translator that forwards requests received on StorageContainerLocationProtocolPB to the... <span className="atlas-mono-hint">20 min</span>
+- [SecretKeyProtocolServerSideTranslatorPB](/class/secretkeyprotocolserversidetranslatorpb) — This class is the server-side translator that forwards requests received on SecretKeyProtocolDatanodePB to the server... <span className="atlas-mono-hint">20 min</span>
+
+**[scm-security](/component/scm/scm-security)** · 6 · 185 min
+
+- [RootCARotationHandler](/class/rootcarotationhandler) — This interface defines APIs for sub-ca rotation instructions. <span className="atlas-mono-hint">20 min</span>
+- [RootCARotationManager](/class/rootcarotationmanager) — Root CA Rotation Service is a service in SCM to control the CA rotation. <span className="atlas-mono-hint">60 min</span>
+- [RootCARotationHandlerImpl](/class/rootcarotationhandlerimpl) — Root CA Rotation Handler for ratis SCM statemachine. <span className="atlas-mono-hint">45 min</span>
+- [SecretKeyManagerService](/class/secretkeymanagerservice) — A background service running in SCM to maintain the SecretKeys lifecycle. <span className="atlas-mono-hint">30 min</span>
+- [ScmSecretKeyStateBuilder](/class/scmsecretkeystatebuilder) — Builder for SecretKeyState with a proper proxy to make @Replicate happen. <span className="atlas-mono-hint">10 min</span>
+- [RootCARotationMetrics](/class/rootcarotationmetrics) — Metrics related to Root CA rotation in SCM. <span className="atlas-mono-hint">20 min</span>
+
+**[scm-server](/component/scm/scm-server)** · 25 · 790 min
+
+- [SCMCommonPlacementPolicy](/class/scmcommonplacementpolicy) — This policy implements a set of invariants which are common for all basic placement policies, acts as the repository... <span className="atlas-mono-hint">20 min</span>
+- [PipelineChoosePolicy](/class/pipelinechoosepolicy) — A PipelineChoosePolicy support choosing pipeline from exist list. <span className="atlas-mono-hint">20 min</span>
+- [PlacementPolicy](/class/placementpolicy) — A PlacementPolicy support choosing datanodes to build pipelines or containers with specified constraints. <span className="atlas-mono-hint">20 min</span>
+- [ScmUtils](/class/scmutils) — SCM utility class. <span className="atlas-mono-hint">45 min</span>
+- [PlacementPolicyValidateProxy](/class/placementpolicyvalidateproxy) — Proxy class to validate the placement policy for different type of containers. <span className="atlas-mono-hint">30 min</span>
+- [FetchMetrics](/class/fetchmetrics) — Class used to fetch metrics from MBeanServer. <span className="atlas-mono-hint">20 min</span>
+- [StorageContainerManagerStarter](/class/storagecontainermanagerstarter) — This class provides a command line interface to start the SCM using Picocli. <span className="atlas-mono-hint">20 min</span>
+- [SCMMXBean](/class/scmmxbean) — This is the JMX management interface for scm information. <span className="atlas-mono-hint">20 min</span>
+- [SCMStarterInterface](/class/scmstarterinterface) — This interface is used by the StorageContainerManager to allow the dependencies to be injected to the CLI class. <span className="atlas-mono-hint">20 min</span>
+- [OzoneStorageContainerManager](/class/ozonestoragecontainermanager) — Interface for the SCM Facade class that can be used by a passive SCM like Recon to tweak implementation. <span className="atlas-mono-hint">20 min</span>
+- [StorageContainerManager](/class/storagecontainermanager) — StorageContainerManager is the main entry point for the service that provides information about which SCM nodes host... <span className="atlas-mono-hint">60 min</span>
+- [SCMClientProtocolServer](/class/scmclientprotocolserver) — The RPC server that listens to requests from clients. <span className="atlas-mono-hint">60 min</span>
+- [SCMDatanodeProtocolServer](/class/scmdatanodeprotocolserver) — Protocol Handler for Datanode Protocol. <span className="atlas-mono-hint">45 min</span>
+- [SCMSecurityProtocolServer](/class/scmsecurityprotocolserver) — The protocol used to perform security related operations with SCM. <span className="atlas-mono-hint">45 min</span>
+- [SCMBlockProtocolServer](/class/scmblockprotocolserver) — SCM block protocol is the protocol used by Namenode and OzoneManager to get blocks from the SCM. <span className="atlas-mono-hint">45 min</span>
+- [SCMDatanodeHeartbeatDispatcher](/class/scmdatanodeheartbeatdispatcher) — This class is responsible for dispatching heartbeat from datanode to appropriate EventHandler at SCM. <span className="atlas-mono-hint">45 min</span>
+- [ContainerReportQueue](/class/containerreportqueue) — Customized queue to handle FCR and ICR from datanode optimally, avoiding duplicate FCR reports. <span className="atlas-mono-hint">45 min</span>
+- [SCMCertStore](/class/scmcertstore) — A Certificate Store class that persists certificates issued by SCM CA. <span className="atlas-mono-hint">30 min</span>
+- [SCMConfigurator](/class/scmconfigurator) — This class acts as an SCM builder Class. <span className="atlas-mono-hint">30 min</span>
+- [StorageContainerManagerHttpServer](/class/storagecontainermanagerhttpserver) — HttpServer2 wrapper for the Ozone Storage Container Manager. <span className="atlas-mono-hint">30 min</span>
+- [SCMPolicyProvider](/class/scmpolicyprovider) — PolicyProvider for SCM protocols. <span className="atlas-mono-hint">30 min</span>
+- [SCMDBCheckpointServlet](/class/scmdbcheckpointservlet) — Provides the current checkpoint Snapshot of the SCM DB. <span className="atlas-mono-hint">30 min</span>
+- [SCMStorageConfig](/class/scmstorageconfig) — SCMStorageConfig is responsible for management of the StorageDirectories used by the SCM. <span className="atlas-mono-hint">20 min</span>
+- [SCMHTTPServerConfig](/class/scmhttpserverconfig) — SCM HTTP Server configuration in Java style configuration class. <span className="atlas-mono-hint">20 min</span>
+- [SCMContainerMetrics](/class/scmcontainermetrics) — Metrics source to report number of containers in different states. <span className="atlas-mono-hint">20 min</span>
+
+**[upgrade](/component/scm/upgrade)** · 8 · 230 min
+
+- [FinalizationManager](/class/finalizationmanager) — Class to initiate SCM finalization and query its progress. <span className="atlas-mono-hint">20 min</span>
+- [FinalizationStateManager](/class/finalizationstatemanager) — Manages the state of finalization in SCM. <span className="atlas-mono-hint">20 min</span>
+- [FinalizationStateManagerImpl](/class/finalizationstatemanagerimpl) — Manages the state of finalization in SCM. <span className="atlas-mono-hint">45 min</span>
+- [FinalizationManagerImpl](/class/finalizationmanagerimpl) — Class to initiate SCM finalization and query its progress. <span className="atlas-mono-hint">45 min</span>
+- [SCMUpgradeFinalizationContext](/class/scmupgradefinalizationcontext) — Provided to methods in the SCMUpgradeFinalizer to supply objects needed to operate. <span className="atlas-mono-hint">30 min</span>
+- [SCMUpgradeFinalizer](/class/scmupgradefinalizer) — UpgradeFinalizer for the Storage Container Manager service. <span className="atlas-mono-hint">30 min</span>
+- [ScmOnFinalizeActionForDatanodeSchemaV2](/class/scmonfinalizeactionfordatanodeschemav2) — SCM Upgrade Action for the very first Upgrade Version. <span className="atlas-mono-hint">30 min</span>
+- [FinalizationCheckpoint](/class/finalizationcheckpoint) — A finalization checkpoint is an abstraction over SCM's disk state, indicating where finalization left off so it can b... <span className="atlas-mono-hint">10 min</span>

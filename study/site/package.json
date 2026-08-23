@@ -1,0 +1,49 @@
+{
+  "name": "ozone-class-study-atlas-site",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Docusaurus site over the Apache Ozone Class Study Atlas (study/atlas/).",
+  "scripts": {
+    "prestart": "node scripts/build-atlas.mjs",
+    "prebuild": "node scripts/build-atlas.mjs",
+    "start": "docusaurus start",
+    "start:with-search": "npm run build && docusaurus serve --host 0.0.0.0 --port 3000",
+    "build": "docusaurus build",
+    "serve": "docusaurus serve",
+    "clear": "docusaurus clear",
+    "swizzle": "docusaurus swizzle",
+    "atlas": "node scripts/build-atlas.mjs",
+    "verify": "node scripts/verify-links.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@docusaurus/core": "^3.6.0",
+    "@docusaurus/preset-classic": "^3.6.0",
+    "@docusaurus/theme-mermaid": "^3.6.0",
+    "@easyops-cn/docusaurus-search-local": "^0.46.0",
+    "@mdx-js/react": "^3.0.0",
+    "clsx": "^2.1.1",
+    "prism-react-renderer": "^2.4.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "devDependencies": {
+    "@docusaurus/module-type-aliases": "^3.6.0",
+    "@docusaurus/tsconfig": "^3.6.0",
+    "@docusaurus/types": "^3.6.0",
+    "typescript": "~5.5.0",
+    "unist-util-visit": "^5.0.0"
+  },
+  "browserslist": {
+    "production": [">0.5%", "not dead", "not op_mini all"],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "engines": {
+    "node": ">=22",
+    "npm": ">=10"
+  }
+}

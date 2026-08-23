@@ -1,0 +1,76 @@
+---
+slug: /class/containerstatemachine
+title: "ContainerStateMachine"
+sidebar_label: "ContainerStateMachine"
+atlasGenerated: true
+---
+
+
+# ContainerStateMachine
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.container.common.transport.server.ratis.ContainerStateMachine</code>
+
+<ClassBadge kind="service" logicWeight="logic-heavy" concurrency="thread-safe" difficulty={5} studyMinutes={60} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>A StateMachine for containers, which is responsible for handling different types of container requests.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/dn">DN</a> / <a href="/component/dn/ratis-statemachine-dn">ratis-statemachine-dn</a>
+<span>service · logic-heavy</span>
+<span>thread-safe · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 1374</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 391</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">test</span> TestContainerStateMachine.java</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>service</code> in <code>DN/ratis-statemachine-dn</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>thread-safe</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>60 min</code>. Difficulty is <code>5/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/transport/server/ratis/ContainerStateMachine.java">hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/transport/server/ratis/ContainerStateMachine.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li><SourceLink path="hadoop-ozone/integration-test/src/test/java/org/apache/hadoop/ozone/client/rpc/TestContainerStateMachine.java">hadoop-ozone/integration-test/src/test/java/org/apache/hadoop/ozone/client/rpc/TestContainerStateMachine.java</SourceLink></li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/transport/server/ratis/ContainerStateMachine.java" line={414}>ContainerStateMachine.java · takeSnapshot()</SourceLink>
+- <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/transport/server/ratis/ContainerStateMachine.java" line={805}>ContainerStateMachine.java · write()</SourceLink>
+- <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/transport/server/ratis/ContainerStateMachine.java" line={948}>ContainerStateMachine.java · read()</SourceLink>
+- <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/transport/server/ratis/ContainerStateMachine.java" line={1074}>ContainerStateMachine.java · applyTransaction()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.hdds.HddsUtils</Fqcn> · <Fqcn>org.apache.hadoop.hdds.conf.ConfigurationSource</Fqcn> · <Fqcn>org.apache.hadoop.hdds.conf.StorageUnit</Fqcn> · <Fqcn>org.apache.hadoop.hdds.ratis.ContainerCommandRequestMessage</Fqcn> · <Fqcn>org.apache.hadoop.hdds.scm.ScmConfigKeys</Fqcn> · <Fqcn>org.apache.hadoop.hdds.scm.container.common.helpers.ContainerNotOpenException</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.container.common.transport.server.ratis.ContainerStateMachine" />
+## Read next
+
+<div className="atlas-read-next">In this feature (DN/ratis-statemachine-dn): <Fqcn>org.apache.hadoop.ozone.container.common.transport.server.ratis.XceiverServerRatis</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="containerstatemachine" />

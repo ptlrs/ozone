@@ -1,0 +1,73 @@
+---
+slug: /class/hddsvolume
+title: "HddsVolume"
+sidebar_label: "HddsVolume"
+atlasGenerated: true
+---
+
+
+# HddsVolume
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.container.common.volume.HddsVolume</code>
+
+<ClassBadge kind="service" logicWeight="logic-heavy" concurrency="thread-safe" difficulty={5} studyMinutes={60} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>HddsVolume represents volume in a datanode.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/dn">DN</a> / <a href="/component/dn/hdds-volume">hdds-volume</a>
+<span>service · logic-heavy</span>
+<span>thread-safe · RocksDB</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> RocksDB</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 704</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 734</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">test</span> TestHddsVolume.java</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>service</code> in <code>DN/hdds-volume</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>thread-safe</code>; persistence is <code>RocksDB</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>60 min</code>. Difficulty is <code>5/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/volume/HddsVolume.java">hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/volume/HddsVolume.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li><SourceLink path="hadoop-hdds/container-service/src/test/java/org/apache/hadoop/ozone/container/common/volume/TestHddsVolume.java">hadoop-hdds/container-service/src/test/java/org/apache/hadoop/ozone/container/common/volume/TestHddsVolume.java</SourceLink></li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/volume/HddsVolume.java" line={127}>HddsVolume.java · build()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.hdds.annotation.InterfaceAudience</Fqcn> · <Fqcn>org.apache.hadoop.hdds.annotation.InterfaceStability</Fqcn> · <Fqcn>org.apache.hadoop.hdds.conf.ConfigurationSource</Fqcn> · <Fqcn>org.apache.hadoop.hdds.fs.SpaceUsageSource</Fqcn> · <Fqcn>org.apache.hadoop.hdds.upgrade.HDDSLayoutFeature</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.managed.ManagedOptions</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.container.common.volume.HddsVolume" />
+## Read next
+
+<div className="atlas-read-next">In this feature (DN/hdds-volume): <Fqcn>org.apache.hadoop.ozone.container.common.volume.StorageVolumeChecker</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="hddsvolume" />

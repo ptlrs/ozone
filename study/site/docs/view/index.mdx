@@ -1,0 +1,70 @@
+---
+slug: /view/
+sidebar_label: "Views"
+atlasGenerated: true
+---
+
+# Views
+
+Parallel reading orders over the same class set. Each view is a small module under `scripts/views/`.
+
+## [Background services](/view/background-jobs)
+
+The scheduled services that keep the cluster healthy: replication manager, container balancer, disk balancer, scanners, key/directory deleters.
+
+445 classes · 13590 minutes
+
+## [Erasure coding end-to-end](/view/ec-e2e)
+
+Client-side EC encode → per-cell dispatch → DN reconstruction. Covers the Rs/Xor raw coders and the reconstruction coordinator.
+
+44 classes · 1365 minutes
+
+## [OM metadata](/view/metadata-om)
+
+OM RocksDB tables, request/response families, execution flow-control, and HA glue.
+
+395 classes · 9405 minutes
+
+## [SCM metadata](/view/metadata-scm)
+
+SCM container/pipeline management, replication decisions, node management, and the SCM RocksDB tables. Includes the HA path.
+
+302 classes · 8775 minutes
+
+## [Ratis consensus (OM + SCM + DN)](/view/ratis-consensus)
+
+The three state machines that sit on top of Apache Ratis in Ozone: OM apply loop, SCM HA state machine, DN container state machine, plus the shared retry / snapshot glue.
+
+30 classes · 1005 minutes
+
+## [Read path end-to-end](/view/read-path-e2e)
+
+Follow one key read from OzoneBucket down to the datanode chunk read, including pipeline resolution and EC-vs-Ratis divergence at the input-stream layer.
+
+8 classes · 450 minutes
+
+## [Security](/view/security)
+
+SCM internal CA, block tokens, S3 secrets, delegation tokens, Kerberos, and the Ranger/authorizer path. Only classes from the Security component are included.
+
+47 classes · 1310 minutes
+
+## [Snapshot lifecycle](/view/snapshot-lifecycle)
+
+Snapshot create → chain / manager → diff → deep-clean → purge. Follows both the OM request path and the background jobs that clean up snapshot data.
+
+129 classes · 2475 minutes
+
+## [Upgrade & finalization](/view/upgrade-finalize)
+
+Layout version bumps, upgrade actions, finalization state machine, and the classes that gate cross-service format changes.
+
+24 classes · 650 minutes
+
+## [Write path end-to-end](/view/write-path-e2e)
+
+Follow one key write from the OzoneBucket API down to a chunk on disk on a datanode, crossing the client, OM, SCM and DN service boundaries.
+
+14 classes · 650 minutes
+

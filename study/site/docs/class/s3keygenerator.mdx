@@ -1,0 +1,73 @@
+---
+slug: /class/s3keygenerator
+title: "S3KeyGenerator"
+sidebar_label: "S3KeyGenerator"
+atlasGenerated: true
+---
+
+
+# S3KeyGenerator
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.freon.S3KeyGenerator</code>
+
+<ClassBadge kind="cli" logicWeight="mixed" concurrency="single-threaded" difficulty={3} studyMinutes={30} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>inferred: S3KeyGenerator — role not documented.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/bench-insight">Bench & Insight</a> / <a href="/component/bench-insight/freon">freon</a>
+<span>cli · mixed</span>
+<span>single-threaded · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 151</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 1402</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>cli</code> in <code>Bench & Insight/freon</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>single-threaded</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>30 min</code>. Difficulty is <code>3/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-ozone/freon/src/main/java/org/apache/hadoop/ozone/freon/S3KeyGenerator.java">hadoop-ozone/freon/src/main/java/org/apache/hadoop/ozone/freon/S3KeyGenerator.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li>&lt;em&gt;No exemplar test classified yet.&lt;/em&gt;</li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-ozone/freon/src/main/java/org/apache/hadoop/ozone/freon/S3KeyGenerator.java" line={90}>S3KeyGenerator.java · call()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.hdds.cli.HddsVersionProvider</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.freon.S3KeyGenerator" />
+## Read next
+
+<div className="atlas-read-next">In this feature (Bench & Insight/freon): <Fqcn>org.apache.hadoop.ozone.freon.FollowerReader</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="s3keygenerator" />

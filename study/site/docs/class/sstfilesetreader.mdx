@@ -1,0 +1,73 @@
+---
+slug: /class/sstfilesetreader
+title: "SstFileSetReader"
+sidebar_label: "SstFileSetReader"
+atlasGenerated: true
+---
+
+
+# SstFileSetReader
+
+<code className="atlas-fqcn-full">org.apache.hadoop.hdds.utils.db.SstFileSetReader</code>
+
+<ClassBadge kind="service" logicWeight="mixed" concurrency="thread-safe" difficulty={4} studyMinutes={45} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>Provides an abstraction layer using which we can iterate over multiple underlying SST files transparently.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/rocksdb">RocksDB</a> / <a href="/component/rocksdb/checkpoint-differ">checkpoint-differ</a>
+<span>service · mixed</span>
+<span>thread-safe · RocksDB</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> RocksDB</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 229</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 916</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">test</span> TestSstFileSetReader.java</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>service</code> in <code>RocksDB/checkpoint-differ</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>thread-safe</code>; persistence is <code>RocksDB</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>45 min</code>. Difficulty is <code>4/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-hdds/rocksdb-checkpoint-differ/src/main/java/org/apache/hadoop/hdds/utils/db/SstFileSetReader.java">hadoop-hdds/rocksdb-checkpoint-differ/src/main/java/org/apache/hadoop/hdds/utils/db/SstFileSetReader.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li><SourceLink path="hadoop-hdds/rocksdb-checkpoint-differ/src/test/java/org/apache/hadoop/hdds/utils/db/TestSstFileSetReader.java">hadoop-hdds/rocksdb-checkpoint-differ/src/test/java/org/apache/hadoop/hdds/utils/db/TestSstFileSetReader.java</SourceLink></li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-hdds/rocksdb-checkpoint-differ/src/main/java/org/apache/hadoop/hdds/utils/db/SstFileSetReader.java" line={121}>SstFileSetReader.java · close()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.hdds.utils.IOUtils</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.managed.ManagedOptions</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.managed.ManagedReadOptions</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.managed.ManagedSlice</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.managed.ManagedSstFileReader</Fqcn> · <Fqcn>org.apache.hadoop.ozone.util.ClosableIterator</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.hdds.utils.db.SstFileSetReader" />
+## Read next
+
+<div className="atlas-read-next">In this feature (RocksDB/checkpoint-differ): <Fqcn>org.apache.hadoop.hdds.utils.db.RDBSstFileWriter</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="sstfilesetreader" />

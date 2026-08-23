@@ -1,0 +1,73 @@
+---
+slug: /class/nssummarytask
+title: "NSSummaryTask"
+sidebar_label: "NSSummaryTask"
+atlasGenerated: true
+---
+
+
+# NSSummaryTask
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.recon.tasks.NSSummaryTask</code>
+
+<ClassBadge kind="service" logicWeight="logic-heavy" concurrency="actor/queue" difficulty={1} studyMinutes={10} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>Task to query data from OMDB and write into Recon RocksDB.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/recon">Recon</a> / <a href="/component/recon/recon-tasks">recon-tasks</a>
+<span>service · logic-heavy</span>
+<span>actor/queue · RocksDB</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> RocksDB</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 382</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 2453</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">test</span> TestNSSummaryTask.java</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>service</code> in <code>Recon/recon-tasks</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>actor/queue</code>; persistence is <code>RocksDB</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>10 min</code>. Difficulty is <code>1/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/tasks/NSSummaryTask.java">hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/tasks/NSSummaryTask.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li><SourceLink path="hadoop-ozone/recon/src/test/java/org/apache/hadoop/ozone/recon/tasks/TestNSSummaryTask.java">hadoop-ozone/recon/src/test/java/org/apache/hadoop/ozone/recon/tasks/TestNSSummaryTask.java</SourceLink></li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/tasks/NSSummaryTask.java" line={183}>NSSummaryTask.java · process()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.hdds.conf.OzoneConfiguration</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.DBStore</Fqcn> · <Fqcn>org.apache.hadoop.ozone.om.OMMetadataManager</Fqcn> · <Fqcn>org.apache.hadoop.ozone.recon.ReconServerConfigKeys</Fqcn> · <Fqcn>org.apache.hadoop.ozone.recon.recovery.ReconOMMetadataManager</Fqcn> · <Fqcn>org.apache.hadoop.ozone.recon.spi.ReconNamespaceSummaryManager</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.recon.tasks.NSSummaryTask" />
+## Read next
+
+<div className="atlas-read-next">In this feature (Recon/recon-tasks): <Fqcn>org.apache.hadoop.ozone.recon.tasks.OMDBUpdateEvent</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="nssummarytask" />

@@ -1,0 +1,65 @@
+---
+slug: /class/heatmaputil
+title: "HeatMapUtil"
+sidebar_label: "HeatMapUtil"
+atlasGenerated: true
+---
+
+
+# HeatMapUtil
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.recon.heatmap.HeatMapUtil</code>
+
+<ClassBadge kind="service" logicWeight="logic-heavy" concurrency="single-threaded" difficulty={4} studyMinutes={45} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>This class is general utility class for keeping heatmap utility functions.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/recon">Recon</a> / <a href="/component/recon/recon-heatmap">recon-heatmap</a>
+<span>service · logic-heavy</span>
+<span>single-threaded · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 482</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 2361</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>service</code> in <code>Recon/recon-heatmap</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>single-threaded</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>45 min</code>. Difficulty is <code>4/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/heatmap/HeatMapUtil.java">hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/heatmap/HeatMapUtil.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li>&lt;em&gt;No exemplar test classified yet.&lt;/em&gt;</li>
+</ul>
+</div>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.hdds.scm.server.OzoneStorageContainerManager</Fqcn> · <Fqcn>org.apache.hadoop.ozone.recon.api.handlers.EntityHandler</Fqcn> · <Fqcn>org.apache.hadoop.ozone.recon.api.types.DUResponse</Fqcn> · <Fqcn>org.apache.hadoop.ozone.recon.api.types.EntityMetaData</Fqcn> · <Fqcn>org.apache.hadoop.ozone.recon.api.types.EntityReadAccessHeatMapResponse</Fqcn> · <Fqcn>org.apache.hadoop.ozone.recon.api.types.ResponseStatus</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.recon.heatmap.HeatMapUtil" />
+## Progress
+<ProgressCheckbox id="heatmaputil" />

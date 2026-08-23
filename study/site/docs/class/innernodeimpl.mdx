@@ -1,0 +1,69 @@
+---
+slug: /class/innernodeimpl
+title: "InnerNodeImpl"
+sidebar_label: "InnerNodeImpl"
+atlasGenerated: true
+---
+
+
+# InnerNodeImpl
+
+<code className="atlas-fqcn-full">org.apache.hadoop.hdds.scm.net.InnerNodeImpl</code>
+
+<ClassBadge kind="service" logicWeight="logic-heavy" concurrency="single-threaded" difficulty={5} studyMinutes={60} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>A thread safe class that implements InnerNode interface.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/hddscommon">HddsCommon</a> / <a href="/component/hddscommon/network-topology">network-topology</a>
+<span>service · logic-heavy</span>
+<span>single-threaded · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 691</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 1969</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>service</code> in <code>HddsCommon/network-topology</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>single-threaded</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>60 min</code>. Difficulty is <code>5/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/scm/net/InnerNodeImpl.java">hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/scm/net/InnerNodeImpl.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li>&lt;em&gt;No exemplar test classified yet.&lt;/em&gt;</li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/scm/net/InnerNodeImpl.java" line={124}>InnerNodeImpl.java · build()</SourceLink>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.hdds.scm.net.InnerNodeImpl" />
+## Read next
+
+<div className="atlas-read-next">In this feature (HddsCommon/network-topology): <Fqcn>org.apache.hadoop.hdds.scm.net.NodeSchemaLoader</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="innernodeimpl" />

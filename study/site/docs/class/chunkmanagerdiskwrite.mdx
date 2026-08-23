@@ -1,0 +1,73 @@
+---
+slug: /class/chunkmanagerdiskwrite
+title: "ChunkManagerDiskWrite"
+sidebar_label: "ChunkManagerDiskWrite"
+atlasGenerated: true
+---
+
+
+# ChunkManagerDiskWrite
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.freon.ChunkManagerDiskWrite</code>
+
+<ClassBadge kind="cli" logicWeight="mixed" concurrency="thread-safe" difficulty={2} studyMinutes={20} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>inferred: ChunkManagerDiskWrite — role not documented.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/bench-insight">Bench & Insight</a> / <a href="/component/bench-insight/vapor">vapor</a>
+<span>cli · mixed</span>
+<span>thread-safe · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 192</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 2746</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>cli</code> in <code>Bench & Insight/vapor</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>thread-safe</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>20 min</code>. Difficulty is <code>2/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-ozone/vapor/src/main/java/org/apache/hadoop/ozone/freon/ChunkManagerDiskWrite.java">hadoop-ozone/vapor/src/main/java/org/apache/hadoop/ozone/freon/ChunkManagerDiskWrite.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li>&lt;em&gt;No exemplar test classified yet.&lt;/em&gt;</li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-ozone/vapor/src/main/java/org/apache/hadoop/ozone/freon/ChunkManagerDiskWrite.java" line={102}>ChunkManagerDiskWrite.java · call()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.hdds.cli.HddsVersionProvider</Fqcn> · <Fqcn>org.apache.hadoop.hdds.client.BlockID</Fqcn> · <Fqcn>org.apache.hadoop.hdds.conf.OzoneConfiguration</Fqcn> · <Fqcn>org.apache.hadoop.hdds.scm.container.common.helpers.StorageContainerException</Fqcn> · <Fqcn>org.apache.hadoop.ozone.container.common.helpers.ChunkInfo</Fqcn> · <Fqcn>org.apache.hadoop.ozone.container.common.impl.ContainerLayoutVersion</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.freon.ChunkManagerDiskWrite" />
+## Read next
+
+<div className="atlas-read-next">In this feature (Bench & Insight/vapor): <Fqcn>org.apache.hadoop.ozone.freon.VaporSubcommand</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="chunkmanagerdiskwrite" />

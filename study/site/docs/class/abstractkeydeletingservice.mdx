@@ -1,0 +1,73 @@
+---
+slug: /class/abstractkeydeletingservice
+title: "AbstractKeyDeletingService"
+sidebar_label: "AbstractKeyDeletingService"
+atlasGenerated: true
+---
+
+
+# AbstractKeyDeletingService
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.om.service.AbstractKeyDeletingService</code>
+
+<ClassBadge kind="abstract" logicWeight="mixed" concurrency="single-threaded" difficulty={3} studyMinutes={30} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>Abstracts common code from KeyDeletingService and DirectoryDeletingService which is now used by SnapshotDeletingServi...</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/om">OM</a> / <a href="/component/om/om-background-services">om-background-services</a>
+<span>abstract · mixed</span>
+<span>single-threaded · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 216</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 977</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>abstract</code> in <code>OM/om-background-services</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>single-threaded</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>30 min</code>. Difficulty is <code>3/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/service/AbstractKeyDeletingService.java">hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/service/AbstractKeyDeletingService.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li>&lt;em&gt;No exemplar test classified yet.&lt;/em&gt;</li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/service/AbstractKeyDeletingService.java" line={125}>AbstractKeyDeletingService.java · call()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.hdds.utils.BackgroundService</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.BackgroundTask</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.BackgroundTaskQueue</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.BackgroundTaskResult</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.TransactionInfo</Fqcn> · <Fqcn>org.apache.hadoop.ozone.lock.BootstrapStateHandler</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.om.service.AbstractKeyDeletingService" />
+## Read next
+
+<div className="atlas-read-next">In this feature (OM/om-background-services): <Fqcn>org.apache.hadoop.ozone.om.service.KeyLifecycleService</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="abstractkeydeletingservice" />

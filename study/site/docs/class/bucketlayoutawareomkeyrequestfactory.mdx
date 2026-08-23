@@ -1,0 +1,69 @@
+---
+slug: /class/bucketlayoutawareomkeyrequestfactory
+title: "BucketLayoutAwareOMKeyRequestFactory"
+sidebar_label: "BucketLayoutAwareOMKeyRequestFactory"
+atlasGenerated: true
+---
+
+
+# BucketLayoutAwareOMKeyRequestFactory
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.om.request.BucketLayoutAwareOMKeyRequestFactory</code>
+
+<ClassBadge kind="factory" logicWeight="mixed" concurrency="single-threaded" difficulty={2} studyMinutes={20} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>Factory class to instantiate bucket layout aware request classes.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/om">OM</a> / <a href="/component/om/om-request">om-request</a>
+<span>factory · mixed</span>
+<span>single-threaded · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 344</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 61</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>factory</code> in <code>OM/om-request</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>single-threaded</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>20 min</code>. Difficulty is <code>2/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/request/BucketLayoutAwareOMKeyRequestFactory.java">hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/request/BucketLayoutAwareOMKeyRequestFactory.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li>&lt;em&gt;No exemplar test classified yet.&lt;/em&gt;</li>
+</ul>
+</div>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.ozone.om.OMMetadataManager</Fqcn> · <Fqcn>org.apache.hadoop.ozone.om.exceptions.OMException</Fqcn> · <Fqcn>org.apache.hadoop.ozone.om.helpers.BucketLayout</Fqcn> · <Fqcn>org.apache.hadoop.ozone.om.request.file.OMDirectoryCreateRequest</Fqcn> · <Fqcn>org.apache.hadoop.ozone.om.request.file.OMDirectoryCreateRequestWithFSO</Fqcn> · <Fqcn>org.apache.hadoop.ozone.om.request.file.OMFileCreateRequest</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.om.request.BucketLayoutAwareOMKeyRequestFactory" />
+## Read next
+
+<div className="atlas-read-next">In this feature (OM/om-request): <Fqcn>org.apache.hadoop.ozone.om.request.OMClientRequest</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="bucketlayoutawareomkeyrequestfactory" />

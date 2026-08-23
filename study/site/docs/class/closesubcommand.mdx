@@ -1,0 +1,73 @@
+---
+slug: /class/closesubcommand
+title: "CloseSubcommand"
+sidebar_label: "CloseSubcommand"
+atlasGenerated: true
+---
+
+
+# CloseSubcommand
+
+<code className="atlas-fqcn-full">org.apache.hadoop.hdds.scm.cli.container.CloseSubcommand</code>
+
+<ClassBadge kind="cli" logicWeight="mixed" concurrency="single-threaded" difficulty={2} studyMinutes={20} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>The handler of close container command.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/admin-clis">Admin CLIs</a> / <a href="/component/admin-clis/admin">admin</a>
+<span>cli · mixed</span>
+<span>single-threaded · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 45</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 1257</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>cli</code> in <code>Admin CLIs/admin</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>single-threaded</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>20 min</code>. Difficulty is <code>2/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-ozone/cli-admin/src/main/java/org/apache/hadoop/hdds/scm/cli/container/CloseSubcommand.java">hadoop-ozone/cli-admin/src/main/java/org/apache/hadoop/hdds/scm/cli/container/CloseSubcommand.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li>&lt;em&gt;No exemplar test classified yet.&lt;/em&gt;</li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-ozone/cli-admin/src/main/java/org/apache/hadoop/hdds/scm/cli/container/CloseSubcommand.java" line={41}>CloseSubcommand.java · execute()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.hdds.scm.cli.ScmSubcommand</Fqcn> · <Fqcn>org.apache.hadoop.hdds.cli.HddsVersionProvider</Fqcn> · <Fqcn>org.apache.hadoop.hdds.scm.client.ScmClient</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.hdds.scm.cli.container.CloseSubcommand" />
+## Read next
+
+<div className="atlas-read-next">In this feature (Admin CLIs/admin): <Fqcn>org.apache.hadoop.hdds.scm.cli.datanode.DiskBalancerSubCommandUtil</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="closesubcommand" />

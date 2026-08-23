@@ -1,0 +1,65 @@
+---
+slug: /class/printablegraph
+title: "PrintableGraph"
+sidebar_label: "PrintableGraph"
+atlasGenerated: true
+---
+
+
+# PrintableGraph
+
+<code className="atlas-fqcn-full">org.apache.ozone.graph.PrintableGraph</code>
+
+<ClassBadge kind="service" logicWeight="mixed" concurrency="single-threaded" difficulty={1} studyMinutes={10} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>Wrapped over Graph to get an image of MutableGraph.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/debug-repair">Debug & Repair</a> / <a href="/component/debug-repair/debug">debug</a>
+<span>service · mixed</span>
+<span>single-threaded · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 122</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 1372</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">test</span> TestPrintableGraph.java</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>service</code> in <code>Debug & Repair/debug</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>single-threaded</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>10 min</code>. Difficulty is <code>1/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-ozone/cli-debug/src/main/java/org/apache/ozone/PrintableGraph.java">hadoop-ozone/cli-debug/src/main/java/org/apache/ozone/PrintableGraph.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li><SourceLink path="hadoop-ozone/cli-debug/src/test/java/org/apache/ozone/TestPrintableGraph.java">hadoop-ozone/cli-debug/src/test/java/org/apache/ozone/TestPrintableGraph.java</SourceLink></li>
+</ul>
+</div>
+
+## Where it appears
+<Backlinks fqcn="org.apache.ozone.graph.PrintableGraph" />
+## Read next
+
+<div className="atlas-read-next">In this feature (Debug & Repair/debug): <Fqcn>org.apache.hadoop.ozone.utils.Filter</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="printablegraph" />

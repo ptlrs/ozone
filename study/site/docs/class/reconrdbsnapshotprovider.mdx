@@ -1,0 +1,73 @@
+---
+slug: /class/reconrdbsnapshotprovider
+title: "ReconRDBSnapshotProvider"
+sidebar_label: "ReconRDBSnapshotProvider"
+atlasGenerated: true
+---
+
+
+# ReconRDBSnapshotProvider
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.recon.spi.impl.ReconRDBSnapshotProvider</code>
+
+<ClassBadge kind="service" logicWeight="mixed" concurrency="single-threaded" difficulty={3} studyMinutes={30} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>n OM follower uses: a chunked POST /v2/dbCheckpoint request that carries a toExcludeList[] of the parts already recei...</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/recon">Recon</a> / <a href="/component/recon/recon-spi">recon-spi</a>
+<span>service · mixed</span>
+<span>single-threaded · RocksDB</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> RocksDB</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 245</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 2414</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">test</span> TestReconRDBSnapshotProvider.java</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>service</code> in <code>Recon/recon-spi</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>single-threaded</code>; persistence is <code>RocksDB</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>30 min</code>. Difficulty is <code>3/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/spi/impl/ReconRDBSnapshotProvider.java">hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/spi/impl/ReconRDBSnapshotProvider.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li><SourceLink path="hadoop-ozone/recon/src/test/java/org/apache/hadoop/ozone/recon/spi/impl/TestReconRDBSnapshotProvider.java">hadoop-ozone/recon/src/test/java/org/apache/hadoop/ozone/recon/spi/impl/TestReconRDBSnapshotProvider.java</SourceLink></li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/spi/impl/ReconRDBSnapshotProvider.java" line={241}>ReconRDBSnapshotProvider.java · close()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.hdds.server.http.HttpConfig</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.HAUtils</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.RDBSnapshotProvider</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.DBCheckpoint</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.InodeMetadataRocksDBCheckpoint</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.RocksDBCheckpoint</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.recon.spi.impl.ReconRDBSnapshotProvider" />
+## Read next
+
+<div className="atlas-read-next">In this feature (Recon/recon-spi): <Fqcn>org.apache.hadoop.ozone.recon.spi.impl.ReconDBProvider</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="reconrdbsnapshotprovider" />

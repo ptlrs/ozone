@@ -1,0 +1,151 @@
+---
+slug: /component/dn/dn-rocksdb
+sidebar_label: "dn-rocksdb"
+atlasGenerated: true
+---
+
+# dn / dn-rocksdb
+
+
+_This feature page was generated from `study/atlas/components/dn/dn-rocksdb.md`. Author prose belongs above or below the BEGIN/END markers._
+
+{/* BEGIN atlas-generated */}
+
+**Classes:** 21    **Kinds:** service:11, interface:5, abstract:2, util:2, dto:1
+
+## Overview
+
+The `dn-rocksdb` feature group defines the RocksDB-backed metadata stores used by datanode containers. There are three schema versions reflecting the evolution from a single default column family (schema v1) to per-container RocksDB instances with three column families (schema v3). `AbstractDatanodeStore` is the common base that opens the RocksDB file, exposes named `Table` handles for `blockData`, `metadata`, `deletedBlocks`, and `finalizeBlocks` column families, and implements `DatanodeStore` and `DBStoreManager`. `DatanodeStoreSchemaOneImpl`, `DatanodeStoreSchemaTwoImpl`, and `DatanodeStoreSchemaThreeImpl` are the three concrete versions; schema v3 ([HDDS-6597](https://issues.apache.org/jira/browse/HDDS-6597)) places each container in its own RocksDB under a `DbVolume`, enabling per-volume RocksDB consolidation. `WitnessedContainerMetadataStoreImpl` is a special single-database on the "master volume" that tracks container IDs created on this datanode — its `containerIds` table stores `ContainerID → ContainerCreateInfo` (value changed from string to proto in [HDDS-13176](https://issues.apache.org/jira/browse/HDDS-13176)). `AbstractRDBStore` is the generic base for all RocksDB stores on the datanode, implementing batched writes and iterator management.
+
+## Diagram
+
+```mermaid
+erDiagram
+  blockDataTable {
+    string blockId PK
+    BlockData blockData
+  }
+  metadataTable {
+    string key PK
+    long value
+  }
+  deletedBlocksTable {
+    string txId PK
+    DeletedBlocksTransaction txn
+  }
+  finalizeBlocksTable {
+    string blockId PK
+    long placeholder
+  }
+  containerIdsTable {
+    ContainerID containerId PK
+    ContainerCreateInfo info
+  }
+
+  blockDataTable }|--|| metadataTable : "same DB (schema v1/v2/v3)"
+  deletedBlocksTable }|--|| metadataTable : "same DB"
+  finalizeBlocksTable }|--|| metadataTable : "same DB (schema v3)"
+  containerIdsTable ||--o{ blockDataTable : "WitnessedContainer DB (master vol)"
+
+## Class table
+
+### Sub-feature: `container.metadata`
+
+| reading_order | fqcn | kind | logic | loc | study (min) | role |
+|--:|---|---|---|--:|--:|---|
+| 756 | <Fqcn>org.apache.hadoop.ozone.container.metadata.AbstractDatanodeStore</Fqcn> | service | logic-heavy | 225~ | 20 | Implementation of the DatanodeStore interface that contains functionality common to all more derived datanode store i... |
+| 757 | <Fqcn>org.apache.hadoop.ozone.container.metadata.DatanodeStore</Fqcn> | interface | mixed | 25~ | 20 | Interface for interacting with datanode databases. |
+| 758 | <Fqcn>org.apache.hadoop.ozone.container.metadata.DBStoreManager</Fqcn> | interface | mixed | 25~ | 20 | Interface for interacting with datanode databases. |
+| 759 | <Fqcn>org.apache.hadoop.ozone.container.metadata.WitnessedContainerMetadataStore</Fqcn> | interface | mixed | 25~ | 20 | Interface for interacting with database in the master volume of a datanode. |
+| 760 | <Fqcn>org.apache.hadoop.ozone.container.metadata.DeleteTransactionStore</Fqcn> | interface | mixed | 25~ | 20 | Store interface for DeleteTransaction table. |
+| 761 | <Fqcn>org.apache.hadoop.ozone.container.metadata.AbstractRDBStore</Fqcn> | abstract | mixed | 100~ | 30 | Abstract Interface defining the way to interact with any rocksDB in the datanode. |
+| 762 | <Fqcn>org.apache.hadoop.ozone.container.metadata.AbstractDatanodeDBDefinition</Fqcn> | abstract | mixed | 25~ | 30 | This class serves as an intermediate format for all possible database layouts for datanodes. |
+| 763 | <Fqcn>org.apache.hadoop.ozone.container.metadata.DatanodeStoreSchemaThreeImpl</Fqcn> | service | logic-heavy | 200~ | 45 | Constructs a datanode store in accordance with schema version 3, which uses three column families/tables: 1. |
+| 764 | <Fqcn>org.apache.hadoop.ozone.container.metadata.DatanodeStoreWithIncrementalChunkList</Fqcn> | service | mixed | 150~ | 45 | Constructs a datanode store in accordance with schema version 2, which uses three column families/tables: 1. |
+| 765 | <Fqcn>org.apache.hadoop.ozone.container.metadata.DatanodeSchemaThreeDBDefinition</Fqcn> | service | mixed | 125~ | 30 | This class defines the RocksDB structure for datanode following schema version 3, where the block data, metadata, and... |
+| 766 | <Fqcn>org.apache.hadoop.ozone.container.metadata.DatanodeSchemaTwoDBDefinition</Fqcn> | service | mixed | 75~ | 30 | This class defines the RocksDB structure for datanodes following schema version 2, where the block data, metadata, an... |
+| 767 | <Fqcn>org.apache.hadoop.ozone.container.metadata.WitnessedContainerMetadataStoreImpl</Fqcn> | service | mixed | 75~ | 30 | Class for interacting with database in the master volume of a datanode. |
+| 768 | <Fqcn>org.apache.hadoop.ozone.container.metadata.SchemaOneDeletedBlocksTable</Fqcn> | service | mixed | 75~ | 30 | For RocksDB instances written using DB schema version 1, all data is stored in the default column family. |
+| 769 | <Fqcn>org.apache.hadoop.ozone.container.metadata.DatanodeTable</Fqcn> | service | mixed | 75~ | 30 | Wrapper class to represent a table in a datanode RocksDB instance. |
+| 770 | <Fqcn>org.apache.hadoop.ozone.container.metadata.DatanodeSchemaOneDBDefinition</Fqcn> | service | mixed | 50~ | 30 | This class allows support of the schema version one RocksDB layout for datanode, where all data is kept in the same d... |
+| 771 | <Fqcn>org.apache.hadoop.ozone.container.metadata.WitnessedContainerDBDefinition</Fqcn> | service | mixed | 25~ | 30 | Class for defining the schema for master volume in a datanode. |
+| 772 | <Fqcn>org.apache.hadoop.ozone.container.metadata.DatanodeStoreSchemaOneImpl</Fqcn> | service | mixed | 25~ | 30 | Constructs a datanode store in accordance with schema version 1, which places all data in the default column family. |
+| 773 | <Fqcn>org.apache.hadoop.ozone.container.metadata.DatanodeStoreSchemaTwoImpl</Fqcn> | service | mixed | 25~ | 30 | Constructs a datanode store in accordance with schema version 2, which uses three column families/tables: 1. |
+| 774 | <Fqcn>org.apache.hadoop.ozone.container.metadata.SchemaOneKeyCodec</Fqcn> | util | mixed | 50~ | 20 | Containers written using schema version 1 wrote unprefixed block ID keys as longs, and metadata or prefixed block IDs... |
+| 775 | <Fqcn>org.apache.hadoop.ozone.container.metadata.SchemaOneChunkInfoListCodec</Fqcn> | util | mixed | 25~ | 20 | Codec for parsing org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.ChunkInfoList objects from data that... |
+| 776 | <Fqcn>org.apache.hadoop.ozone.container.metadata.ContainerCreateInfo</Fqcn> | dto | data-only | 50~ | 10 | ContainerCreateInfo is a class that holds information about the state and other information on creation This class is... |
+
+
+
+## Anchor details
+
+### `AbstractDatanodeStore`
+
+- **path:** `hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/metadata/AbstractDatanodeStore.java`
+- **loc:** 225~    **difficulty:** 2    **study:** 20 min    **concurrency:** single-threaded    **persistence:** in-memory
+- **entry points:** `close`
+- **key collaborators:** `org.apache.hadoop.hdds.StringUtils`, `org.apache.hadoop.hdds.annotation.InterfaceAudience`, `org.apache.hadoop.hdds.conf.ConfigurationSource`, `org.apache.hadoop.hdds.utils.MetadataKeyFilters`, `org.apache.hadoop.hdds.utils.db.CodecException`, `org.apache.hadoop.hdds.utils.db.DBProfile`
+- **role:** Common base for all datanode store implementations.
+
+Declares the table fields (`metadataTable`, `blockDataTable`, `lastChunkInfoTable`, `finalizeBlocksTable`) as instance variables and initializes them in `initDBStore` by calling `getTable(definition)`. The critical invariant: `AbstractDatanodeStore` is closed only by `ReferenceCountedDB` (in `dn-utils`) when its reference count reaches zero; calling `close()` directly while another thread holds a reference causes a use-after-free on the RocksDB iterator.
+
+### `DatanodeStoreSchemaThreeImpl`
+
+- **path:** `hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/metadata/DatanodeStoreSchemaThreeImpl.java`
+- **loc:** 200~    **difficulty:** 4    **study:** 45 min    **concurrency:** single-threaded    **persistence:** RocksDB
+- **key collaborators:** `org.apache.hadoop.hdds.StringUtils`, `org.apache.hadoop.hdds.conf.ConfigurationSource`, `org.apache.hadoop.hdds.upgrade.HDDSLayoutFeature`, `org.apache.hadoop.hdds.utils.db.BatchOperation`, `org.apache.hadoop.hdds.utils.db.Codec`, `org.apache.hadoop.hdds.utils.db.FixedLengthStringCodec`
+- **role:** Schema v3 store: one RocksDB per container disk, three column families.
+
+Schema v3 adds a `containerIds` column family absent in v1/v2; `DatanodeSchemaThreeDBDefinition` declares this CF and gates it behind `HDDSLayoutFeature.DATANODE_SCHEMA_V3`. The `FixedLengthStringCodec` is used for container IDs to allow range-scan prefix queries without length ambiguity.
+
+
+## Design docs
+
+- `hadoop-hdds/docs/content/design/dn-merge-rocksdb.md` — original design for schema v3 (per-disk RocksDB consolidation).
+- `hadoop-hdds/docs/content/feature/dn-merge-rocksdb.md` — user-facing description of the schema v3 feature.
+- `hadoop-hdds/docs/content/concept/RocksDB.md` — general overview of RocksDB usage in Ozone.
+
+## Seminal JIRAs / PRs
+
+- HDDS-6597. Non-rolling upgrade supports container schema v3 (`DatanodeStoreSchemaThreeImpl` initial introduction).
+- HDDS-6541. Per-disk DB location management (`DbVolume`).
+- HDDS-13176. `containerIds` table value format changed from string to proto.
+- HDDS-11650. `ContainerID` list to track all containers created on a datanode.
+- HDDS-12770. Use `ContainerID` instead of `Long` in `CONTAINER_IDS_TABLE`.
+- HDDS-13330. DBStore and related classes should not throw `IOException` (changed to `CodecException`/`RocksDatabaseException`).
+- HDDS-14800. Guard RocksDB iterator against closed DB during volume failure.
+
+## Sharp edges
+
+- `AbstractDatanodeStore.close()` must only be called by `ReferenceCountedDB`; direct `close()` while another thread holds the DB handle causes a use-after-free on the RocksDB native iterator (HDDS-14800 partially mitigated by guarding the iterator, but the root contract must still be respected).
+- Schema v1 stored block IDs as raw `long` keys; `SchemaOneKeyCodec` and `SchemaOneDeletedBlocksTable` exist solely to read these legacy instances during upgrade finalization and must not be used for new writes.
+
+## Related features
+
+- `components/dn/dn-utils.md` — `ReferenceCountedDB` and `ContainerCache` manage DB handle lifecycle.
+- `components/dn/kv-container-impl.md` — `BlockManagerImpl` writes to `blockDataTable` via `DatanodeStore`.
+- `components/dn/dn-upgrade.md` — `DatanodeSchemaV3FinalizeAction` migrates containers from schema v1/v2 to v3.
+- `components/dn/hdds-volume.md` — `DbVolume` hosts the shared per-disk RocksDB for schema v3 containers.
+
+## Self-quiz
+
+1. Schema v3 places multiple containers' block data into a single per-disk RocksDB using a container ID prefix on block keys. What is the key prefix format, and which codec enforces fixed-length encoding?
+2. `WitnessedContainerMetadataStoreImpl` is stored on the "master volume". What is the master volume, and what happens if it is lost?
+3. `SchemaOneKeyCodec` exists to decode legacy schema v1 keys. After finalization to schema v3, can schema v1 containers still exist on a datanode, and if so, what happens when `BlockManagerImpl` tries to read them?
+4. `AbstractRDBStore.initDBStore` takes a `ManagedDBOptions` argument. What happens if two `AbstractDatanodeStore` instances are opened for the same RocksDB path concurrently?
+5. `ContainerCreateInfo` stores `ContainerCreateInfo` (proto). What fields does it contain, and when is it written vs. read?
+
+<details>
+<summary>Answers</summary>
+
+Answer 1: The key is a `FixedLengthStringCodec`-encoded container ID concatenated with the block ID; fixed-length encoding prevents a 10-digit container ID from being treated as a prefix of a shorter one during range scans.
+Answer 2: The master volume is the first `DbVolume` in the configuration; the `containerIds` table records all containers ever created on this datanode. If it is lost, SCM must rely on full container reports to re-discover the datanode's containers.
+Answer 3: Yes, schema v1 containers remain on disk until finalization runs; `BlockManagerImpl` detects schema v1 by checking `KeyValueContainerData.getSchemaVersion()` and uses `SchemaOneKeyCodec` to decode keys.
+Answer 4: RocksDB will fail to open the second instance with a "lock file already held" error; the caller should use `ContainerCache`/`DatanodeStoreCache` to ensure at most one open handle per path.
+Answer 5: `ContainerCreateInfo` contains container state and creation timestamp; it is written when a container is created (`WitnessedContainerMetadataStoreImpl.addContainer`) and read on restart to rebuild the in-memory container set.
+
+</details>
+
+
+
+{/* END atlas-generated */}

@@ -1,0 +1,73 @@
+---
+slug: /class/omkeyrequest
+title: "OMKeyRequest"
+sidebar_label: "OMKeyRequest"
+atlasGenerated: true
+---
+
+
+# OMKeyRequest
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.om.request.key.OMKeyRequest</code>
+
+<ClassBadge kind="abstract" logicWeight="logic-heavy" concurrency="ratis-applied" difficulty={5} studyMinutes={60} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>Interface for key write requests.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/om">OM</a> / <a href="/component/om/om-request-key">om-request-key</a>
+<span>abstract · logic-heavy</span>
+<span>ratis-applied · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 1438</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 279</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>abstract</code> in <code>OM/om-request-key</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>ratis-applied</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>60 min</code>. Difficulty is <code>5/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/request/key/OMKeyRequest.java">hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/request/key/OMKeyRequest.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li>&lt;em&gt;No exemplar test classified yet.&lt;/em&gt;</li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/request/key/OMKeyRequest.java" line={359}>OMKeyRequest.java · run()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.hdds.client.BlockID</Fqcn> · <Fqcn>org.apache.hadoop.hdds.client.ContainerBlockID</Fqcn> · <Fqcn>org.apache.hadoop.hdds.client.ECReplicationConfig</Fqcn> · <Fqcn>org.apache.hadoop.hdds.client.ReplicationConfig</Fqcn> · <Fqcn>org.apache.hadoop.hdds.protocol.DatanodeDetails</Fqcn> · <Fqcn>org.apache.hadoop.hdds.scm.container.common.helpers.AllocatedBlock</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.om.request.key.OMKeyRequest" />
+## Read next
+
+<div className="atlas-read-next">In this feature (OM/om-request-key): <Fqcn>org.apache.hadoop.ozone.om.request.key.OMKeySetTimesRequestWithFSO</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="omkeyrequest" />

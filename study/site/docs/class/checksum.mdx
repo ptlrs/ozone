@@ -1,0 +1,69 @@
+---
+slug: /class/checksum
+title: "Checksum"
+sidebar_label: "Checksum"
+atlasGenerated: true
+---
+
+
+# Checksum
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.common.Checksum</code>
+
+<ClassBadge kind="service" logicWeight="logic-heavy" concurrency="single-threaded" difficulty={4} studyMinutes={45} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>Class to compute and verify checksums for chunks.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/hddscommon">HddsCommon</a> / <a href="/component/hddscommon/ozone-common-primitives">ozone-common-primitives</a>
+<span>service · logic-heavy</span>
+<span>single-threaded · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 377</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 1995</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">test</span> TestChecksum.java</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>service</code> in <code>HddsCommon/ozone-common-primitives</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>single-threaded</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>45 min</code>. Difficulty is <code>4/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-hdds/common/src/main/java/org/apache/hadoop/ozone/common/Checksum.java">hadoop-hdds/common/src/main/java/org/apache/hadoop/ozone/common/Checksum.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li><SourceLink path="hadoop-hdds/common/src/test/java/org/apache/hadoop/ozone/common/TestChecksum.java">hadoop-hdds/common/src/test/java/org/apache/hadoop/ozone/common/TestChecksum.java</SourceLink></li>
+</ul>
+</div>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.hdds.utils.db.IntegerCodec</Fqcn> · <Fqcn>org.apache.hadoop.ozone.common.utils.BufferUtils</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.common.Checksum" />
+## Read next
+
+<div className="atlas-read-next">In this feature (HddsCommon/ozone-common-primitives): <Fqcn>org.apache.hadoop.ozone.common.ChunkBufferImplWithByteBuffer</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="checksum" />

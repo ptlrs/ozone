@@ -1,0 +1,74 @@
+---
+slug: /class/domainsocketfactory
+title: "DomainSocketFactory"
+sidebar_label: "DomainSocketFactory"
+atlasGenerated: true
+---
+
+
+# DomainSocketFactory
+
+<code className="atlas-fqcn-full">org.apache.hadoop.hdds.scm.storage.DomainSocketFactory</code>
+
+<ClassBadge kind="factory" logicWeight="logic-heavy" concurrency="thread-safe" difficulty={2} studyMinutes={20} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>A factory to help create DomainSocket.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/client">Client</a> / <a href="/component/client/hdds-client">hdds-client</a>
+<span>factory · logic-heavy</span>
+<span>thread-safe · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 276</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 104</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">test</span> TestDomainSocketFactory.java</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>factory</code> in <code>Client/hdds-client</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>thread-safe</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>20 min</code>. Difficulty is <code>2/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-hdds/client/src/main/java/org/apache/hadoop/hdds/scm/storage/DomainSocketFactory.java">hadoop-hdds/client/src/main/java/org/apache/hadoop/hdds/scm/storage/DomainSocketFactory.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li><SourceLink path="hadoop-ozone/integration-test/src/test/java/org/apache/hadoop/ozone/client/rpc/read/TestDomainSocketFactory.java">hadoop-ozone/integration-test/src/test/java/org/apache/hadoop/ozone/client/rpc/read/TestDomainSocketFactory.java</SourceLink></li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-hdds/client/src/main/java/org/apache/hadoop/hdds/scm/storage/DomainSocketFactory.java" line={249}>DomainSocketFactory.java · run()</SourceLink>
+- <SourceLink path="hadoop-hdds/client/src/main/java/org/apache/hadoop/hdds/scm/storage/DomainSocketFactory.java" line={268}>DomainSocketFactory.java · close()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.hdds.scm.OzoneClientConfig</Fqcn> · <Fqcn>org.apache.hadoop.hdds.conf.ConfigurationSource</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.hdds.scm.storage.DomainSocketFactory" />
+## Read next
+
+<div className="atlas-read-next">In this feature (Client/hdds-client): <Fqcn>org.apache.hadoop.hdds.scm.storage.BlockExtendedInputStream</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="domainsocketfactory" />

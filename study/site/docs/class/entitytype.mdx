@@ -1,0 +1,73 @@
+---
+slug: /class/entitytype
+title: "EntityType"
+sidebar_label: "EntityType"
+atlasGenerated: true
+---
+
+
+# EntityType
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.recon.api.types.EntityType</code>
+
+<ClassBadge kind="data" logicWeight="data-only" concurrency="single-threaded" difficulty={1} studyMinutes={10} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>Enum class for namespace type.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/recon">Recon</a> / <a href="/component/recon/recon-api">recon-api</a>
+<span>data · data-only</span>
+<span>single-threaded · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 108</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 2291</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>data</code> in <code>Recon/recon-api</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>single-threaded</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>10 min</code>. Difficulty is <code>1/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/api/types/EntityType.java">hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/api/types/EntityType.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li>&lt;em&gt;No exemplar test classified yet.&lt;/em&gt;</li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/api/types/EntityType.java" line={38}>EntityType.java · create()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.ozone.recon.api.handlers.BucketEntityHandler</Fqcn> · <Fqcn>org.apache.hadoop.ozone.recon.api.handlers.BucketHandler</Fqcn> · <Fqcn>org.apache.hadoop.ozone.recon.api.handlers.DirectoryEntityHandler</Fqcn> · <Fqcn>org.apache.hadoop.ozone.recon.api.handlers.EntityHandler</Fqcn> · <Fqcn>org.apache.hadoop.ozone.recon.api.handlers.KeyEntityHandler</Fqcn> · <Fqcn>org.apache.hadoop.ozone.recon.api.handlers.RootEntityHandler</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.recon.api.types.EntityType" />
+## Read next
+
+<div className="atlas-read-next">In this feature (Recon/recon-api): <Fqcn>org.apache.hadoop.ozone.recon.api.types.KeyEntityInfo</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="entitytype" />

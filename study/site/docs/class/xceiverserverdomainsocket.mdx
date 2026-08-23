@@ -1,0 +1,74 @@
+---
+slug: /class/xceiverserverdomainsocket
+title: "XceiverServerDomainSocket"
+sidebar_label: "XceiverServerDomainSocket"
+atlasGenerated: true
+---
+
+
+# XceiverServerDomainSocket
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.container.common.transport.server.XceiverServerDomainSocket</code>
+
+<ClassBadge kind="service" logicWeight="logic-heavy" concurrency="thread-safe" difficulty={4} studyMinutes={45} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>Creates a DomainSocket server endpoint that acts as the communication layer for Ozone containers.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/dn">DN</a> / <a href="/component/dn/grpc-server-dn">grpc-server-dn</a>
+<span>service · logic-heavy</span>
+<span>thread-safe · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 324</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 1615</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">test</span> TestXceiverServerDomainSocket.java</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>service</code> in <code>DN/grpc-server-dn</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>thread-safe</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>45 min</code>. Difficulty is <code>4/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/transport/server/XceiverServerDomainSocket.java">hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/transport/server/XceiverServerDomainSocket.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li><SourceLink path="hadoop-ozone/integration-test/src/test/java/org/apache/hadoop/hdds/TestXceiverServerDomainSocket.java">hadoop-ozone/integration-test/src/test/java/org/apache/hadoop/hdds/TestXceiverServerDomainSocket.java</SourceLink></li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/transport/server/XceiverServerDomainSocket.java" line={143}>XceiverServerDomainSocket.java · start()</SourceLink>
+- <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/transport/server/XceiverServerDomainSocket.java" line={206}>XceiverServerDomainSocket.java · run()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.hdds.conf.ConfigurationSource</Fqcn> · <Fqcn>org.apache.hadoop.hdds.protocol.DatanodeDetails</Fqcn> · <Fqcn>org.apache.hadoop.hdds.scm.OzoneClientConfig</Fqcn> · <Fqcn>org.apache.hadoop.hdds.scm.storage.DomainPeer</Fqcn> · <Fqcn>org.apache.hadoop.hdds.scm.storage.DomainSocketFactory</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.FaultInjector</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.container.common.transport.server.XceiverServerDomainSocket" />
+## Read next
+
+<div className="atlas-read-next">In this feature (DN/grpc-server-dn): <Fqcn>org.apache.hadoop.ozone.container.common.transport.server.XceiverServerGrpc</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="xceiverserverdomainsocket" />

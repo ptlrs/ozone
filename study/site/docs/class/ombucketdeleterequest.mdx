@@ -1,0 +1,73 @@
+---
+slug: /class/ombucketdeleterequest
+title: "OMBucketDeleteRequest"
+sidebar_label: "OMBucketDeleteRequest"
+atlasGenerated: true
+---
+
+
+# OMBucketDeleteRequest
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.om.request.bucket.OMBucketDeleteRequest</code>
+
+<ClassBadge kind="dto" logicWeight="data-only" concurrency="single-threaded" difficulty={1} studyMinutes={10} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>Handles DeleteBucket Request.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/om">OM</a> / <a href="/component/om/om-request-bucket">om-request-bucket</a>
+<span>dto · data-only</span>
+<span>single-threaded · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 292</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 491</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">test</span> TestOMBucketDeleteRequest.java</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>dto</code> in <code>OM/om-request-bucket</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>single-threaded</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>10 min</code>. Difficulty is <code>1/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/request/bucket/OMBucketDeleteRequest.java">hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/request/bucket/OMBucketDeleteRequest.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li><SourceLink path="hadoop-ozone/ozone-manager/src/test/java/org/apache/hadoop/ozone/om/request/bucket/TestOMBucketDeleteRequest.java">hadoop-ozone/ozone-manager/src/test/java/org/apache/hadoop/ozone/om/request/bucket/TestOMBucketDeleteRequest.java</SourceLink></li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/request/bucket/OMBucketDeleteRequest.java" line={77}>OMBucketDeleteRequest.java · validateAndUpdateCache()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.hdds.utils.db.Table</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.TableIterator</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.cache.CacheKey</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.cache.CacheValue</Fqcn> · <Fqcn>org.apache.hadoop.ozone.OzoneConsts</Fqcn> · <Fqcn>org.apache.hadoop.ozone.audit.AuditLogger</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.om.request.bucket.OMBucketDeleteRequest" />
+## Read next
+
+<div className="atlas-read-next">In this feature (OM/om-request-bucket): <Fqcn>org.apache.hadoop.ozone.om.request.bucket.OMBucketSetOwnerRequest</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="ombucketdeleterequest" />

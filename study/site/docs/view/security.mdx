@@ -1,0 +1,167 @@
+---
+slug: /view/security
+title: "Security"
+sidebar_label: "Security"
+atlasGenerated: true
+---
+# Security
+<div className="atlas-flow-hero">
+<p>SCM internal CA, block tokens, S3 secrets, delegation tokens, Kerberos, and the Ranger/authorizer path. Only classes from the Security co…</p>
+<div className="atlas-flow-hero__meta">1310 minutes · 47 classes</div>
+</div>
+## Flow walkthrough
+## Key classes on this path
+
+<div className="atlas-step-grid">
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">1</div>
+<div>
+<strong><a href="/class/ozonesecretmanager">OzoneSecretManager</a></strong>
+<p>SecretManager for Ozone Master.</p>
+<span className="atlas-mono-hint">Security/security-framework · 45 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">2</div>
+<div>
+<strong><a href="/class/ozonesecretkey">OzoneSecretKey</a></strong>
+<p>Wrapper class for Ozone/Hdds secret keys.</p>
+<span className="atlas-mono-hint">Security/security-framework · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">3</div>
+<div>
+<strong><a href="/class/reloadingx509trustmanager">ReloadingX509TrustManager</a></strong>
+<p>A TrustManager implementation that exposes a method, #init(List) to reload its configuration for example when the tru...</p>
+<span className="atlas-mono-hint">Security/security-ssl · 20 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">4</div>
+<div>
+<strong><a href="/class/reloadingx509keymanager">ReloadingX509KeyManager</a></strong>
+<p>An implementation of &lt;code&gt;X509KeyManager&lt;/code&gt; that can be notified of certificate changes.</p>
+<span className="atlas-mono-hint">Security/security-ssl · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">5</div>
+<div>
+<strong><a href="/class/keystoresfactory">KeyStoresFactory</a></strong>
+<p>Interface that gives access to KeyManager and TrustManager implementations.</p>
+<span className="atlas-mono-hint">Security/security-ssl · 20 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">6</div>
+<div>
+<strong><a href="/class/secretkeyverifierclient">SecretKeyVerifierClient</a></strong>
+<p>Define the client-side API that the token verifiers (or datanodes) use to retrieve the relevant secret key to validat...</p>
+<span className="atlas-mono-hint">Security/security-symmetric · 20 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">7</div>
+<div>
+<strong><a href="/class/secretkeyclient">SecretKeyClient</a></strong>
+<p>Composite client for those components that need to perform both signing and verifying.</p>
+<span className="atlas-mono-hint">Security/security-symmetric · 20 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">8</div>
+<div>
+<strong><a href="/class/secretkeysignerclient">SecretKeySignerClient</a></strong>
+<p>Define the client-side API that the token signers (like OM) uses to retrieve the secret key to sign data.</p>
+<span className="atlas-mono-hint">Security/security-symmetric · 20 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">9</div>
+<div>
+<strong><a href="/class/secretkeystate">SecretKeyState</a></strong>
+<p>This component holds the state of managed SecretKeys, including the current key and all active keys.</p>
+<span className="atlas-mono-hint">Security/security-symmetric · 20 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">10</div>
+<div>
+<strong><a href="/class/secretkeystore">SecretKeyStore</a></strong>
+<p>Interface for SecretKey storage component, which is responsible for saving the SecretKeys states persistently to ensu...</p>
+<span className="atlas-mono-hint">Security/security-symmetric · 20 min</span>
+</div>
+</div>
+</div>
+
+## What to understand before moving on
+- Explain the service boundary crossings in this path: Security.
+- Name the entry-point classes and the class that owns each durable state change.
+- Identify the retry, failure, or cleanup behavior that keeps the path correct when a service is slow or unavailable.
+- Open the individual class pages for invariants, sharp edges, source links, and test exemplars.
+- Use these tags as anchors when searching later: `security`.
+## Full reading list
+### Security — 47 classes · 1310 min
+
+**[security-framework](/component/security/security-framework)** · 2 · 75 min
+
+- [OzoneSecretManager](/class/ozonesecretmanager) — SecretManager for Ozone Master. <span className="atlas-mono-hint">45 min</span>
+- [OzoneSecretKey](/class/ozonesecretkey) — Wrapper class for Ozone/Hdds secret keys. <span className="atlas-mono-hint">30 min</span>
+
+**[security-ssl](/component/security/security-ssl)** · 3 · 70 min
+
+- [ReloadingX509TrustManager](/class/reloadingx509trustmanager) — A TrustManager implementation that exposes a method, #init(List) to reload its configuration for example when the tru... <span className="atlas-mono-hint">20 min</span>
+- [ReloadingX509KeyManager](/class/reloadingx509keymanager) — An implementation of &lt;code&gt;X509KeyManager&lt;/code&gt; that can be notified of certificate changes. <span className="atlas-mono-hint">30 min</span>
+- [KeyStoresFactory](/class/keystoresfactory) — Interface that gives access to KeyManager and TrustManager implementations. <span className="atlas-mono-hint">20 min</span>
+
+**[security-symmetric](/component/security/security-symmetric)** · 13 · 330 min
+
+- [SecretKeyVerifierClient](/class/secretkeyverifierclient) — Define the client-side API that the token verifiers (or datanodes) use to retrieve the relevant secret key to validat... <span className="atlas-mono-hint">20 min</span>
+- [SecretKeyClient](/class/secretkeyclient) — Composite client for those components that need to perform both signing and verifying. <span className="atlas-mono-hint">20 min</span>
+- [SecretKeySignerClient](/class/secretkeysignerclient) — Define the client-side API that the token signers (like OM) uses to retrieve the secret key to sign data. <span className="atlas-mono-hint">20 min</span>
+- [SecretKeyState](/class/secretkeystate) — This component holds the state of managed SecretKeys, including the current key and all active keys. <span className="atlas-mono-hint">20 min</span>
+- [SecretKeyStore](/class/secretkeystore) — Interface for SecretKey storage component, which is responsible for saving the SecretKeys states persistently to ensu... <span className="atlas-mono-hint">20 min</span>
+- [LocalSecretKeyStore](/class/localsecretkeystore) — A SecretKeyStore that saves and loads SecretKeys from/to a JSON file on local file system. <span className="atlas-mono-hint">30 min</span>
+- [ManagedSecretKey](/class/managedsecretkey) — Enclosed a symmetric SecretKey with additional data for life-cycle management. <span className="atlas-mono-hint">30 min</span>
+- [SecretKeyManager](/class/secretkeymanager) — This component manages symmetric SecretKey life-cycle, including generation, rotation and destruction. <span className="atlas-mono-hint">30 min</span>
+- [DefaultSecretKeySignerClient](/class/defaultsecretkeysignerclient) — Default implementation of SecretKeySignerClient that fetches secret keys from SCM. <span className="atlas-mono-hint">30 min</span>
+- [SecretKeyStateImpl](/class/secretkeystateimpl) — Default implementation of SecretKeyState. <span className="atlas-mono-hint">30 min</span>
+- [DefaultSecretKeyVerifierClient](/class/defaultsecretkeyverifierclient) — Default implementation of SecretKeyVerifierClient that fetches SecretKeys remotely via SCMSecurityProtocol and cache... <span className="atlas-mono-hint">30 min</span>
+- [DefaultSecretKeyClient](/class/defaultsecretkeyclient) — A composition of DefaultSecretKeySignerClient and DefaultSecretKeyVerifierClient for components need both APIs. <span className="atlas-mono-hint">30 min</span>
+- [SecretKeyConfig](/class/secretkeyconfig) — Configurations related to SecretKeys lifecycle management. <span className="atlas-mono-hint">20 min</span>
+
+**[security-tokens](/component/security/security-tokens)** · 12 · 320 min
+
+- [ContainerTokenGenerator](/class/containertokengenerator) — Generates container tokens. <span className="atlas-mono-hint">20 min</span>
+- [TokenVerifier](/class/tokenverifier) — Ozone GRPC token header verifier. <span className="atlas-mono-hint">20 min</span>
+- [ShortLivedTokenVerifier](/class/shortlivedtokenverifier) — Verifies short-lived token. <span className="atlas-mono-hint">30 min</span>
+- [ShortLivedTokenSecretManager](/class/shortlivedtokensecretmanager) — Base class for short-lived token secret managers (block, container). <span className="atlas-mono-hint">30 min</span>
+- [ContainerTokenIdentifier](/class/containertokenidentifier) — Token identifier for container operations, similar to block token. <span className="atlas-mono-hint">30 min</span>
+- [BlockTokenVerifier](/class/blocktokenverifier) — Verify token and return a UGI with token if authenticated. <span className="atlas-mono-hint">30 min</span>
+- [NoopTokenVerifier](/class/nooptokenverifier) — No-op verifier, used when block token is disabled in config. <span className="atlas-mono-hint">30 min</span>
+- [ContainerTokenSecretManager](/class/containertokensecretmanager) — Secret manager for container tokens. <span className="atlas-mono-hint">30 min</span>
+- [CompositeTokenVerifier](/class/compositetokenverifier) — Handles all kinds of container commands. <span className="atlas-mono-hint">30 min</span>
+- [OzoneBlockTokenSecretManager](/class/ozoneblocktokensecretmanager) — SecretManager for Ozone Master block tokens. <span className="atlas-mono-hint">30 min</span>
+- [ContainerTokenVerifier](/class/containertokenverifier) — Verifier for container tokens. <span className="atlas-mono-hint">30 min</span>
+- [BlockTokenException](/class/blocktokenexception) — Block Token Exceptions from the SCM Security layer. <span className="atlas-mono-hint">10 min</span>
+
+**[security-x509](/component/security/security-x509)** · 17 · 515 min
+
+- [PKIProfile](/class/pkiprofile) — Base class for profile rules. <span className="atlas-mono-hint">20 min</span>
+- [DefaultProfile](/class/defaultprofile) — Ozone PKI profile. <span className="atlas-mono-hint">45 min</span>
+- [DefaultCAProfile](/class/defaultcaprofile) — CA Profile, this is needed when SCM does HA. <span className="atlas-mono-hint">30 min</span>
+- [CertificateStore](/class/certificatestore) — This interface allows the DefaultCA to be portable and use different DB interfaces later. <span className="atlas-mono-hint">20 min</span>
+- [CertificateApprover](/class/certificateapprover) — Certificate Approver interface is used to inspectCSR a certificate. <span className="atlas-mono-hint">20 min</span>
+- [CertificateServer](/class/certificateserver) — Interface for Certificate Authority. <span className="atlas-mono-hint">20 min</span>
+- [DefaultCAServer](/class/defaultcaserver) — The default CertificateServer used by SCM. <span className="atlas-mono-hint">45 min</span>
+- [DefaultApprover](/class/defaultapprover) — Default Approver used the by the DefaultCA. <span className="atlas-mono-hint">45 min</span>
+- [CertificateClient](/class/certificateclient) — Certificate client provides and interface to certificate operations that needs to be performed by all clients in the... <span className="atlas-mono-hint">20 min</span>
+- [CertificateNotification](/class/certificatenotification) — Class should implement this interface if it wants to be notified when there is some changes in Certificate. <span className="atlas-mono-hint">20 min</span>
+- [DefaultCertificateClient](/class/defaultcertificateclient) — Default Certificate client implementation. <span className="atlas-mono-hint">60 min</span>
+- [SCMCertificateClient](/class/scmcertificateclient) — SCM Certificate Client which is used for generating public/private Key pair, generate CSR and finally obtain signed c... <span className="atlas-mono-hint">45 min</span>
+- [RootCaRotationPoller](/class/rootcarotationpoller) — Poller mechanism for Root Ca Rotation for clients. <span className="atlas-mono-hint">30 min</span>
+- [DNCertificateClient](/class/dncertificateclient) — Certificate client for DataNodes. <span className="atlas-mono-hint">30 min</span>
+- [SelfSignedCertificate](/class/selfsignedcertificate) — A Self Signed Certificate with CertificateServer basic constraint can be used to bootstrap a certificate infrastructu... <span className="atlas-mono-hint">45 min</span>
+- [CertificateSignRequest](/class/certificatesignrequest) — A certificate sign request object that wraps operations to build a PKCS10CertificationRequest to CertificateServer. <span className="atlas-mono-hint">10 min</span>
+- [CertInfo](/class/certinfo) — Class that wraps Certificate Info. <span className="atlas-mono-hint">10 min</span>

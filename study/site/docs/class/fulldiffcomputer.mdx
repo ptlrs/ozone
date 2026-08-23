@@ -1,0 +1,69 @@
+---
+slug: /class/fulldiffcomputer
+title: "FullDiffComputer"
+sidebar_label: "FullDiffComputer"
+atlasGenerated: true
+---
+
+
+# FullDiffComputer
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.om.snapshot.diff.delta.FullDiffComputer</code>
+
+<ClassBadge kind="service" logicWeight="mixed" concurrency="single-threaded" difficulty={3} studyMinutes={30} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>FullDiffComputer is a specialized implementation of FileLinkDeltaFileComputer that computes the delta files between t...</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/om">OM</a> / <a href="/component/om/om-snapshot">om-snapshot</a>
+<span>service · mixed</span>
+<span>single-threaded · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 119</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 857</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">test</span> TestFullDiffComputer.java</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>service</code> in <code>OM/om-snapshot</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>single-threaded</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>30 min</code>. Difficulty is <code>3/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/snapshot/diff/delta/FullDiffComputer.java">hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/snapshot/diff/delta/FullDiffComputer.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li><SourceLink path="hadoop-ozone/ozone-manager/src/test/java/org/apache/hadoop/ozone/om/snapshot/diff/delta/TestFullDiffComputer.java">hadoop-ozone/ozone-manager/src/test/java/org/apache/hadoop/ozone/om/snapshot/diff/delta/TestFullDiffComputer.java</SourceLink></li>
+</ul>
+</div>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.hdds.utils.db.RDBStore</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.TablePrefixInfo</Fqcn> · <Fqcn>org.apache.hadoop.ozone.om.OMMetadataManager</Fqcn> · <Fqcn>org.apache.hadoop.ozone.om.OmSnapshot</Fqcn> · <Fqcn>org.apache.hadoop.ozone.om.OmSnapshotManager</Fqcn> · <Fqcn>org.apache.hadoop.ozone.om.helpers.SnapshotInfo</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.om.snapshot.diff.delta.FullDiffComputer" />
+## Read next
+
+<div className="atlas-read-next">In this feature (OM/om-snapshot): <Fqcn>org.apache.hadoop.ozone.om.snapshot.diff.helper.SnapshotDiffObjectInfo</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="fulldiffcomputer" />

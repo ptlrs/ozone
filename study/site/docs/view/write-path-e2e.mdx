@@ -1,0 +1,160 @@
+---
+slug: /view/write-path-e2e
+title: "Write path end-to-end"
+sidebar_label: "Write path end-to-end"
+atlasGenerated: true
+---
+# Write path end-to-end
+<div className="atlas-flow-hero">
+<p>Follow one key write from the OzoneBucket API down to a chunk on disk on a datanode, crossing the client, OM, SCM and DN service boundaries.</p>
+<div className="atlas-flow-hero__meta">650 minutes · 14 classes</div>
+</div>
+## Flow walkthrough
+The linear list below is a reading order that mirrors the actual RPC / data flow. It does not include every helper each stage uses — for that, follow the backlinks on the individual class pages.
+```mermaid
+sequenceDiagram
+  participant App as OzoneBucket
+  participant Client as RpcClient
+  participant KOS as KeyOutputStream
+  participant OM
+  participant SCM
+  participant DN as XceiverClientRatis
+  App->>Client: createKey()
+  Client->>OM: createKey (open)
+  loop chunks
+    KOS->>SCM: allocateBlock()
+    KOS->>DN: write chunk
+  end
+  Client->>OM: commitKey()
+```
+## Key classes on this path
+
+<div className="atlas-step-grid">
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">1</div>
+<div>
+<strong><a href="/class/ozonebucket">OzoneBucket</a></strong>
+<p>A class that encapsulates OzoneBucket.</p>
+<span className="atlas-mono-hint">Client/ozone-client · 60 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">2</div>
+<div>
+<strong><a href="/class/rpcclient">RpcClient</a></strong>
+<p>Ozone RPC Client Implementation, it connects to OM, SCM and DataNode to execute client calls.</p>
+<span className="atlas-mono-hint">Client/ozone-client · 60 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">3</div>
+<div>
+<strong><a href="/class/keyoutputstream">KeyOutputStream</a></strong>
+<p>Maintaining a list of BlockInputStream.</p>
+<span className="atlas-mono-hint">Client/ozone-client · 60 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">4</div>
+<div>
+<strong><a href="/class/blockoutputstreamentrypool">BlockOutputStreamEntryPool</a></strong>
+<p>A BlockOutputStreamEntryPool manages the communication with OM during writing a Key to Ozone with KeyOutputStream.</p>
+<span className="atlas-mono-hint">Client/ozone-client · 45 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">5</div>
+<div>
+<strong><a href="/class/blockoutputstreamentry">BlockOutputStreamEntry</a></strong>
+<p>A BlockOutputStreamEntry manages the data writes into the DataNodes.</p>
+<span className="atlas-mono-hint">Client/ozone-client · 45 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">6</div>
+<div>
+<strong><a href="/class/blockoutputstream">BlockOutputStream</a></strong>
+<p>An OutputStream used by the REST service in combination with the SCMClient to write the value of a key to a sequence...</p>
+<span className="atlas-mono-hint">Client/hdds-client · 60 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">7</div>
+<div>
+<strong><a href="/class/xceiverclientratis">XceiverClientRatis</a></strong>
+<p>An abstract implementation of XceiverClientSpi using Ratis.</p>
+<span className="atlas-mono-hint">Client/hdds-client · 45 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">8</div>
+<div>
+<strong><a href="/class/xceiverclientgrpc">XceiverClientGrpc</a></strong>
+<p>XceiverClientSpi implementation, the standalone client.</p>
+<span className="atlas-mono-hint">Client/hdds-client · 60 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">9</div>
+<div>
+<strong><a href="/class/omkeycreaterequest">OMKeyCreateRequest</a></strong>
+<p>Handles CreateKey request.</p>
+<span className="atlas-mono-hint">OM/om-request-key · 10 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">10</div>
+<div>
+<strong><a href="/class/omkeycommitrequest">OMKeyCommitRequest</a></strong>
+<p>Handles CommitKey request.</p>
+<span className="atlas-mono-hint">OM/om-request-key · 10 min</span>
+</div>
+</div>
+</div>
+
+## What to understand before moving on
+- Explain the service boundary crossings in this path: Client -> OM -> SCM -> DN.
+- Name the entry-point classes and the class that owns each durable state change.
+- Identify the retry, failure, or cleanup behavior that keeps the path correct when a service is slow or unavailable.
+- Open the individual class pages for invariants, sharp edges, source links, and test exemplars.
+- Use these tags as anchors when searching later: `write-path`, `hot-path`.
+## Full reading list
+### Client — 8 classes · 435 min
+
+**[hdds-client](/component/client/hdds-client)** · 3 · 165 min
+
+- [XceiverClientGrpc](/class/xceiverclientgrpc) — XceiverClientSpi implementation, the standalone client. <span className="atlas-mono-hint">60 min</span>
+- [XceiverClientRatis](/class/xceiverclientratis) — An abstract implementation of XceiverClientSpi using Ratis. <span className="atlas-mono-hint">45 min</span>
+- [BlockOutputStream](/class/blockoutputstream) — An OutputStream used by the REST service in combination with the SCMClient to write the value of a key to a sequence... <span className="atlas-mono-hint">60 min</span>
+
+**[ozone-client](/component/client/ozone-client)** · 5 · 270 min
+
+- [RpcClient](/class/rpcclient) — Ozone RPC Client Implementation, it connects to OM, SCM and DataNode to execute client calls. <span className="atlas-mono-hint">60 min</span>
+- [OzoneBucket](/class/ozonebucket) — A class that encapsulates OzoneBucket. <span className="atlas-mono-hint">60 min</span>
+- [KeyOutputStream](/class/keyoutputstream) — Maintaining a list of BlockInputStream. <span className="atlas-mono-hint">60 min</span>
+- [BlockOutputStreamEntry](/class/blockoutputstreamentry) — A BlockOutputStreamEntry manages the data writes into the DataNodes. <span className="atlas-mono-hint">45 min</span>
+- [BlockOutputStreamEntryPool](/class/blockoutputstreamentrypool) — A BlockOutputStreamEntryPool manages the communication with OM during writing a Key to Ozone with KeyOutputStream. <span className="atlas-mono-hint">45 min</span>
+
+### DN — 3 classes · 150 min
+
+**[kv-container](/component/dn/kv-container)** · 1 · 60 min
+
+- [KeyValueHandler](/class/keyvaluehandler) — Handler for KeyValue Container type. <span className="atlas-mono-hint">60 min</span>
+
+**[kv-container-impl](/component/dn/kv-container-impl)** · 2 · 90 min
+
+- [FilePerBlockStrategy](/class/fileperblockstrategy) — This class is for performing chunk related operations. <span className="atlas-mono-hint">45 min</span>
+- [BlockManagerImpl](/class/blockmanagerimpl-4cf7b6) — This class is for performing block related operations on the KeyValue Container. <span className="atlas-mono-hint">45 min</span>
+
+### OM — 2 classes · 20 min
+
+**[om-request-key](/component/om/om-request-key)** · 2 · 20 min
+
+- [OMKeyCommitRequest](/class/omkeycommitrequest) — Handles CommitKey request. <span className="atlas-mono-hint">10 min</span>
+- [OMKeyCreateRequest](/class/omkeycreaterequest) — Handles CreateKey request. <span className="atlas-mono-hint">10 min</span>
+
+### SCM — 1 class · 45 min
+
+**[block-manager](/component/scm/block-manager)** · 1 · 45 min
+
+- [BlockManagerImpl](/class/blockmanagerimpl-04f7a5) — Block Manager manages the block access for SCM. <span className="atlas-mono-hint">45 min</span>

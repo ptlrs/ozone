@@ -1,0 +1,74 @@
+---
+slug: /class/omclientrequest
+title: "OMClientRequest"
+sidebar_label: "OMClientRequest"
+atlasGenerated: true
+---
+
+
+# OMClientRequest
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.om.request.OMClientRequest</code>
+
+<ClassBadge kind="abstract" logicWeight="logic-heavy" concurrency="single-threaded" difficulty={1} studyMinutes={10} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>OMClientRequest provides methods which every write OM request should implement.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/om">OM</a> / <a href="/component/om/om-request">om-request</a>
+<span>abstract · logic-heavy</span>
+<span>single-threaded · RocksDB</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> RocksDB</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 578</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 62</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>abstract</code> in <code>OM/om-request</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>single-threaded</code>; persistence is <code>RocksDB</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>10 min</code>. Difficulty is <code>1/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/request/OMClientRequest.java">hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/request/OMClientRequest.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li>&lt;em&gt;No exemplar test classified yet.&lt;/em&gt;</li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/request/OMClientRequest.java" line={112}>OMClientRequest.java · preExecute()</SourceLink>
+- <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/request/OMClientRequest.java" line={145}>OMClientRequest.java · validateAndUpdateCache()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.hdds.utils.TransactionInfo</Fqcn> · <Fqcn>org.apache.hadoop.ozone.OmUtils</Fqcn> · <Fqcn>org.apache.hadoop.ozone.OzoneConsts</Fqcn> · <Fqcn>org.apache.hadoop.ozone.audit.AuditAction</Fqcn> · <Fqcn>org.apache.hadoop.ozone.audit.AuditEventStatus</Fqcn> · <Fqcn>org.apache.hadoop.ozone.audit.AuditLogger</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.om.request.OMClientRequest" />
+## Read next
+
+<div className="atlas-read-next">In this feature (OM/om-request): <Fqcn>org.apache.hadoop.ozone.om.request.lifecycle.OMLifecycleConfigurationSetRequest</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="omclientrequest" />

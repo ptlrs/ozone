@@ -1,0 +1,73 @@
+---
+slug: /class/statecontext
+title: "StateContext"
+sidebar_label: "StateContext"
+atlasGenerated: true
+---
+
+
+# StateContext
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.container.common.statemachine.StateContext</code>
+
+<ClassBadge kind="service" logicWeight="logic-heavy" concurrency="thread-safe" difficulty={5} studyMinutes={60} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>Current Context of State Machine.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/dn">DN</a> / <a href="/component/dn/dn-statemachine">dn-statemachine</a>
+<span>service · logic-heavy</span>
+<span>thread-safe · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 1046</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 810</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">test</span> TestStateContext.java</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>service</code> in <code>DN/dn-statemachine</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>thread-safe</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>60 min</code>. Difficulty is <code>5/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/statemachine/StateContext.java">hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/statemachine/StateContext.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li><SourceLink path="hadoop-hdds/container-service/src/test/java/org/apache/hadoop/ozone/container/common/statemachine/TestStateContext.java">hadoop-hdds/container-service/src/test/java/org/apache/hadoop/ozone/container/common/statemachine/TestStateContext.java</SourceLink></li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/common/statemachine/StateContext.java" line={616}>StateContext.java · execute()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.ozone.container.common.statemachine.commandhandler.ClosePipelineCommandHandler</Fqcn> · <Fqcn>org.apache.hadoop.hdds.conf.ConfigurationSource</Fqcn> · <Fqcn>org.apache.hadoop.hdds.scm.net.HostAndPort</Fqcn> · <Fqcn>org.apache.hadoop.ozone.container.common.states.DatanodeState</Fqcn> · <Fqcn>org.apache.hadoop.ozone.container.common.states.datanode.InitDatanodeState</Fqcn> · <Fqcn>org.apache.hadoop.ozone.container.common.states.datanode.RunningDatanodeState</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.container.common.statemachine.StateContext" />
+## Read next
+
+<div className="atlas-read-next">In this feature (DN/dn-statemachine): <Fqcn>org.apache.hadoop.ozone.container.common.statemachine.DatanodeStateMachine</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="statecontext" />

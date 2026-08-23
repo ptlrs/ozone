@@ -1,0 +1,73 @@
+---
+slug: /class/ommetrics
+title: "OMMetrics"
+sidebar_label: "OMMetrics"
+atlasGenerated: true
+---
+
+
+# OMMetrics
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.om.OMMetrics</code>
+
+<ClassBadge kind="metrics" logicWeight="logic-heavy" concurrency="thread-safe" difficulty={2} studyMinutes={20} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>This class is for maintaining Ozone Manager statistics.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/om">OM</a> / <a href="/component/om/om-server">om-server</a>
+<span>metrics · logic-heavy</span>
+<span>thread-safe · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 1705</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 460</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>metrics</code> in <code>OM/om-server</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>thread-safe</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>20 min</code>. Difficulty is <code>2/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/OMMetrics.java">hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/OMMetrics.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li>&lt;em&gt;No exemplar test classified yet.&lt;/em&gt;</li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/OMMetrics.java" line={283}>OMMetrics.java · create()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.hdds.annotation.InterfaceAudience</Fqcn> · <Fqcn>org.apache.hadoop.hdds.conf.ConfigurationSource</Fqcn> · <Fqcn>org.apache.hadoop.hdds.conf.OzoneConfiguration</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.DBCheckpointMetrics</Fqcn> · <Fqcn>org.apache.hadoop.ozone.om.snapshot.OMSnapshotDirectoryMetrics</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.om.OMMetrics" />
+## Read next
+
+<div className="atlas-read-next">In this feature (OM/om-server): <Fqcn>org.apache.hadoop.ozone.om.OMPerformanceMetrics</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="ommetrics" />

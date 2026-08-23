@@ -1,0 +1,73 @@
+---
+slug: /class/ozonecontainer
+title: "OzoneContainer"
+sidebar_label: "OzoneContainer"
+atlasGenerated: true
+---
+
+
+# OzoneContainer
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.container.ozoneimpl.OzoneContainer</code>
+
+<ClassBadge kind="service" logicWeight="logic-heavy" concurrency="thread-safe" difficulty={5} studyMinutes={60} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>Ozone main class sets up the network servers and initializes the container layer.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/dn">DN</a> / <a href="/component/dn/dn-service">dn-service</a>
+<span>service · logic-heavy</span>
+<span>thread-safe · RocksDB</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> RocksDB</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 796</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 1558</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">test</span> TestOzoneContainer.java</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>service</code> in <code>DN/dn-service</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>thread-safe</code>; persistence is <code>RocksDB</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>60 min</code>. Difficulty is <code>5/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/ozoneimpl/OzoneContainer.java">hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/ozoneimpl/OzoneContainer.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li><SourceLink path="hadoop-ozone/integration-test/src/test/java/org/apache/hadoop/ozone/container/ozoneimpl/TestOzoneContainer.java">hadoop-ozone/integration-test/src/test/java/org/apache/hadoop/ozone/container/ozoneimpl/TestOzoneContainer.java</SourceLink></li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/ozoneimpl/OzoneContainer.java" line={545}>OzoneContainer.java · start()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.ozone.HddsDatanodeService</Fqcn> · <Fqcn>org.apache.hadoop.ozone.container.common.DatanodeLayoutStorage</Fqcn> · <Fqcn>org.apache.hadoop.ozone.container.common.impl.BlockDeletingService</Fqcn> · <Fqcn>org.apache.hadoop.ozone.container.common.impl.ContainerSet</Fqcn> · <Fqcn>org.apache.hadoop.ozone.container.common.impl.HddsDispatcher</Fqcn> · <Fqcn>org.apache.hadoop.ozone.container.common.impl.StorageLocationReport</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.container.ozoneimpl.OzoneContainer" />
+## Read next
+
+<div className="atlas-read-next">In this feature (DN/dn-service): <Fqcn>org.apache.hadoop.ozone.container.ozoneimpl.ContainerReader</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="ozonecontainer" />

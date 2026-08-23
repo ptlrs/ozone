@@ -1,0 +1,69 @@
+---
+slug: /class/keyvaluecontainerutil
+title: "KeyValueContainerUtil"
+sidebar_label: "KeyValueContainerUtil"
+atlasGenerated: true
+---
+
+
+# KeyValueContainerUtil
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.container.keyvalue.helpers.KeyValueContainerUtil</code>
+
+<ClassBadge kind="service" logicWeight="logic-heavy" concurrency="single-threaded" difficulty={4} studyMinutes={45} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>Class which defines utility methods for KeyValueContainer.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/dn">DN</a> / <a href="/component/dn/kv-container">kv-container</a>
+<span>service · logic-heavy</span>
+<span>single-threaded · RocksDB</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> RocksDB</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 563</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 180</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>service</code> in <code>DN/kv-container</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>single-threaded</code>; persistence is <code>RocksDB</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>45 min</code>. Difficulty is <code>4/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/keyvalue/helpers/KeyValueContainerUtil.java">hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/container/keyvalue/helpers/KeyValueContainerUtil.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li>&lt;em&gt;No exemplar test classified yet.&lt;/em&gt;</li>
+</ul>
+</div>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.ozone.container.keyvalue.KeyValueContainerData</Fqcn> · <Fqcn>org.apache.hadoop.ozone.container.keyvalue.PendingDelete</Fqcn> · <Fqcn>org.apache.hadoop.hdds.conf.ConfigurationSource</Fqcn> · <Fqcn>org.apache.hadoop.hdds.upgrade.HDDSLayoutFeature</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.Table</Fqcn> · <Fqcn>org.apache.hadoop.ozone.OzoneConsts</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.container.keyvalue.helpers.KeyValueContainerUtil" />
+## Read next
+
+<div className="atlas-read-next">In this feature (DN/kv-container): <Fqcn>org.apache.hadoop.ozone.container.keyvalue.helpers.ChunkUtils</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="keyvaluecontainerutil" />

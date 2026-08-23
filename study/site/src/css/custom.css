@@ -1,0 +1,767 @@
+/*
+ * Atlas custom tokens. Kept intentionally small in step 1 — later steps add
+ * kind / tag color chips. All colors have dark-mode counterparts so both
+ * themes look intentional.
+ */
+
+:root {
+  --ifm-color-primary: #2f6feb;
+  --ifm-color-primary-dark: #205cd0;
+  --ifm-color-primary-darker: #1e57c4;
+  --ifm-color-primary-darkest: #1948a1;
+  --ifm-color-primary-light: #4a83ee;
+  --ifm-color-primary-lighter: #578cef;
+  --ifm-color-primary-lightest: #7ea8f2;
+  --ifm-code-font-size: 92%;
+
+  /* Atlas tokens */
+  --atlas-warning-border: #d0a010;
+  --atlas-warning-bg: #fff7d6;
+  --atlas-fqcn-fg: #22262c;
+  --atlas-fqcn-unknown-border: #b74d1e;
+  --atlas-kind-service: #2f6feb;
+  --atlas-kind-interface: #7a4ecc;
+  --atlas-kind-state-machine: #cc4e4e;
+  --atlas-kind-coordinator: #c07020;
+  --atlas-kind-algorithm: #2a9d8f;
+  --atlas-kind-util: #6b7280;
+  --atlas-kind-config: #7c8a3b;
+  --atlas-kind-metrics: #4a7f6c;
+  --atlas-kind-cli: #8a2f8a;
+  --atlas-kind-exception: #a83232;
+  --atlas-kind-data: #4a5867;
+  --atlas-kind-dto: #4a5867;
+  --atlas-kind-factory: #7a5e2a;
+  --atlas-kind-rpc-stub: #2a5f7f;
+  --atlas-kind-abstract: #55606d;
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #6ea3ff;
+  --ifm-color-primary-dark: #4d8bf0;
+  --ifm-color-primary-darker: #4382e5;
+  --ifm-color-primary-darkest: #366dc2;
+  --ifm-color-primary-light: #8db6ff;
+  --ifm-color-primary-lighter: #a1c1ff;
+  --ifm-color-primary-lightest: #c8dcff;
+
+  --atlas-warning-border: #e6c447;
+  --atlas-warning-bg: #3a3218;
+  --atlas-fqcn-fg: #dfe4ea;
+  --atlas-fqcn-unknown-border: #ff9161;
+}
+
+/* --- Link-mode toggle (navbar) ------------------------------------------- */
+
+.atlas-link-mode-toggle {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 0 0.5rem;
+  height: 1.75rem;
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.atlas-link-mode-toggle--placeholder {
+  width: 5.5rem;
+  visibility: hidden;
+}
+
+.atlas-link-mode-toggle__btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--ifm-color-emphasis-700);
+  padding: 0 0.6rem;
+  cursor: pointer;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.atlas-link-mode-toggle__btn:hover {
+  background: var(--ifm-color-emphasis-200);
+}
+
+.atlas-link-mode-toggle__btn.is-active {
+  background: var(--ifm-color-primary);
+  color: #fff;
+}
+
+[data-theme='dark'] .atlas-link-mode-toggle {
+  border-color: var(--ifm-color-emphasis-400);
+}
+
+[data-theme='dark'] .atlas-link-mode-toggle__btn:hover {
+  background: var(--ifm-color-emphasis-300);
+}
+
+/* --- SourceLink demo block ---------------------------------------------- */
+
+.atlas-sourcelink-demo {
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+  background: var(--ifm-background-surface-color);
+  font-size: 0.9rem;
+}
+
+.atlas-sourcelink-demo code {
+  font-size: 0.85rem;
+}
+
+/* --- Fqcn chips --------------------------------------------------------- */
+
+.atlas-fqcn {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.85em;
+  padding: 0.05em 0.35em;
+  border-radius: 4px;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: var(--ifm-color-emphasis-100);
+  color: var(--atlas-fqcn-fg);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.atlas-fqcn:hover {
+  background: var(--ifm-color-emphasis-200);
+  text-decoration: none;
+}
+
+.atlas-fqcn--unknown {
+  border-color: var(--atlas-fqcn-unknown-border);
+  background: transparent;
+  color: var(--atlas-fqcn-unknown-border);
+}
+
+/* --- Chip row (ClassBadge) --------------------------------------------- */
+
+.atlas-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.atlas-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: var(--ifm-color-emphasis-200);
+  color: var(--ifm-color-emphasis-800);
+}
+
+.atlas-chip--kind-service        { background: color-mix(in srgb, var(--atlas-kind-service) 22%, transparent); color: var(--atlas-kind-service); }
+.atlas-chip--kind-interface      { background: color-mix(in srgb, var(--atlas-kind-interface) 22%, transparent); color: var(--atlas-kind-interface); }
+.atlas-chip--kind-state-machine  { background: color-mix(in srgb, var(--atlas-kind-state-machine) 22%, transparent); color: var(--atlas-kind-state-machine); }
+.atlas-chip--kind-coordinator    { background: color-mix(in srgb, var(--atlas-kind-coordinator) 22%, transparent); color: var(--atlas-kind-coordinator); }
+.atlas-chip--kind-algorithm      { background: color-mix(in srgb, var(--atlas-kind-algorithm) 22%, transparent); color: var(--atlas-kind-algorithm); }
+.atlas-chip--kind-util           { background: color-mix(in srgb, var(--atlas-kind-util) 22%, transparent); color: var(--atlas-kind-util); }
+.atlas-chip--kind-config         { background: color-mix(in srgb, var(--atlas-kind-config) 22%, transparent); color: var(--atlas-kind-config); }
+.atlas-chip--kind-metrics        { background: color-mix(in srgb, var(--atlas-kind-metrics) 22%, transparent); color: var(--atlas-kind-metrics); }
+.atlas-chip--kind-cli            { background: color-mix(in srgb, var(--atlas-kind-cli) 22%, transparent); color: var(--atlas-kind-cli); }
+.atlas-chip--kind-exception      { background: color-mix(in srgb, var(--atlas-kind-exception) 22%, transparent); color: var(--atlas-kind-exception); }
+.atlas-chip--kind-data           { background: color-mix(in srgb, var(--atlas-kind-data) 22%, transparent); color: var(--atlas-kind-data); }
+.atlas-chip--kind-dto            { background: color-mix(in srgb, var(--atlas-kind-dto) 22%, transparent); color: var(--atlas-kind-dto); }
+.atlas-chip--kind-factory        { background: color-mix(in srgb, var(--atlas-kind-factory) 22%, transparent); color: var(--atlas-kind-factory); }
+.atlas-chip--kind-rpc-stub       { background: color-mix(in srgb, var(--atlas-kind-rpc-stub) 22%, transparent); color: var(--atlas-kind-rpc-stub); }
+.atlas-chip--kind-abstract       { background: color-mix(in srgb, var(--atlas-kind-abstract) 22%, transparent); color: var(--atlas-kind-abstract); }
+
+.atlas-chip--tier-P0 { background: color-mix(in srgb, var(--atlas-kind-state-machine) 22%, transparent); color: var(--atlas-kind-state-machine); }
+.atlas-chip--tier-P1 { background: color-mix(in srgb, var(--atlas-kind-coordinator) 22%, transparent); color: var(--atlas-kind-coordinator); }
+.atlas-chip--tier-P2 { background: color-mix(in srgb, var(--atlas-kind-algorithm) 22%, transparent); color: var(--atlas-kind-algorithm); }
+.atlas-chip--tier-P3 { background: color-mix(in srgb, var(--atlas-kind-util) 22%, transparent); color: var(--atlas-kind-util); }
+
+.atlas-chip--diff-fade { opacity: 0.28; }
+
+/* --- Backlinks panel --------------------------------------------------- */
+
+.atlas-backlinks {
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  background: var(--ifm-background-surface-color);
+  margin: 1.5rem 0;
+}
+
+.atlas-backlinks__group + .atlas-backlinks__group {
+  margin-top: 0.6rem;
+}
+
+.atlas-backlinks__label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ifm-color-emphasis-700);
+  margin-bottom: 0.25rem;
+}
+
+.atlas-backlinks__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.6rem;
+}
+
+/* --- Unresolved footer note ------------------------------------------- */
+
+.atlas-unresolved-note {
+  border-left: 4px solid var(--atlas-warning-border);
+  background: var(--atlas-warning-bg);
+  padding: 0.6rem 0.9rem;
+  margin: 1rem 0;
+  font-size: 0.85rem;
+  color: var(--atlas-fqcn-fg);
+}
+
+.atlas-unresolved-note ul {
+  margin: 0.25rem 0 0 1.25rem;
+  padding: 0;
+}
+
+/* --- Progress checkbox ------------------------------------------------ */
+
+.atlas-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.9rem;
+}
+
+.atlas-progress input {
+  margin: 0;
+}
+
+.atlas-progress__date {
+  color: var(--ifm-color-emphasis-600);
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.85em;
+}
+
+.atlas-progress--placeholder {
+  color: var(--ifm-color-emphasis-500);
+}
+
+/* --- Landing ---------------------------------------------------------- */
+
+.atlas-hero { margin: 1rem 0 2rem; }
+.atlas-hero h1 { margin-bottom: 0.5rem; }
+.atlas-hero__ctas { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem; }
+.atlas-eyebrow {
+  margin: 0 0 0.35rem;
+  color: var(--ifm-color-primary);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.atlas-section-lede {
+  color: var(--ifm-color-emphasis-700);
+  max-width: 48rem;
+}
+
+.atlas-continue {
+  border-left: 4px solid var(--ifm-color-primary);
+  background: var(--ifm-color-emphasis-100);
+  padding: 0.6rem 0.9rem;
+  border-radius: 6px;
+  margin: 1rem 0 1.5rem;
+  font-size: 0.95rem;
+}
+
+.atlas-featured {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0 2rem;
+}
+
+.atlas-featured__card {
+  display: block;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  background: var(--ifm-background-surface-color);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+}
+.atlas-featured__card:hover {
+  border-color: var(--ifm-color-primary);
+  text-decoration: none;
+}
+.atlas-featured__title { font-weight: 700; margin-bottom: 0.25rem; }
+.atlas-featured__desc  { font-size: 0.85rem; color: var(--ifm-color-emphasis-700); }
+.atlas-featured__count { font-size: 0.75rem; margin-top: 0.4rem; color: var(--ifm-color-emphasis-600); }
+
+.atlas-path-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0.9rem;
+  margin: 1rem 0 2rem;
+}
+
+.atlas-path-card,
+.atlas-reference-card {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  background: var(--ifm-background-surface-color);
+  border-radius: 12px;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.atlas-path-card {
+  padding: 1rem;
+  min-height: 12rem;
+}
+
+.atlas-path-card:hover,
+.atlas-reference-card:hover {
+  color: inherit;
+  text-decoration: none;
+  transform: translateY(-1px);
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 10px 24px -18px color-mix(in srgb, var(--ifm-color-primary) 75%, transparent);
+}
+
+.atlas-path-card__label {
+  color: var(--ifm-color-primary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.atlas-path-card__title {
+  margin-top: 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 750;
+}
+
+.atlas-path-card__desc {
+  margin-top: 0.45rem;
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.atlas-path-card__meta {
+  margin-top: 0.75rem;
+  color: var(--ifm-color-emphasis-600);
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.78rem;
+}
+
+.atlas-reference-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0 2rem;
+}
+
+.atlas-reference-card {
+  padding: 0.8rem 0.95rem;
+}
+
+.atlas-reference-card strong,
+.atlas-reference-card span {
+  display: block;
+}
+
+.atlas-reference-card span {
+  margin-top: 0.25rem;
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+/* --- ViewBuilder ------------------------------------------------------ */
+
+.atlas-viewbuilder {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+.atlas-viewbuilder__pane {
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  background: var(--ifm-background-surface-color);
+}
+.atlas-viewbuilder__row { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.6rem; }
+.atlas-viewbuilder__row label { font-weight: 600; font-size: 0.8rem; }
+.atlas-viewbuilder__row select, .atlas-viewbuilder__row input {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+}
+.atlas-viewbuilder__tags label { font-weight: 600; font-size: 0.8rem; display: block; margin-bottom: 0.35rem; }
+.atlas-viewbuilder__tag {
+  background: var(--ifm-color-emphasis-200);
+  color: var(--ifm-color-emphasis-800);
+  border: 0;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  margin: 0 0.25rem 0.25rem 0;
+  cursor: pointer;
+}
+.atlas-viewbuilder__tag.is-active { background: var(--ifm-color-primary); color: #fff; }
+.atlas-viewbuilder__actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+.atlas-viewbuilder__pane--right ol { padding-left: 1.25rem; }
+.atlas-viewbuilder__pane--right li { margin-bottom: 0.5rem; }
+
+/* --- TODO(verify) badge ---------------------------------------------- */
+
+.atlas-todo-verify {
+  display: inline-block;
+  padding: 0 0.3rem;
+  border: 1px solid var(--atlas-warning-border);
+  color: var(--atlas-warning-border);
+  border-radius: 3px;
+  font-size: 0.75em;
+  font-weight: 700;
+  margin: 0 0.15rem;
+}
+
+/* --- Full fqcn header ------------------------------------------------ */
+
+.atlas-fqcn-full {
+  display: inline-block;
+  font-size: 0.85rem;
+  padding: 0.15rem 0.4rem;
+  background: var(--ifm-color-emphasis-100);
+  border-radius: 4px;
+  color: var(--atlas-fqcn-fg);
+  word-break: break-all;
+}
+.atlas-fqcn-inline { font-size: 0.8rem; opacity: 0.7; }
+
+.atlas-banner {
+  border-left: 4px solid var(--atlas-warning-border);
+  background: var(--atlas-warning-bg);
+  padding: 0.75rem 1rem;
+  margin: 0 0 1rem 0;
+  color: var(--atlas-fqcn-fg);
+  font-size: 0.9rem;
+}
+
+/* --- Readability: prose and tables ------------------------------------
+ *
+ * The atlas is designed to be read for hours. Bump line-height, cap the
+ * main column so lines don't sprawl on ultrawide monitors, and give
+ * tables a sane wrap policy so they stop demanding horizontal scroll.
+ */
+
+.markdown {
+  --ifm-line-height-base: 1.65;
+  font-size: 15.5px;
+}
+
+.markdown p,
+.markdown li {
+  line-height: 1.7;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  letter-spacing: -0.01em;
+}
+
+.markdown h2 {
+  margin-top: 2rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.markdown h3 {
+  margin-top: 1.5rem;
+}
+
+/* Tables: wrap long values, don't force horizontal scroll, keep fqcn cells
+ * from ballooning column widths. */
+.markdown table {
+  display: table;
+  width: 100%;
+  table-layout: auto;
+  font-size: 0.86rem;
+}
+
+.markdown table th,
+.markdown table td {
+  word-break: normal;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+  padding: 0.4rem 0.55rem;
+}
+
+.markdown table code {
+  font-size: 0.82em;
+  word-break: break-word;
+}
+
+/* When a table genuinely can't fit, allow scroll on that table only rather
+ * than pushing the whole page. */
+.markdown > table,
+.markdown > p + table {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* --- Class metadata chip strip ---------------------------------------- */
+
+.atlas-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+  margin: 0.25rem 0 1.25rem;
+  font-size: 0.78rem;
+}
+
+.atlas-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  background: var(--ifm-color-emphasis-100);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  color: var(--ifm-color-emphasis-800);
+  font-family: var(--ifm-font-family-monospace);
+}
+
+.atlas-meta-chip__k {
+  color: var(--ifm-color-emphasis-600);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.7rem;
+}
+
+/* --- View reading-list mono hint -------------------------------------- */
+
+.atlas-mono-hint {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.78em;
+  color: var(--ifm-color-emphasis-600);
+  margin-left: 0.35em;
+}
+
+/* --- Flow pages ------------------------------------------------------- */
+
+.atlas-flow-hero,
+.atlas-class-summary,
+.atlas-source-card,
+.atlas-read-next {
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 12px;
+  background: var(--ifm-background-surface-color);
+  padding: 1rem 1.1rem;
+  margin: 0.75rem 0 1.25rem;
+}
+
+.atlas-flow-hero p,
+.atlas-class-summary p,
+.atlas-source-card p {
+  margin: 0;
+}
+
+.atlas-flow-hero__meta {
+  margin-top: 0.6rem;
+  color: var(--ifm-color-emphasis-600);
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.82rem;
+}
+
+.atlas-step-grid,
+.atlas-study-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0 1.5rem;
+}
+
+.atlas-step-card,
+.atlas-study-card {
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 10px;
+  background: var(--ifm-background-surface-color);
+  padding: 0.85rem;
+}
+
+.atlas-step-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.75rem;
+}
+
+.atlas-step-card p,
+.atlas-study-card p {
+  margin: 0.35rem 0 0;
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.atlas-step-card__num {
+  display: inline-grid;
+  place-items: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ifm-color-primary) 14%, transparent);
+  color: var(--ifm-color-primary);
+  font-weight: 800;
+  font-size: 0.78rem;
+}
+
+/* --- Class pages ------------------------------------------------------ */
+
+.atlas-class-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.42fr);
+  gap: 1rem;
+}
+
+.atlas-class-summary__facts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.86rem;
+}
+
+.atlas-source-card ul {
+  margin-bottom: 0;
+}
+
+.atlas-read-next {
+  border-left: 4px solid var(--ifm-color-primary);
+  font-size: 0.95rem;
+}
+
+@media (max-width: 720px) {
+  .atlas-class-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- Cards & hero: calmer surfaces ------------------------------------ */
+
+.atlas-hero {
+  padding: 1.25rem 1.5rem;
+  border-radius: 12px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--ifm-color-primary) 10%, transparent),
+    transparent 60%
+  );
+  border: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.atlas-hero h1 {
+  font-weight: 700;
+}
+
+.atlas-featured__card {
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.atlas-featured__card:hover {
+  transform: translateY(-1px);
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 6px 20px -14px color-mix(in srgb, var(--ifm-color-primary) 70%, transparent);
+}
+
+/* --- Progress bar in navbar / class pages ----------------------------- */
+
+.atlas-progress-navbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0.75rem;
+  font-size: 0.78rem;
+  color: var(--ifm-color-emphasis-700);
+  min-width: 12rem;
+}
+
+.atlas-progress-navbar__bar {
+  position: relative;
+  flex: 1 1 auto;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--ifm-color-emphasis-200);
+  overflow: hidden;
+}
+
+.atlas-progress-navbar__fill {
+  position: absolute;
+  inset: 0;
+  width: 0;
+  background: linear-gradient(
+    90deg,
+    var(--ifm-color-primary),
+    color-mix(in srgb, var(--ifm-color-primary) 60%, #7ae1c0)
+  );
+  transition: width 0.35s ease;
+}
+
+.atlas-progress-navbar__label {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (max-width: 996px) {
+  .atlas-progress-navbar {
+    display: none;
+  }
+}
+
+/* --- Progress checkbox in reading pages: bigger tap target ------------ */
+
+.atlas-progress {
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.atlas-progress:hover {
+  border-color: var(--ifm-color-primary);
+  background: color-mix(in srgb, var(--ifm-color-primary) 6%, transparent);
+}
+
+/* --- Details / summary polish ---------------------------------------- */
+
+details {
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 6px;
+  padding: 0.6rem 0.9rem;
+  margin: 0.75rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+details > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-800);
+}

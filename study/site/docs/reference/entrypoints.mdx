@@ -1,0 +1,95 @@
+---
+slug: /reference/entrypoints
+sidebar_label: "Entry points"
+---
+
+# Entry Points
+
+Every daemon and CLI listed here has a `main()` (or Java-service equivalent) that starts a service. Read these first to have call-stack anchors.
+
+## OM daemon
+
+| fqcn | path | kind | role |
+|---|---|---|---|
+| <Fqcn>org.apache.hadoop.ozone.om.OzoneManagerStarter</Fqcn> | <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/OzoneManagerStarter.java"><code>OzoneManagerStarter.java</code></SourceLink> | interface | This class provides a command line interface to start the OM using Picocli. |
+| <Fqcn>org.apache.hadoop.ozone.om.OzoneManager</Fqcn> | <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/OzoneManager.java"><code>OzoneManager.java</code></SourceLink> | service | inferred: OzoneManager — role not documented. |
+| <Fqcn>org.apache.hadoop.ozone.recon.spi.impl.OzoneManagerServiceProviderImpl</Fqcn> | <SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/spi/impl/OzoneManagerServiceProviderImpl.java"><code>OzoneManagerServiceProviderImpl.java</code></SourceLink> | data | Implementation of the OzoneManager Service provider. |
+
+## SCM daemon
+
+| fqcn | path | kind | role |
+|---|---|---|---|
+| <Fqcn>org.apache.hadoop.hdds.scm.server.StorageContainerManagerStarter</Fqcn> | <SourceLink path="hadoop-hdds/server-scm/src/main/java/org/apache/hadoop/hdds/scm/server/StorageContainerManagerStarter.java"><code>StorageContainerManagerStarter.java</code></SourceLink> | interface | This class provides a command line interface to start the SCM using Picocli. |
+| <Fqcn>org.apache.hadoop.hdds.scm.server.StorageContainerManager</Fqcn> | <SourceLink path="hadoop-hdds/server-scm/src/main/java/org/apache/hadoop/hdds/scm/server/StorageContainerManager.java"><code>StorageContainerManager.java</code></SourceLink> | service | inferred: StorageContainerManager — role not documented. |
+
+## DN daemon
+
+| fqcn | path | kind | role |
+|---|---|---|---|
+| <Fqcn>org.apache.hadoop.ozone.HddsDatanodeService</Fqcn> | <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/HddsDatanodeService.java"><code>HddsDatanodeService.java</code></SourceLink> | service | Datanode service plugin to start the HDDS container services. |
+
+## Recon daemon
+
+| fqcn | path | kind | role |
+|---|---|---|---|
+| <Fqcn>org.apache.hadoop.ozone.recon.ReconServer</Fqcn> | <SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/ReconServer.java"><code>ReconServer.java</code></SourceLink> | service | Recon server main class that stops and starts recon services. |
+
+## S3 Gateway
+
+| fqcn | path | kind | role |
+|---|---|---|---|
+| <Fqcn>org.apache.hadoop.ozone.s3.Gateway</Fqcn> | <SourceLink path="hadoop-ozone/s3gateway/src/main/java/org/apache/hadoop/ozone/s3/Gateway.java"><code>Gateway.java</code></SourceLink> | service | This class is used to start/stop S3 compatible rest server. |
+| <Fqcn>org.apache.hadoop.ozone.s3.S3GatewayHttpServer</Fqcn> | <SourceLink path="hadoop-ozone/s3gateway/src/main/java/org/apache/hadoop/ozone/s3/S3GatewayHttpServer.java"><code>S3GatewayHttpServer.java</code></SourceLink> | service | Http server to provide S3-compatible API. |
+
+## HttpFS Gateway
+
+| fqcn | path | kind | role |
+|---|---|---|---|
+| <Fqcn>org.apache.ozone.fs.http.server.HttpFSServerWebServer</Fqcn> | <SourceLink path="hadoop-ozone/httpfsgateway/src/main/java/org/apache/ozone/fs/http/server/HttpFSServerWebServer.java"><code>HttpFSServerWebServer.java</code></SourceLink> | service | The HttpFS web server. |
+
+## ozone sh (shell CLI)
+
+| fqcn | path | kind | role |
+|---|---|---|---|
+| <Fqcn>org.apache.hadoop.ozone.shell.OzoneShell</Fqcn> | <SourceLink path="hadoop-ozone/cli-shell/src/main/java/org/apache/hadoop/ozone/shell/OzoneShell.java"><code>OzoneShell.java</code></SourceLink> | cli | Shell commands for native rpc object manipulation. |
+
+## ozone admin CLI
+
+| fqcn | path | kind | role |
+|---|---|---|---|
+| <Fqcn>org.apache.hadoop.ozone.admin.OzoneAdmin</Fqcn> | <SourceLink path="hadoop-ozone/cli-admin/src/main/java/org/apache/hadoop/ozone/admin/OzoneAdmin.java"><code>OzoneAdmin.java</code></SourceLink> | service | Ozone Admin Command line tool. |
+
+## ozone debug CLI
+
+| fqcn | path | kind | role |
+|---|---|---|---|
+| <Fqcn>org.apache.hadoop.ozone.debug.OzoneDebug</Fqcn> | <SourceLink path="hadoop-ozone/cli-debug/src/main/java/org/apache/hadoop/ozone/debug/OzoneDebug.java"><code>OzoneDebug.java</code></SourceLink> | service | Ozone Debug Command line tool. |
+
+## ozone repair CLI
+
+| fqcn | path | kind | role |
+|---|---|---|---|
+| <Fqcn>org.apache.hadoop.ozone.repair.RepairTool</Fqcn> | <SourceLink path="hadoop-ozone/cli-repair/src/main/java/org/apache/hadoop/ozone/repair/RepairTool.java"><code>RepairTool.java</code></SourceLink> | data | Parent class for all actionable repair commands. |
+
+## ozone freon (bench CLI)
+
+| fqcn | path | kind | role |
+|---|---|---|---|
+| <Fqcn>org.apache.hadoop.ozone.freon.Freon</Fqcn> | <SourceLink path="hadoop-ozone/freon/src/main/java/org/apache/hadoop/ozone/freon/Freon.java"><code>Freon.java</code></SourceLink> | cli | Ozone data generator and performance test tool. |
+
+## ozone insight CLI
+
+| fqcn | path | kind | role |
+|---|---|---|---|
+| <Fqcn>org.apache.hadoop.ozone.insight.Insight</Fqcn> | <SourceLink path="hadoop-ozone/insight/src/main/java/org/apache/hadoop/ozone/insight/Insight.java"><code>Insight.java</code></SourceLink> | service | Command line utility to check logs/metrics of internal ozone components. |
+
+## Call-stack starter map — client write path
+
+The next atlas pass will populate the concrete traces per component. See:
+- `components/Client/ozone-client.md` for the OzoneClient entry and RPC to OM
+- `components/OM/om-request-key.md` for the OM request handling
+- `components/SCM/block-manager.md` for block allocation
+- `components/Client/hdds-client.md` for XceiverClientRatis and chunk-write path
+- `components/DN/ratis-statemachine-dn.md` for the DN Ratis state-machine apply
+- `components/DN/chunk-manager.md` for chunk-file writes
+- `components/OM/om-request-key.md` (commit) for CommitKey

@@ -1,0 +1,171 @@
+---
+slug: /view/ec-e2e
+title: "Erasure coding end-to-end"
+sidebar_label: "Erasure coding end-to-end"
+atlasGenerated: true
+---
+# Erasure coding end-to-end
+<div className="atlas-flow-hero">
+<p>Client-side EC encode → per-cell dispatch → DN reconstruction. Covers the Rs/Xor raw coders and the reconstruction coordinator.</p>
+<div className="atlas-flow-hero__meta">1365 minutes · 44 classes</div>
+</div>
+## Flow walkthrough
+Writes: ECKeyOutputStream drives a RawErasureEncoder over the incoming stripes, then hands each data-and-parity cell to ECBlockOutputStreamEntry. Reads: ECKeyInputStream goes through ECBlockReconstructedStripeInputStream when cells are missing.
+```mermaid
+flowchart LR
+  Enc[RawErasureEncoder] --> KOS[ECKeyOutputStream]
+  KOS --> BOSE[ECBlockOutputStreamEntry]
+  Rec[ECReconstructionCoordinator] --> KIS[ECKeyInputStream]
+click Enc href "/class/rawerasureencoder" "Open Enc"
+click Rec href "/class/ecreconstructioncoordinator" "Open Rec"
+```
+## Key classes on this path
+
+<div className="atlas-step-grid">
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">1</div>
+<div>
+<strong><a href="/class/eckeyoutputstream">ECKeyOutputStream</a></strong>
+<p>ECKeyOutputStream handles the EC writes by writing the data into underlying block output streams chunk by chunk.</p>
+<span className="atlas-mono-hint">Client/ozone-client · 60 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">2</div>
+<div>
+<strong><a href="/class/ecblockoutputstreamentry">ECBlockOutputStreamEntry</a></strong>
+<p>ECBlockOutputStreamEntry manages write into EC keys' data block groups.</p>
+<span className="atlas-mono-hint">Client/ozone-client · 45 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">3</div>
+<div>
+<strong><a href="/class/ecblockreconstructedstripeinputstream">ECBlockReconstructedStripeInputStream</a></strong>
+<p>Class to read EC encoded data from blocks a stripe at a time, when some of the data blocks are not available.</p>
+<span className="atlas-mono-hint">Client/hdds-client · 60 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">4</div>
+<div>
+<strong><a href="/class/rawerasuredecoder">RawErasureDecoder</a></strong>
+<p>An abstract raw erasure decoder that's to be inherited by new decoders.</p>
+<span className="atlas-mono-hint">DN/erasure-coding · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">5</div>
+<div>
+<strong><a href="/class/rawerasureencoder">RawErasureEncoder</a></strong>
+<p>An abstract raw erasure encoder that's to be inherited by new encoders.</p>
+<span className="atlas-mono-hint">DN/erasure-coding · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">6</div>
+<div>
+<strong><a href="/class/abstractnativerawdecoder">AbstractNativeRawDecoder</a></strong>
+<p>Abstract native raw decoder for all native coders to extend with.</p>
+<span className="atlas-mono-hint">DN/erasure-coding · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">7</div>
+<div>
+<strong><a href="/class/abstractnativerawencoder">AbstractNativeRawEncoder</a></strong>
+<p>Abstract native raw encoder for all native coders to extend with.</p>
+<span className="atlas-mono-hint">DN/erasure-coding · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">8</div>
+<div>
+<strong><a href="/class/encodingstate">EncodingState</a></strong>
+<p>A utility class that maintains encoding state during an encode call.</p>
+<span className="atlas-mono-hint">DN/erasure-coding · 30 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">9</div>
+<div>
+<strong><a href="/class/ecreconstructioncoordinator">ECReconstructionCoordinator</a></strong>
+<p>The Coordinator implements the main flow of reconstructing missing container replicas.</p>
+<span className="atlas-mono-hint">DN/erasure-coding · 60 min</span>
+</div>
+</div>
+<div className="atlas-step-card">
+<div className="atlas-step-card__num">10</div>
+<div>
+<strong><a href="/class/galoisfield">GaloisField</a></strong>
+<p>Implementation of Galois field arithmetic with 2^p elements.</p>
+<span className="atlas-mono-hint">DN/erasure-coding · 45 min</span>
+</div>
+</div>
+</div>
+
+## What to understand before moving on
+- Explain the service boundary crossings in this path: Client -> DN.
+- Name the entry-point classes and the class that owns each durable state change.
+- Identify the retry, failure, or cleanup behavior that keeps the path correct when a service is slow or unavailable.
+- Open the individual class pages for invariants, sharp edges, source links, and test exemplars.
+- Use these tags as anchors when searching later: `ec`, `hot-path`.
+## Full reading list
+### Client — 3 classes · 165 min
+
+**[hdds-client](/component/client/hdds-client)** · 1 · 60 min
+
+- [ECBlockReconstructedStripeInputStream](/class/ecblockreconstructedstripeinputstream) — Class to read EC encoded data from blocks a stripe at a time, when some of the data blocks are not available. <span className="atlas-mono-hint">60 min</span>
+
+**[ozone-client](/component/client/ozone-client)** · 2 · 105 min
+
+- [ECKeyOutputStream](/class/eckeyoutputstream) — ECKeyOutputStream handles the EC writes by writing the data into underlying block output streams chunk by chunk. <span className="atlas-mono-hint">60 min</span>
+- [ECBlockOutputStreamEntry](/class/ecblockoutputstreamentry) — ECBlockOutputStreamEntry manages write into EC keys' data block groups. <span className="atlas-mono-hint">45 min</span>
+
+### DN — 41 classes · 1200 min
+
+**[erasure-coding](/component/dn/erasure-coding)** · 41 · 1200 min
+
+- [ECReconstructionCoordinator](/class/ecreconstructioncoordinator) — The Coordinator implements the main flow of reconstructing missing container replicas. <span className="atlas-mono-hint">60 min</span>
+- [ECReconstructionCoordinatorTask](/class/ecreconstructioncoordinatortask) — This is the actual EC reconstruction coordination task. <span className="atlas-mono-hint">30 min</span>
+- [ECReconstructionCommandInfo](/class/ecreconstructioncommandinfo) — This class is to keep the required EC reconstruction info. <span className="atlas-mono-hint">10 min</span>
+- [ECReconstructionMetrics](/class/ecreconstructionmetrics) — Metrics class for EC Reconstruction. <span className="atlas-mono-hint">20 min</span>
+- [RawErasureDecoder](/class/rawerasuredecoder) — An abstract raw erasure decoder that's to be inherited by new decoders. <span className="atlas-mono-hint">30 min</span>
+- [RawErasureEncoder](/class/rawerasureencoder) — An abstract raw erasure encoder that's to be inherited by new encoders. <span className="atlas-mono-hint">30 min</span>
+- [AbstractNativeRawDecoder](/class/abstractnativerawdecoder) — Abstract native raw decoder for all native coders to extend with. <span className="atlas-mono-hint">30 min</span>
+- [AbstractNativeRawEncoder](/class/abstractnativerawencoder) — Abstract native raw encoder for all native coders to extend with. <span className="atlas-mono-hint">30 min</span>
+- [RSUtil](/class/rsutil) — Utilities for implementing Reed-Solomon code, used by RS coder. <span className="atlas-mono-hint">30 min</span>
+- [RSRawDecoder](/class/rsrawdecoder) — A raw erasure decoder in RS code scheme in pure Java in case native one isn't available in some environment. <span className="atlas-mono-hint">30 min</span>
+- [CoderUtil](/class/coderutil) — Helpful utilities for implementing some raw erasure coders. <span className="atlas-mono-hint">30 min</span>
+- [RSRawEncoder](/class/rsrawencoder) — A raw erasure encoder in RS code scheme in pure Java in case native one isn't available in some environment. <span className="atlas-mono-hint">30 min</span>
+- [XORRawEncoder](/class/xorrawencoder) — A raw encoder in XOR code scheme in pure Java, adapted from HDFS-RAID. <span className="atlas-mono-hint">30 min</span>
+- [XORRawDecoder](/class/xorrawdecoder) — A raw decoder in XOR code scheme in pure Java, adapted from HDFS-RAID. <span className="atlas-mono-hint">30 min</span>
+- [NativeXORRawEncoder](/class/nativexorrawencoder) — A XOR raw encoder using Intel ISA-L library. <span className="atlas-mono-hint">30 min</span>
+- [DummyRawDecoder](/class/dummyrawdecoder) — A dummy raw decoder that does no real computation. <span className="atlas-mono-hint">30 min</span>
+- [NativeRSRawEncoder](/class/nativersrawencoder) — A Reed-Solomon raw encoder using Intel ISA-L library. <span className="atlas-mono-hint">30 min</span>
+- [NativeXORRawDecoder](/class/nativexorrawdecoder) — A XOR raw decoder using Intel ISA-L library. <span className="atlas-mono-hint">30 min</span>
+- [DummyRawEncoder](/class/dummyrawencoder) — A dummy raw encoder that does no real computation. <span className="atlas-mono-hint">30 min</span>
+- [NativeRSRawDecoder](/class/nativersrawdecoder) — A Reed-Solomon raw decoder using Intel ISA-L library. <span className="atlas-mono-hint">30 min</span>
+- [NativeRSRawErasureCoderFactory](/class/nativersrawerasurecoderfactory) — A raw coder factory for raw Reed-Solomon coder in native using Intel ISA-L. <span className="atlas-mono-hint">20 min</span>
+- [XORRawErasureCoderFactory](/class/xorrawerasurecoderfactory) — A raw coder factory for raw XOR coder. <span className="atlas-mono-hint">20 min</span>
+- [RSRawErasureCoderFactory](/class/rsrawerasurecoderfactory) — A raw coder factory for the new raw Reed-Solomon coder in Java. <span className="atlas-mono-hint">20 min</span>
+- [DummyRawErasureCoderFactory](/class/dummyrawerasurecoderfactory) — A raw erasure coder factory for dummy raw coders. <span className="atlas-mono-hint">20 min</span>
+- [NativeXORRawErasureCoderFactory](/class/nativexorrawerasurecoderfactory) — A raw coder factory for xor coder in native using Intel ISA-L library. <span className="atlas-mono-hint">20 min</span>
+- [RawErasureCoderFactory](/class/rawerasurecoderfactory) — Raw erasure coder factory that can be used to create raw encoder and decoder. <span className="atlas-mono-hint">20 min</span>
+- [ECChunk](/class/ecchunk) — A wrapper for ByteBuffer or bytes array for an erasure code chunk. <span className="atlas-mono-hint">30 min</span>
+- [ECContainerOperationClient](/class/eccontaineroperationclient) — This class wraps necessary container-level rpc calls during ec offline reconstruction. <span className="atlas-mono-hint">30 min</span>
+- [EncodingState](/class/encodingstate) — A utility class that maintains encoding state during an encode call. <span className="atlas-mono-hint">30 min</span>
+- [ByteBufferDecodingState](/class/bytebufferdecodingstate) — A utility class that maintains decoding state during a decode call using ByteBuffer inputs. <span className="atlas-mono-hint">30 min</span>
+- [ByteBufferEncodingState](/class/bytebufferencodingstate) — A utility class that maintains encoding state during an encode call using ByteBuffer inputs. <span className="atlas-mono-hint">30 min</span>
+- [ByteArrayDecodingState](/class/bytearraydecodingstate) — A utility class that maintains decoding state during a decode call using byte array inputs. <span className="atlas-mono-hint">30 min</span>
+- [ByteArrayEncodingState](/class/bytearrayencodingstate) — A utility class that maintains encoding state during an encode call using byte array inputs. <span className="atlas-mono-hint">30 min</span>
+- [ErasureCodeNative](/class/erasurecodenative) — Erasure code native libraries (for now, Intel ISA-L) related utilities. <span className="atlas-mono-hint">30 min</span>
+- [DecodingState](/class/decodingstate) — A utility class that maintains decoding state during a decode call. <span className="atlas-mono-hint">30 min</span>
+- [HadoopNativeECAccessorUtil](/class/hadoopnativeecaccessorutil) — This class is used to access some of the protected API from hadoop native EC java code. <span className="atlas-mono-hint">30 min</span>
+- [CodecRegistry](/class/codecregistry-5e746c) — This class registers all coder implementations. <span className="atlas-mono-hint">30 min</span>
+- [GaloisField](/class/galoisfield) — Implementation of Galois field arithmetic with 2^p elements. <span className="atlas-mono-hint">45 min</span>
+- [GF256](/class/gf256) — A GaloisField utility class only caring of 256 fields for efficiency. <span className="atlas-mono-hint">45 min</span>
+- [DumpUtil](/class/dumputil) — A dump utility class for debugging data erasure coding/decoding issues. <span className="atlas-mono-hint">30 min</span>
+- [CodecUtil](/class/codecutil) — A codec &amp;amp; coder utility to help create coders conveniently. <span className="atlas-mono-hint">30 min</span>
+
+<UnresolvedNote context="this view's selectors" items={["org.apache.hadoop.ozone.client.io.ECKeyInputStream"]} />

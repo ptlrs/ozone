@@ -1,0 +1,189 @@
+---
+slug: /component/hddscommon/container-common
+sidebar_label: "container-common"
+atlasGenerated: true
+---
+
+# hddscommon / container-common
+
+
+_This feature page was generated from `study/atlas/components/hddscommon/container-common.md`. Author prose belongs above or below the BEGIN/END markers._
+
+{/* BEGIN atlas-generated */}
+
+**Classes:** 21    **Kinds:** service:11, exception:7, dto:2, data:1
+
+## Overview
+
+`container-common` supplies the shared data types, DTOs, exception hierarchy, and configuration that SCM's ContainerManager, ReplicationManager, and ContainerBalancer use. `ContainerInfo` is the central DTO carrying ContainerID, state, ReplicationConfig, pipeline ID, and size; it round-trips through Protobuf via `toProto()` / `fromProtobuf()`. `ContainerID` is a value-typed long wrapper with a RocksDB `Codec` backed by `LongCodec`. `ContainerBalancerConfiguration` is the `@ConfigGroup(prefix = "hdds.container.balancer")` POJO with 15+ parameters and a `validate()` method that enforces that `maxSizeEnteringTarget` and `maxSizeLeavingSource` are not smaller than the configured container size. `ReplicationManagerReport` accumulates per-state container counts and is the primary reporting object emitted after each ReplicationManager scan cycle. Supporting the hierarchy are seven exception classes covering missing containers, invalid states, uncommitted blocks, and SCM-level storage errors; and helper classes such as `ExcludeList`, `AllocatedBlock`, `ContainerWithPipeline`, and `MoveDataNodePair` used in block allocation and container move paths.
+
+## Diagram
+
+```mermaid
+classDiagram
+  class ContainerInfo {
+    +ContainerID containerID
+    +LifeCycleState state
+    +ReplicationConfig replicationConfig
+    +PipelineID pipelineID
+    +long dataSizeBytes
+    +toProto() ContainerInfoProto
+    +fromProtobuf(proto) ContainerInfo
+  }
+  class ContainerID {
+    -long id
+    +getId() long
+    +getCodec() Codec~ContainerID~
+  }
+  class ContainerWithPipeline {
+    -ContainerInfo containerInfo
+    -Pipeline pipeline
+  }
+  class ContainerBalancerConfiguration {
+    <<@ConfigGroup prefix=hdds.container.balancer>>
+    +validate()
+    +getMaxSizeEnteringTarget() long
+    +getExcludeContainers() Set~ContainerID~
+  }
+  class ReplicationManagerReport {
+    +increment(HealthState)
+    +getStat(HealthState) long
+    +getStats() Map
+  }
+  class ExcludeList {
+    +addDatanode(DatanodeDetails)
+    +addContainerID(ContainerID)
+    +getPipelineIds() Set~PipelineID~
+  }
+  class ContainerChecksums {
+    +getDataChecksum() bytes
+    +getMetadataChecksum() bytes
+  }
+  class AllocatedBlock {
+    -ContainerBlockID blockID
+    -Pipeline pipeline
+    +build() AllocatedBlock
+  }
+  class MoveDataNodePair {
+    -DatanodeDetails src
+    -DatanodeDetails tgt
+  }
+  ContainerWithPipeline o-- ContainerInfo
+  ContainerWithPipeline o-- "pipeline"
+  ContainerBalancerConfiguration ..> ContainerID : excludeContainers
+  ExcludeList o-- ContainerID
+  AllocatedBlock o-- "pipeline"
+  MoveDataNodePair o-- "DatanodeDetails"
+click ContainerInfo href "/class/containerinfo" "Open ContainerInfo"
+click ContainerID href "/class/containerid" "Open ContainerID"
+click ContainerWithPipeline href "/class/containerwithpipeline" "Open ContainerWithPipeline"
+click ContainerBalancerConfiguration href "/class/containerbalancerconfiguration" "Open ContainerBalancerConfiguration"
+click ReplicationManagerReport href "/class/replicationmanagerreport" "Open ReplicationManagerReport"
+click ExcludeList href "/class/excludelist" "Open ExcludeList"
+click ContainerChecksums href "/class/containerchecksums" "Open ContainerChecksums"
+click AllocatedBlock href "/class/allocatedblock" "Open AllocatedBlock"
+click MoveDataNodePair href "/class/movedatanodepair" "Open MoveDataNodePair"
+```
+
+## Class table
+
+### Sub-feature: `common.helpers`
+
+| reading_order | fqcn | kind | logic | loc | study (min) | role |
+|--:|---|---|---|--:|--:|---|
+| 547 | <Fqcn>org.apache.hadoop.hdds.scm.container.common.helpers.ExcludeList</Fqcn> | service | mixed | 100~ | 30 | This class contains set of dns and containers which ozone client provides to be handed over to SCM when block allocat... |
+| 548 | <Fqcn>org.apache.hadoop.hdds.scm.container.common.helpers.DeletedBlocksTransactionInfoWrapper</Fqcn> | service | mixed | 75~ | 30 | The wrapper for DeletedBlocksTransactionInfo. |
+| 549 | <Fqcn>org.apache.hadoop.hdds.scm.container.common.helpers.ContainerWithPipeline</Fqcn> | service | mixed | 50~ | 30 | Class wraps ozone container info. |
+| 550 | <Fqcn>org.apache.hadoop.hdds.scm.container.common.helpers.DeleteBlockResult</Fqcn> | service | mixed | 25~ | 30 | Class wraps storage container manager block deletion results. |
+| 551 | <Fqcn>org.apache.hadoop.hdds.scm.container.common.helpers.MoveDataNodePair</Fqcn> | service | mixed | 25~ | 30 | MoveDataNodePair encapsulates the source and target datanodes of a move option. |
+| 552 | <Fqcn>org.apache.hadoop.hdds.scm.container.common.helpers.AllocatedBlock</Fqcn> | service | mixed | 25~ | 30 | Allocated block wraps the result returned from SCM#allocateBlock which contains a Pipeline and the key. |
+| 553 | <Fqcn>org.apache.hadoop.hdds.scm.container.common.helpers.InvalidContainerStateException</Fqcn> | exception | data-only | 25~ | 10 | Exceptions thrown when a container is in invalid state while doing a I/O. |
+| 554 | <Fqcn>org.apache.hadoop.hdds.scm.container.common.helpers.StorageContainerException</Fqcn> | exception | data-only | 25~ | 10 | Exceptions thrown from the Storage Container. |
+| 555 | <Fqcn>org.apache.hadoop.hdds.scm.container.common.helpers.BlockNotCommittedException</Fqcn> | exception | data-only | 25~ | 10 | Exceptions thrown when a block is yet to be committed on the datanode. |
+| 556 | <Fqcn>org.apache.hadoop.hdds.scm.container.common.helpers.ContainerNotOpenException</Fqcn> | exception | data-only | 25~ | 10 | Exceptions thrown when a write/update opearation is done on non-open container. |
+
+### Sub-feature: `container.balancer`
+
+| reading_order | fqcn | kind | logic | loc | study (min) | role |
+|--:|---|---|---|--:|--:|---|
+| 557 | <Fqcn>org.apache.hadoop.hdds.scm.container.balancer.ContainerBalancerConfiguration</Fqcn> | service | logic-heavy | 375~ | 45 | This class contains configuration values for the ContainerBalancer. |
+
+### Sub-feature: `scm.container`
+
+| reading_order | fqcn | kind | logic | loc | study (min) | role |
+|--:|---|---|---|--:|--:|---|
+| 558 | <Fqcn>org.apache.hadoop.hdds.scm.container.ReplicationManagerReport</Fqcn> | service | mixed | 175~ | 45 | This class is used by ReplicationManager. |
+| 559 | <Fqcn>org.apache.hadoop.hdds.scm.container.ContainerID</Fqcn> | service | mixed | 75~ | 30 | Container ID is an integer that is a value between 1..MAX_CONTAINER ID. |
+| 560 | <Fqcn>org.apache.hadoop.hdds.scm.container.ContainerChecksums</Fqcn> | service | mixed | 50~ | 30 | Wrapper for container checksums (data, metadata, etc.). |
+| 561 | <Fqcn>org.apache.hadoop.hdds.scm.container.ContainerListResult</Fqcn> | service | mixed | 25~ | 30 | Wrapper class for the result of listing containers with their total count. |
+| 562 | <Fqcn>org.apache.hadoop.hdds.scm.container.ContainerInfo</Fqcn> | dto | logic-heavy | 300~ | 10 | Class wraps ozone container info. |
+| 563 | <Fqcn>org.apache.hadoop.hdds.scm.container.ContainerReplicaInfo</Fqcn> | dto | data-only | 100~ | 10 | Class which stores ContainerReplica details on the client. |
+| 564 | <Fqcn>org.apache.hadoop.hdds.scm.container.ContainerHealthState</Fqcn> | data | data-only | 75~ | 10 | Enum representing container health states. |
+| 565 | <Fqcn>org.apache.hadoop.hdds.scm.container.ContainerNotFoundException</Fqcn> | exception | data-only | 25~ | 10 | Signals that a container is missing from ContainerManager. |
+| 566 | <Fqcn>org.apache.hadoop.hdds.scm.container.ContainerException</Fqcn> | exception | data-only | 25~ | 10 | Signals that ContainerException of some sort has occurred. |
+| 567 | <Fqcn>org.apache.hadoop.hdds.scm.container.ContainerReplicaNotFoundException</Fqcn> | exception | data-only | 25~ | 10 | Signals that a ContainerReplica is missing from the Container in ContainerManager. |
+
+
+
+## Anchor details
+
+### `ContainerBalancerConfiguration`
+
+- **path:** `hadoop-hdds/common/src/main/java/org/apache/hadoop/hdds/scm/container/balancer/ContainerBalancerConfiguration.java`
+- **loc:** 375~    **difficulty:** 4    **study:** 45 min    **concurrency:** single-threaded    **persistence:** in-memory
+- **key collaborators:** `org.apache.hadoop.hdds.scm.container.ContainerID`, `org.apache.hadoop.hdds.conf.Config`, `org.apache.hadoop.hdds.conf.ConfigGroup`, `org.apache.hadoop.hdds.conf.ConfigTag`, `org.apache.hadoop.hdds.conf.ConfigType`, `org.apache.hadoop.hdds.conf.OzoneConfiguration`
+- **role:** This class contains configuration values for the ContainerBalancer.
+- `validate()` cross-checks multi-field constraints: it ensures `maxSizeEnteringTarget` is not less than the container size threshold, and that `maxSizeLeavingSource` is likewise bounded; violations throw `IllegalArgumentException` at startup (see [HDDS-15535](https://issues.apache.org/jira/browse/HDDS-15535) which made these failures fatal rather than silently ignored). The `excludeContainers` and `includeContainers` sets (added by [HDDS-14618](https://issues.apache.org/jira/browse/HDDS-14618) and [HDDS-14619](https://issues.apache.org/jira/browse/HDDS-14619)) are parsed from comma-separated container ID strings in the config value.
+
+
+## Design docs
+
+- `hadoop-hdds/docs/content/design/ec.md` — erasure-coded replication introduces `ECReplicationConfig` which is stored inside `ContainerInfo.replicationConfig`.
+- `hadoop-hdds/docs/content/design/decommissioning.md` — container-level replica tracking and `ExcludeList` behavior during decommission flows.
+- `hadoop-hdds/docs/content/design/diskbalancer.md` — overlaps with ContainerBalancer concepts around moving containers between datanodes.
+
+## Seminal JIRAs / PRs
+
+- [HDDS-15535](https://issues.apache.org/jira/browse/HDDS-15535). Container Balancer validate configuration and report startup failures
+- [HDDS-14870](https://issues.apache.org/jira/browse/HDDS-14870). Allow balancing of over replicated and quasi closed containers
+- [HDDS-14618](https://issues.apache.org/jira/browse/HDDS-14618). Support including only specified containers in Container Balancer
+- [HDDS-14619](https://issues.apache.org/jira/browse/HDDS-14619). Add option in Container Balancer CLI for excluding containers
+- [HDDS-14103](https://issues.apache.org/jira/browse/HDDS-14103). Create option to suppress/unsuppress containers from report
+- [HDDS-13305](https://issues.apache.org/jira/browse/HDDS-13305). Create wrapper object for container checksums
+
+## Sharp edges
+
+- `ContainerInfo.fromProtobuf()` previously created two `ContainerInfo` instances per deserialization call ([HDDS-14196](https://issues.apache.org/jira/browse/HDDS-14196)); the second instance was discarded but this caused measurable GC pressure in high-throughput SCM paths. Fixed by collapsing to a single construction path in `fromProtobuf()`.
+- `ContainerBalancerConfiguration.validate()` was not called at startup before [HDDS-15535](https://issues.apache.org/jira/browse/HDDS-15535); invalid configurations (e.g., `maxSizeEnteringTarget` smaller than container size) silently produced incorrect balancer behavior rather than a startup failure.
+- `ExcludeList` is thread-safe at the field level but the combination of `addContainerID` and `getContainerIds` is not atomic; callers in the block allocation path must ensure they hold the relevant lock around the check-then-act sequence.
+
+## Related features
+
+- [`pipeline-common.md`](/component/hddscommon/pipeline-common) — `Pipeline` and `PipelineID` are embedded in `ContainerInfo` and `ContainerWithPipeline`.
+- [`scm-common.md`](/component/hddscommon/scm-common) — SCM-side container management that consumes `ContainerInfo`, `ContainerID`, and these exceptions.
+- [`protocol-common.md`](/component/hddscommon/protocol-common) — Protobuf-generated types that `ContainerInfo.toProto()` and `fromProtobuf()` translate to/from.
+- [`hdds-db-utils.md`](/component/hddscommon/hdds-db-utils) — `LongCodec` and `Proto2Codec` used by `ContainerID` and `MoveDataNodePair` for RocksDB serialization.
+- [`config-common.md`](/component/hddscommon/config-common) — `@ConfigGroup` / `@Config` annotations used by `ContainerBalancerConfiguration`.
+
+## Self-quiz
+
+1. `ContainerInfo` carries a `LifeCycleState`. List all valid states in order of the normal container lifecycle from creation to deletion, and name the class in this feature that represents each abnormal health assessment.
+2. What two constraints does `ContainerBalancerConfiguration.validate()` enforce, and what happens if either is violated after [HDDS-15535](https://issues.apache.org/jira/browse/HDDS-15535)?
+3. `ContainerID` uses `LongCodec` as its RocksDB codec. What is the benefit of using a primitive codec rather than a Protobuf codec for a simple long value?
+4. `ExcludeList` is listed as `thread-safe`. Describe a scenario where a caller could still observe a race condition when using `ExcludeList` in block allocation.
+5. `ContainerChecksums` was introduced by [HDDS-13305](https://issues.apache.org/jira/browse/HDDS-13305). What problem does wrapping checksum data in a separate object solve compared to storing raw bytes directly on `ContainerInfo`?
+
+<details>
+<summary>Answers</summary>
+
+Answer 1: Normal lifecycle: OPEN → CLOSING → QUASI_CLOSED → CLOSED → DELETING → DELETED. Abnormal health is represented by `ContainerHealthState` (the enum) which maps to states like UNDER_REPLICATED, OVER_REPLICATED, MIS_REPLICATED, EMPTY, UNHEALTHY.
+Answer 2: `validate()` checks (1) `maxSizeEnteringTarget >= containerSize` threshold and (2) `maxSizeLeavingSource >= containerSize` threshold; after [HDDS-15535](https://issues.apache.org/jira/browse/HDDS-15535) a violation throws `IllegalArgumentException` at ContainerBalancer startup rather than silently proceeding.
+Answer 3: `LongCodec` serialises as 8 bytes using direct `ByteBuffer.putLong()`; a Protobuf codec adds varint framing overhead and object allocation on every encode/decode, which matters at SCM scale with millions of container ID lookups.
+Answer 4: A caller that calls `excludeList.getContainerIds()` and then checks whether a container is present may observe a stale snapshot if another thread calls `addContainerID()` between the get and the check; the individual operations are atomic but the check-then-act pattern is not.
+Answer 5: Separating checksum data into `ContainerChecksums` avoids bloating `ContainerInfo` with variable-length byte arrays that are only needed during verification; it also allows checksum data to be loaded lazily from a separate RocksDB key rather than on every `ContainerInfo` read.
+
+</details>
+
+
+
+{/* END atlas-generated */}

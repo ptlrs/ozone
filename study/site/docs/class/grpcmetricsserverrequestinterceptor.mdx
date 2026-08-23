@@ -1,0 +1,69 @@
+---
+slug: /class/grpcmetricsserverrequestinterceptor
+title: "GrpcMetricsServerRequestInterceptor"
+sidebar_label: "GrpcMetricsServerRequestInterceptor"
+atlasGenerated: true
+---
+
+
+# GrpcMetricsServerRequestInterceptor
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.grpc.metrics.GrpcMetricsServerRequestInterceptor</code>
+
+<ClassBadge kind="metrics" logicWeight="mixed" concurrency="single-threaded" difficulty={2} studyMinutes={20} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>Interceptor to gather metrics based on grpc server request.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/hddscommon">HddsCommon</a> / <a href="/component/hddscommon/metrics-utils">metrics-utils</a>
+<span>metrics · mixed</span>
+<span>single-threaded · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 98</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 1961</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>metrics</code> in <code>HddsCommon/metrics-utils</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>single-threaded</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>20 min</code>. Difficulty is <code>2/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/ozone/grpc/metrics/GrpcMetricsServerRequestInterceptor.java">hadoop-hdds/framework/src/main/java/org/apache/hadoop/ozone/grpc/metrics/GrpcMetricsServerRequestInterceptor.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li>&lt;em&gt;No exemplar test classified yet.&lt;/em&gt;</li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/ozone/grpc/metrics/GrpcMetricsServerRequestInterceptor.java" line={55}>GrpcMetricsServerRequestInterceptor.java · onMessage()</SourceLink>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.grpc.metrics.GrpcMetricsServerRequestInterceptor" />
+## Read next
+
+<div className="atlas-read-next">In this feature (HddsCommon/metrics-utils): <Fqcn>org.apache.hadoop.ozone.grpc.metrics.GrpcMetricsServerResponseInterceptor</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="grpcmetricsserverrequestinterceptor" />

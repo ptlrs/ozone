@@ -1,0 +1,69 @@
+---
+slug: /class/containerreplicapendingops
+title: "ContainerReplicaPendingOps"
+sidebar_label: "ContainerReplicaPendingOps"
+atlasGenerated: true
+---
+
+
+# ContainerReplicaPendingOps
+
+<code className="atlas-fqcn-full">org.apache.hadoop.hdds.scm.container.replication.ContainerReplicaPendingOps</code>
+
+<ClassBadge kind="service" logicWeight="logic-heavy" concurrency="thread-safe" difficulty={4} studyMinutes={45} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>Class to track pending replication operations across the cluster.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/scm">SCM</a> / <a href="/component/scm/container-replication">container-replication</a>
+<span>service · logic-heavy</span>
+<span>thread-safe · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 522</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 614</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">test</span> TestContainerReplicaPendingOps.java</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>service</code> in <code>SCM/container-replication</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>thread-safe</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>45 min</code>. Difficulty is <code>4/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-hdds/server-scm/src/main/java/org/apache/hadoop/hdds/scm/container/replication/ContainerReplicaPendingOps.java">hadoop-hdds/server-scm/src/main/java/org/apache/hadoop/hdds/scm/container/replication/ContainerReplicaPendingOps.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li><SourceLink path="hadoop-hdds/server-scm/src/test/java/org/apache/hadoop/hdds/scm/container/replication/TestContainerReplicaPendingOps.java">hadoop-hdds/server-scm/src/test/java/org/apache/hadoop/hdds/scm/container/replication/TestContainerReplicaPendingOps.java</SourceLink></li>
+</ul>
+</div>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.hdds.client.ReplicationType</Fqcn> · <Fqcn>org.apache.hadoop.hdds.protocol.DatanodeDetails</Fqcn> · <Fqcn>org.apache.hadoop.hdds.protocol.DatanodeID</Fqcn> · <Fqcn>org.apache.hadoop.hdds.scm.container.ContainerID</Fqcn> · <Fqcn>org.apache.hadoop.ozone.protocol.commands.SCMCommand</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.hdds.scm.container.replication.ContainerReplicaPendingOps" />
+## Read next
+
+<div className="atlas-read-next">In this feature (SCM/container-replication): <Fqcn>org.apache.hadoop.hdds.scm.container.replication.ReplicationManagerUtil</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="containerreplicapendingops" />

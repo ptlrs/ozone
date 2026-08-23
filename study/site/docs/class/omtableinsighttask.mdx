@@ -1,0 +1,74 @@
+---
+slug: /class/omtableinsighttask
+title: "OmTableInsightTask"
+sidebar_label: "OmTableInsightTask"
+atlasGenerated: true
+---
+
+
+# OmTableInsightTask
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.recon.tasks.OmTableInsightTask</code>
+
+<ClassBadge kind="service" logicWeight="logic-heavy" concurrency="single-threaded" difficulty={4} studyMinutes={45} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>Class to iterate over the OM DB and store the total counts of volumes, buckets, keys, open keys, deleted keys, etc.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/recon">Recon</a> / <a href="/component/recon/recon-tasks">recon-tasks</a>
+<span>service · logic-heavy</span>
+<span>single-threaded · RocksDB</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> RocksDB</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 453</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 2434</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">test</span> TestOmTableInsightTask.java</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>service</code> in <code>Recon/recon-tasks</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>single-threaded</code>; persistence is <code>RocksDB</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>45 min</code>. Difficulty is <code>4/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/tasks/OmTableInsightTask.java">hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/tasks/OmTableInsightTask.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li><SourceLink path="hadoop-ozone/recon/src/test/java/org/apache/hadoop/ozone/recon/tasks/TestOmTableInsightTask.java">hadoop-ozone/recon/src/test/java/org/apache/hadoop/ozone/recon/tasks/TestOmTableInsightTask.java</SourceLink></li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/tasks/OmTableInsightTask.java" line={103}>OmTableInsightTask.java · init()</SourceLink>
+- <SourceLink path="hadoop-ozone/recon/src/main/java/org/apache/hadoop/ozone/recon/tasks/OmTableInsightTask.java" line={249}>OmTableInsightTask.java · process()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.ozone.recon.tasks.util.ParallelTableIteratorOperation</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.ByteArrayCodec</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.DBStore</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.RDBBatchOperation</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.StringCodec</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.db.Table</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.recon.tasks.OmTableInsightTask" />
+## Read next
+
+<div className="atlas-read-next">In this feature (Recon/recon-tasks): <Fqcn>org.apache.hadoop.ozone.recon.tasks.NSSummaryTaskDbEventHandler</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="omtableinsighttask" />

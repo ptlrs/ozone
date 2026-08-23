@@ -1,0 +1,77 @@
+---
+slug: /reference/protobuf-map
+sidebar_label: "Protobuf map"
+---
+
+# Protobuf Map
+
+Every wire type in Ozone is defined by a `.proto`, generated into `*Protos.java`, and dispatched through a hand-written `ProtocolPB` translator pair. Read the `.proto` first; then the client-side `ProtocolTranslatorPB` (Java → Protobuf → RPC → …); then the server-side `ProtocolServerSideTranslatorPB` (RPC → Protobuf → Java handler).
+
+## Proto files, by module
+
+### `hadoop-hdds/interface-admin`
+
+- <SourceLink path="hadoop-hdds/interface-admin/src/main/proto/ScmAdminProtocol.proto"><code>ScmAdminProtocol.proto</code></SourceLink>
+
+### `hadoop-hdds/interface-client`
+
+- <SourceLink path="hadoop-hdds/interface-client/src/main/proto/DatanodeClientProtocol.proto"><code>DatanodeClientProtocol.proto</code></SourceLink>
+- <SourceLink path="hadoop-hdds/interface-client/src/main/proto/DiskBalancerProtocol.proto"><code>DiskBalancerProtocol.proto</code></SourceLink>
+- <SourceLink path="hadoop-hdds/interface-client/src/main/proto/hdds.proto"><code>hdds.proto</code></SourceLink>
+- <SourceLink path="hadoop-hdds/interface-client/src/main/proto/IpcConnectionContext.proto"><code>IpcConnectionContext.proto</code></SourceLink>
+- <SourceLink path="hadoop-hdds/interface-client/src/main/proto/ProtobufRpcEngine.proto"><code>ProtobufRpcEngine.proto</code></SourceLink>
+- <SourceLink path="hadoop-hdds/interface-client/src/main/proto/ReconfigureProtocol.proto"><code>ReconfigureProtocol.proto</code></SourceLink>
+- <SourceLink path="hadoop-hdds/interface-client/src/main/proto/RpcHeader.proto"><code>RpcHeader.proto</code></SourceLink>
+
+### `hadoop-hdds/interface-server`
+
+- <SourceLink path="hadoop-hdds/interface-server/src/main/proto/InterSCMProtocol.proto"><code>InterSCMProtocol.proto</code></SourceLink>
+- <SourceLink path="hadoop-hdds/interface-server/src/main/proto/SCMRatisProtocol.proto"><code>SCMRatisProtocol.proto</code></SourceLink>
+- <SourceLink path="hadoop-hdds/interface-server/src/main/proto/ScmSecretKeyProtocol.proto"><code>ScmSecretKeyProtocol.proto</code></SourceLink>
+- <SourceLink path="hadoop-hdds/interface-server/src/main/proto/ScmServerDatanodeHeartbeatProtocol.proto"><code>ScmServerDatanodeHeartbeatProtocol.proto</code></SourceLink>
+- <SourceLink path="hadoop-hdds/interface-server/src/main/proto/ScmServerProtocol.proto"><code>ScmServerProtocol.proto</code></SourceLink>
+- <SourceLink path="hadoop-hdds/interface-server/src/main/proto/ScmServerSecurityProtocol.proto"><code>ScmServerSecurityProtocol.proto</code></SourceLink>
+- <SourceLink path="hadoop-hdds/interface-server/src/main/proto/SCMUpdateProtocol.proto"><code>SCMUpdateProtocol.proto</code></SourceLink>
+
+### `hadoop-ozone/interface-client`
+
+- <SourceLink path="hadoop-ozone/interface-client/src/main/proto/OMAdminProtocol.proto"><code>OMAdminProtocol.proto</code></SourceLink>
+- <SourceLink path="hadoop-ozone/interface-client/src/main/proto/OmClientProtocol.proto"><code>OmClientProtocol.proto</code></SourceLink>
+- <SourceLink path="hadoop-ozone/interface-client/src/main/proto/OmInterServiceProtocol.proto"><code>OmInterServiceProtocol.proto</code></SourceLink>
+- <SourceLink path="hadoop-ozone/interface-client/src/main/proto/Security.proto"><code>Security.proto</code></SourceLink>
+
+### `hadoop-ozone/interface-storage`
+
+- <SourceLink path="hadoop-ozone/interface-storage/src/main/proto/OmStorageProtocol.proto"><code>OmStorageProtocol.proto</code></SourceLink>
+
+## Translator pairs (`ProtocolPB` / `ProtocolTranslatorPB` / `ProtocolServerSideTranslatorPB`)
+
+| Service | class | path |
+|---|---|---|
+| DiskBalancer | <Fqcn>org.apache.hadoop.hdds.protocolPB.DiskBalancerProtocolPB</Fqcn> | <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/protocolPB/DiskBalancerProtocolPB.java"><code>DiskBalancerProtocolPB.java</code></SourceLink> |
+| DiskBalancer | <Fqcn>org.apache.hadoop.hdds.protocolPB.DiskBalancerProtocolServerSideTranslatorPB</Fqcn> | <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/protocolPB/DiskBalancerProtocolServerSideTranslatorPB.java"><code>DiskBalancerProtocolServerSideTranslatorPB.java</code></SourceLink> |
+| OMAdmin | <Fqcn>org.apache.hadoop.ozone.om.protocolPB.OMAdminProtocolPB</Fqcn> | <SourceLink path="hadoop-ozone/common/src/main/java/org/apache/hadoop/ozone/om/protocolPB/OMAdminProtocolPB.java"><code>OMAdminProtocolPB.java</code></SourceLink> |
+| OMInterService | <Fqcn>org.apache.hadoop.ozone.om.protocolPB.OMInterServiceProtocolPB</Fqcn> | <SourceLink path="hadoop-ozone/common/src/main/java/org/apache/hadoop/ozone/om/protocolPB/OMInterServiceProtocolPB.java"><code>OMInterServiceProtocolPB.java</code></SourceLink> |
+| OzoneManager | <Fqcn>org.apache.hadoop.ozone.om.protocolPB.OzoneManagerProtocolPB</Fqcn> | <SourceLink path="hadoop-ozone/common/src/main/java/org/apache/hadoop/ozone/om/protocolPB/OzoneManagerProtocolPB.java"><code>OzoneManagerProtocolPB.java</code></SourceLink> |
+| OzoneManager | <Fqcn>org.apache.hadoop.ozone.protocolPB.OzoneManagerProtocolServerSideTranslatorPB</Fqcn> | <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/protocolPB/OzoneManagerProtocolServerSideTranslatorPB.java"><code>OzoneManagerProtocolServerSideTranslatorPB.java</code></SourceLink> |
+| ReconDatanode | <Fqcn>org.apache.hadoop.ozone.protocolPB.ReconDatanodeProtocolPB</Fqcn> | <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/protocolPB/ReconDatanodeProtocolPB.java"><code>ReconDatanodeProtocolPB.java</code></SourceLink> |
+| Reconfigure | <Fqcn>org.apache.hadoop.hdds.protocolPB.ReconfigureProtocolPB</Fqcn> | <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/protocolPB/ReconfigureProtocolPB.java"><code>ReconfigureProtocolPB.java</code></SourceLink> |
+| Reconfigure | <Fqcn>org.apache.hadoop.hdds.protocolPB.ReconfigureProtocolServerSideTranslatorPB</Fqcn> | <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/protocolPB/ReconfigureProtocolServerSideTranslatorPB.java"><code>ReconfigureProtocolServerSideTranslatorPB.java</code></SourceLink> |
+| SCMSecurity | <Fqcn>org.apache.hadoop.hdds.protocolPB.SCMSecurityProtocolPB</Fqcn> | <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/protocolPB/SCMSecurityProtocolPB.java"><code>SCMSecurityProtocolPB.java</code></SourceLink> |
+| SCMSecurity | <Fqcn>org.apache.hadoop.hdds.scm.protocol.SCMSecurityProtocolServerSideTranslatorPB</Fqcn> | <SourceLink path="hadoop-hdds/server-scm/src/main/java/org/apache/hadoop/hdds/scm/protocol/SCMSecurityProtocolServerSideTranslatorPB.java"><code>SCMSecurityProtocolServerSideTranslatorPB.java</code></SourceLink> |
+| ScmBlockLocation | <Fqcn>org.apache.hadoop.hdds.scm.protocolPB.ScmBlockLocationProtocolPB</Fqcn> | <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/scm/protocolPB/ScmBlockLocationProtocolPB.java"><code>ScmBlockLocationProtocolPB.java</code></SourceLink> |
+| ScmBlockLocation | <Fqcn>org.apache.hadoop.hdds.scm.protocol.ScmBlockLocationProtocolServerSideTranslatorPB</Fqcn> | <SourceLink path="hadoop-hdds/server-scm/src/main/java/org/apache/hadoop/hdds/scm/protocol/ScmBlockLocationProtocolServerSideTranslatorPB.java"><code>ScmBlockLocationProtocolServerSideTranslatorPB.java</code></SourceLink> |
+| SecretKey | <Fqcn>org.apache.hadoop.hdds.scm.protocol.SecretKeyProtocolServerSideTranslatorPB</Fqcn> | <SourceLink path="hadoop-hdds/server-scm/src/main/java/org/apache/hadoop/hdds/scm/protocol/SecretKeyProtocolServerSideTranslatorPB.java"><code>SecretKeyProtocolServerSideTranslatorPB.java</code></SourceLink> |
+| StorageContainerDatanode | <Fqcn>org.apache.hadoop.ozone.protocolPB.StorageContainerDatanodeProtocolServerSideTranslatorPB</Fqcn> | <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/protocolPB/StorageContainerDatanodeProtocolServerSideTranslatorPB.java"><code>StorageContainerDatanodeProtocolServerSideTranslatorPB.java</code></SourceLink> |
+| StorageContainerDatanode | <Fqcn>org.apache.hadoop.ozone.protocolPB.StorageContainerDatanodeProtocolPB</Fqcn> | <SourceLink path="hadoop-hdds/container-service/src/main/java/org/apache/hadoop/ozone/protocolPB/StorageContainerDatanodeProtocolPB.java"><code>StorageContainerDatanodeProtocolPB.java</code></SourceLink> |
+| StorageContainerLocation | <Fqcn>org.apache.hadoop.hdds.scm.protocolPB.StorageContainerLocationProtocolPB</Fqcn> | <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/scm/protocolPB/StorageContainerLocationProtocolPB.java"><code>StorageContainerLocationProtocolPB.java</code></SourceLink> |
+| StorageContainerLocation | <Fqcn>org.apache.hadoop.hdds.scm.protocol.StorageContainerLocationProtocolServerSideTranslatorPB</Fqcn> | <SourceLink path="hadoop-hdds/server-scm/src/main/java/org/apache/hadoop/hdds/scm/protocol/StorageContainerLocationProtocolServerSideTranslatorPB.java"><code>StorageContainerLocationProtocolServerSideTranslatorPB.java</code></SourceLink> |
+
+## The hot protos (read these first)
+
+- `OmClientProtocol.proto` — `OMRequest` / `OMResponse` union; every OM write flows through this envelope. Dispatched by `OzoneManagerProtocolServerSideTranslatorPB` → `OMClientRequest` subclass.
+- `ScmServerProtocol.proto` — SCM allocate-block, container / pipeline queries used by the client and OM.
+- `ScmServerDatanodeHeartbeatProtocol.proto` — DN → SCM heartbeat + command channel; every background service (replication, balancer, scanner) closes its control loop through this.
+- `DatanodeClientProtocol.proto` — client ↔ DN chunk/block gRPC surface used by `XceiverClientRatis` and `XceiverClientGrpc`.
+- `hdds.proto` — shared types (`Pipeline`, `ContainerInfo`, `BlockID`, `ReplicationConfig`, `ChecksumData`, `DatanodeDetails`) that every other proto imports.
+- `SCMRatisProtocol.proto` — SCM HA Ratis envelope (leader → follower state transitions).

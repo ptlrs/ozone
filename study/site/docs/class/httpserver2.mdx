@@ -1,0 +1,75 @@
+---
+slug: /class/httpserver2
+title: "HttpServer2"
+sidebar_label: "HttpServer2"
+atlasGenerated: true
+---
+
+
+# HttpServer2
+
+<code className="atlas-fqcn-full">org.apache.hadoop.hdds.server.http.HttpServer2</code>
+
+<ClassBadge kind="service" logicWeight="logic-heavy" concurrency="single-threaded" difficulty={5} studyMinutes={60} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>Create a Jetty embedded server to answer http requests.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/hddscommon">HddsCommon</a> / <a href="/component/hddscommon/http-server">http-server</a>
+<span>service · logic-heavy</span>
+<span>single-threaded · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 1835</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 1939</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">test</span> TestHttpServer2.java</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>service</code> in <code>HddsCommon/http-server</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>single-threaded</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>60 min</code>. Difficulty is <code>5/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/server/http/HttpServer2.java">hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/server/http/HttpServer2.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li><SourceLink path="hadoop-hdds/framework/src/test/java/org/apache/hadoop/hdds/server/http/TestHttpServer2.java">hadoop-hdds/framework/src/test/java/org/apache/hadoop/hdds/server/http/TestHttpServer2.java</SourceLink></li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/server/http/HttpServer2.java" line={466}>HttpServer2.java · build()</SourceLink>
+- <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/server/http/HttpServer2.java" line={1216}>HttpServer2.java · start()</SourceLink>
+- <SourceLink path="hadoop-hdds/framework/src/main/java/org/apache/hadoop/hdds/server/http/HttpServer2.java" line={1669}>HttpServer2.java · init()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.hdds.annotation.InterfaceAudience</Fqcn> · <Fqcn>org.apache.hadoop.hdds.annotation.InterfaceStability</Fqcn> · <Fqcn>org.apache.hadoop.hdds.conf.ConfigurationSource</Fqcn> · <Fqcn>org.apache.hadoop.hdds.conf.MutableConfigurationSource</Fqcn> · <Fqcn>org.apache.hadoop.hdds.conf.OzoneConfiguration</Fqcn> · <Fqcn>org.apache.hadoop.hdds.utils.LegacyHadoopConfigurationSource</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.hdds.server.http.HttpServer2" />
+## Read next
+
+<div className="atlas-read-next">In this feature (HddsCommon/http-server): <Fqcn>org.apache.hadoop.hdds.server.http.ProfileServlet</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="httpserver2" />

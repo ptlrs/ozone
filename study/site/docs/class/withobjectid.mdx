@@ -1,0 +1,73 @@
+---
+slug: /class/withobjectid
+title: "WithObjectID"
+sidebar_label: "WithObjectID"
+atlasGenerated: true
+---
+
+
+# WithObjectID
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.om.helpers.WithObjectID</code>
+
+<ClassBadge kind="abstract" logicWeight="mixed" concurrency="single-threaded" difficulty={3} studyMinutes={30} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>Mixin class to handle ObjectID and UpdateID.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/ozonecommon">OzoneCommon</a> / <a href="/component/ozonecommon/om-helpers-common">om-helpers-common</a>
+<span>abstract · mixed</span>
+<span>single-threaded · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 142</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 2117</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>abstract</code> in <code>OzoneCommon/om-helpers-common</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>single-threaded</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>30 min</code>. Difficulty is <code>3/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-ozone/common/src/main/java/org/apache/hadoop/ozone/om/helpers/WithObjectID.java">hadoop-ozone/common/src/main/java/org/apache/hadoop/ozone/om/helpers/WithObjectID.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li>&lt;em&gt;No exemplar test classified yet.&lt;/em&gt;</li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-ozone/common/src/main/java/org/apache/hadoop/ozone/om/helpers/WithObjectID.java" line={137}>WithObjectID.java · build()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.ozone.OzoneConsts</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.om.helpers.WithObjectID" />
+## Read next
+
+<div className="atlas-read-next">In this feature (OzoneCommon/om-helpers-common): <Fqcn>org.apache.hadoop.ozone.om.helpers.WithMetadata</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="withobjectid" />

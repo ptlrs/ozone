@@ -1,0 +1,74 @@
+---
+slug: /class/poolbasedhierarchicalresourcelockmanager
+title: "PoolBasedHierarchicalResourceLockManager"
+sidebar_label: "PoolBasedHierarchicalResourceLockManager"
+atlasGenerated: true
+---
+
+
+# PoolBasedHierarchicalResourceLockManager
+
+<code className="atlas-fqcn-full">org.apache.hadoop.ozone.om.lock.PoolBasedHierarchicalResourceLockManager</code>
+
+<ClassBadge kind="service" logicWeight="mixed" concurrency="thread-safe" difficulty={4} studyMinutes={45} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>A lock manager implementation that manages hierarchical resource locks using a pool of reusable ReadWriteLock instances.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/om">OM</a> / <a href="/component/om/om-locking">om-locking</a>
+<span>service · mixed</span>
+<span>thread-safe · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 286</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 506</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">test</span> TestPoolBasedHierarchicalResourceLockManager.java</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>service</code> in <code>OM/om-locking</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>thread-safe</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>45 min</code>. Difficulty is <code>4/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/lock/PoolBasedHierarchicalResourceLockManager.java">hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/lock/PoolBasedHierarchicalResourceLockManager.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li><SourceLink path="hadoop-ozone/ozone-manager/src/test/java/org/apache/hadoop/ozone/om/lock/TestPoolBasedHierarchicalResourceLockManager.java">hadoop-ozone/ozone-manager/src/test/java/org/apache/hadoop/ozone/om/lock/TestPoolBasedHierarchicalResourceLockManager.java</SourceLink></li>
+</ul>
+</div>
+
+## Start in source
+
+- <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/lock/PoolBasedHierarchicalResourceLockManager.java" line={159}>PoolBasedHierarchicalResourceLockManager.java · close()</SourceLink>
+- <SourceLink path="hadoop-ozone/ozone-manager/src/main/java/org/apache/hadoop/ozone/om/lock/PoolBasedHierarchicalResourceLockManager.java" line={277}>PoolBasedHierarchicalResourceLockManager.java · create()</SourceLink>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.hdds.conf.OzoneConfiguration</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.hadoop.ozone.om.lock.PoolBasedHierarchicalResourceLockManager" />
+## Read next
+
+<div className="atlas-read-next">In this feature (OM/om-locking): <Fqcn>org.apache.hadoop.ozone.om.lock.DAGResourceLockTracker</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="poolbasedhierarchicalresourcelockmanager" />

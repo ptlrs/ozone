@@ -1,0 +1,69 @@
+---
+slug: /class/galoisfield
+title: "GaloisField"
+sidebar_label: "GaloisField"
+atlasGenerated: true
+---
+
+
+# GaloisField
+
+<code className="atlas-fqcn-full">org.apache.ozone.erasurecode.rawcoder.util.GaloisField</code>
+
+<ClassBadge kind="service" logicWeight="logic-heavy" concurrency="thread-safe" difficulty={4} studyMinutes={45} />
+<div className="atlas-class-summary">
+<div>
+<div className="atlas-eyebrow">Role</div>
+<p>Implementation of Galois field arithmetic with 2^p elements.</p>
+</div>
+<div className="atlas-class-summary__facts">
+<a href="/component/dn">DN</a> / <a href="/component/dn/erasure-coding">erasure-coding</a>
+<span>service · logic-heavy</span>
+<span>thread-safe · in-memory</span>
+</div>
+</div>
+
+<div className="atlas-meta-row">
+<span className="atlas-meta-chip"><span className="atlas-meta-chip__k">persistence</span> in-memory</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">loc</span> 561</span> <span className="atlas-meta-chip"><span className="atlas-meta-chip__k">reading_order</span> 247</span>
+</div>
+
+## Mental model
+
+<div className="atlas-study-grid">
+<div className="atlas-study-card">
+<strong>What to look for</strong>
+<p>Read this as a <code>service</code> in <code>DN/erasure-coding</code>. Focus on the code paths that make the role statement true.</p>
+</div>
+<div className="atlas-study-card">
+<strong>State and execution</strong>
+<p>Concurrency is classified as <code>thread-safe</code>; persistence is <code>in-memory</code>. Use those two facts to decide which fields and mutations deserve extra attention.</p>
+</div>
+<div className="atlas-study-card">
+<strong>Depth target</strong>
+<p>Budget <code>45 min</code>. Difficulty is <code>4/5</code>, so skim for shape first and then read the entry points.</p>
+</div>
+</div>
+
+## Source and test
+
+<div className="atlas-source-card">
+<strong>Source</strong>
+<p><SourceLink path="hadoop-hdds/erasurecode/src/main/java/org/apache/ozone/erasurecode/rawcoder/util/GaloisField.java">hadoop-hdds/erasurecode/src/main/java/org/apache/ozone/erasurecode/rawcoder/util/GaloisField.java</SourceLink></p>
+<strong>Best test to read</strong>
+<ul>
+<li>&lt;em&gt;No exemplar test classified yet.&lt;/em&gt;</li>
+</ul>
+</div>
+
+## Key collaborators
+
+<Fqcn>org.apache.hadoop.hdds.annotation.InterfaceAudience</Fqcn>
+
+## Where it appears
+<Backlinks fqcn="org.apache.ozone.erasurecode.rawcoder.util.GaloisField" />
+## Read next
+
+<div className="atlas-read-next">In this feature (DN/erasure-coding): <Fqcn>org.apache.ozone.erasurecode.rawcoder.util.GF256</Fqcn></div>
+
+## Progress
+<ProgressCheckbox id="galoisfield" />
